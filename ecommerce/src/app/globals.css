@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #62131A;
+  --secondary: #400D11;
+  --gold: #D3A736;
+}
+
+body {
+  font-family: var(--font-playfair), serif;
+  background: #ffffff;
+}
