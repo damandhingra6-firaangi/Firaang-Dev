@@ -5,21 +5,19 @@ import { Search, Heart, ShoppingBag, User } from "lucide-react";
 
 export default function Navbar() {
   return (
-    <div className="fixed top-0 w-full z-50">
-      {/* Top bar */}
-      <div className="bg-[var(--primary)] text-center text-xs py-2 text-white tracking-wide">
-        FREE SHIPPING ON ORDER ABOVE $25 SHOP NOW
+    <header className="fixed top-0 w-full z-50">
+      <div className="bg-[#7a202a] text-center py-2 text-[10px] tracking-[0.25em] uppercase font-medium md:text-xs">
+        Free Shipping on Orders Above $25 | New Festive Edit Live
       </div>
 
-      {/* Main navbar */}
-      <div className="flex justify-between items-center px-10 py-4 bg-[var(--secondary)] text-white">
-        {/* Logo */}
-        <h1 className="text-3xl font-bold tracking-widest text-[var(--gold)]">
-          FIRAANGI
-        </h1>
+      <div className="flex items-center justify-between border-y border-[#8a2c35]/60 bg-[var(--secondary)]/95 px-4 py-4 backdrop-blur-md md:px-10">
+        <img
+          src="/Firaangi Logo Design.svg"
+          alt="Firaangi Logo"
+          className="h-[40px] w-auto"
+        />
 
-        {/* Nav links */}
-        <nav className="hidden md:flex gap-10 text-sm tracking-wider">
+        <nav className="hidden md:flex gap-8 text-base tracking-[0.12em] font-normal" style={{ fontSize: "16px" }}>
           <a href="#" className="hover:text-[var(--gold)]">
             HOME
           </a>
@@ -43,17 +41,17 @@ export default function Navbar() {
           </a>
         </nav>
 
-        <div className="flex items-center gap-6">
-          <Search className="w-5 h-5 cursor-pointer hover:text-[var(--gold)]" />
-          <Heart className="w-5 h-5 cursor-pointer hover:text-[var(--gold)]" />
-          <ShoppingBag className="w-5 h-5 cursor-pointer hover:text-[var(--gold)]" />
-          <User className="w-5 h-5 cursor-pointer hover:text-[var(--gold)]" />
+        <div className="flex items-center gap-3 md:gap-5">
+          <Search className="h-5 w-5 cursor-pointer hover:text-[var(--gold)]" />
+          <Heart className="h-5 w-5 cursor-pointer hover:text-[var(--gold)]" />
+          <ShoppingBag className="h-5 w-5 cursor-pointer hover:text-[var(--gold)]" />
+          <User className="hidden h-5 w-5 cursor-pointer hover:text-[var(--gold)] md:block" />
 
-          <button className="bg-[var(--gold)] text-black px-5 py-2 rounded-none uppercase tracking-wide font-semibold">
+          <button className="gold-button hidden md:block">
             SHOP NOW
           </button>
         </div>
       </div>
-    </div>
+    </header>
   );
 }

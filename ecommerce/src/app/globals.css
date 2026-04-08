@@ -5,10 +5,50 @@
 :root {
   --primary: #62131A;
   --secondary: #400D11;
+  --surface: #3a090f;
+  --cream: #f8ece7;
   --gold: #D3A736;
 }
 
 body {
+  font-family: var(--font-poppins), sans-serif;
+  background:
+    radial-gradient(circle at 20% 0%, #7b1b24 0%, transparent 30%),
+    radial-gradient(circle at 90% 20%, #4c0e15 0%, transparent 20%),
+    var(--secondary);
+  color: #ffffff;
+}
+
+h1,
+h2,
+h3,
+h4 {
   font-family: var(--font-playfair), serif;
-  background: #ffffff;
+}
+
+.section-shell {
+  @apply mx-auto w-full max-w-7xl px-4 md:px-6;
+}
+
+.gold-button {
+  @apply rounded-[8px] border border-[var(--gold)] bg-[var(--gold)] px-7 py-3 text-sm font-medium tracking-[0.04em] text-black transition duration-300 hover:bg-[#f0c654] hover:border-[#f0c654];
+}
+
+.outline-button {
+  @apply rounded-[8px] border border-[var(--gold)] bg-transparent px-7 py-3 text-sm font-medium tracking-[0.04em] text-[var(--gold)] transition duration-300 hover:bg-[var(--gold)] hover:text-black;
+}
+
+.fade-in-up {
+  animation: fadeInUp 700ms ease-out both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

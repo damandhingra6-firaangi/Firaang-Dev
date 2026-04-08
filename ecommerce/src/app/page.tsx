@@ -3,17 +3,33 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import Category from "@/components/Category";
+import RedRibbon from "@/components/RedRibbon";
 import ProductGrid from "@/components/ProductGrid";
 import SaleBanner from "@/components/SaleBanner";
+import CuratedCollection from "@/components/CuratedCollection";
+import SeasonShowcase from "@/components/SeasonShowcase";
+import Testimonials from "@/components/Testimonials";
+import FeaturedSection from "@/components/FeaturedSection";
+import BottomCta from "@/components/BottomCta";
+import Newsletter from "@/components/Newsletter";
+import FeedbackPill from "@/components/FeedbackPill";
 
 export default function Home() {
   return (
-    <>
+    <main>
       <Navbar />
       <Hero />
+      <RedRibbon />
       <Category />
       <ProductGrid />
       <SaleBanner />
-    </>
+      <CuratedCollection />
+      <SeasonShowcase />
+      <Testimonials />
+      <FeaturedSection />
+      <BottomCta />
+      <Newsletter />
+      <FeedbackPill />
+    </main>
   );
 }
