@@ -1,7 +1,71 @@
 "use client";
 
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { newsletterSchema } from "@/lib/newsletter";
+import { useUiStore } from "@/store/useUiStore";
 
 export default function Newsletter() {
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const pushToast = useUiStore((state) => state.pushToast);
+  const isMountedRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const handleSubscribe = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const parsed = newsletterSchema.safeParse({ email });
+    if (!parsed.success) {
+      const firstError = parsed.error.issues[0]?.message ?? "Please enter a valid email";
+      pushToast(firstError, { variant: "warning" });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(parsed.data),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as { duplicate?: boolean; error?: string };
+
+      if (!response.ok) {
+        pushToast(payload.error ?? "Could not subscribe right now", { variant: "error" });
+        return;
+      }
+
+      if (payload.duplicate) {
+        pushToast("You are already subscribed.", { variant: "info" });
+      } else {
+        pushToast("Subscribed successfully. Welcome to the club!", { variant: "success" });
+      }
+
+      if (isMountedRef.current) {
+        setEmail("");
+      }
+    } catch (error) {
+      console.error("Newsletter subscription failed", error);
+      pushToast("Could not subscribe right now", { variant: "error" });
+    } finally {
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
   return (
     <>
       {/* Instagram Section */}
@@ -31,14 +95,21 @@ export default function Newsletter() {
             Be the first to know about new collections, exclusive offers, and luxury style tips.
           </p>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <form className="mt-6 flex flex-col gap-3 sm:flex-row" onSubmit={handleSubscribe}>
             <input
               type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
               placeholder="Your email address"
               className="flex-1 bg-[#4a0b12] px-4 py-3 text-sm text-white placeholder-[#999] outline-none"
+              aria-label="Email address"
+              required
             />
-            <button className="gold-button px-6 py-3">Subscribe</button>
-          </div>
+            <button type="submit" className="gold-button inline-flex items-center justify-center gap-2 px-6 py-3" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {isSubmitting ? "Subscribing..." : "Subscribe"}
+            </button>
+          </form>
         </div>
       </section>
     </>
