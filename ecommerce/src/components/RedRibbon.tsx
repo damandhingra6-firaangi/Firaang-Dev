@@ -17,8 +17,8 @@ const ribbonItems = [
     Icon: Headset,
   },
   {
-    title: "Recieve Gift Card",
-    subtitle: "Recieve Gift All Over Oder $50",
+    title: "Receive Gift Card",
+    subtitle: "Receive Gift All Over Order ₹5000",
     Icon: Gift,
   },
 ];

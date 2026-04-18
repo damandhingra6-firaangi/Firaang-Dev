@@ -69,7 +69,7 @@ export default function Newsletter() {
   return (
     <>
       {/* Instagram Section */}
-      <section className="bg-[var(--secondary)] py-12">
+      {/* <section className="bg-[var(--secondary)] py-12">
         <div className="section-shell">
           <div className="flex items-center justify-center gap-2 text-[var(--gold)]">
             <h2 className="text-2xl font-bold">@Firaangi_boutique</h2>
@@ -84,10 +84,10 @@ export default function Newsletter() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Newsletter Section */}
-      <section className="bg-[var(--primary)] py-16">
+      <section data-newsletter-section className="bg-[var(--primary)] py-16">
         <div className="section-shell max-w-2xl text-center">
           <p className="text-xs uppercase tracking-[0.28em] text-[var(--gold)]">Stay Connected</p>
           <h2 className="mt-2 text-4xl md:text-5xl">Join The Firaangi Club</h2>
@@ -105,7 +105,12 @@ export default function Newsletter() {
               aria-label="Email address"
               required
             />
-            <button type="submit" className="gold-button inline-flex items-center justify-center gap-2 px-6 py-3" disabled={isSubmitting}>
+            <button
+              type="submit"
+              data-newsletter-subscribe
+              className="gold-button inline-flex items-center justify-center gap-2 px-6 py-3"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {isSubmitting ? "Subscribing..." : "Subscribe"}
             </button>

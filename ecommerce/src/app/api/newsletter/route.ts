@@ -107,7 +107,12 @@ export async function GET(request: Request) {
     }
 
     const result = await listNewsletterSubscriptionsByDateRange(page, pageSize, dateRange);
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...result,
+      meta: {
+        storage: result.storage,
+      },
+    });
   } catch (error) {
     console.error("Failed to read newsletter subscriptions", error);
     return NextResponse.json({ error: "Could not load subscriptions" }, { status: 500 });

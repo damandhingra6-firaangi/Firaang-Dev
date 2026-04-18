@@ -13,7 +13,28 @@ export async function getCatalogProducts(limit = 80): Promise<GridProduct[]> {
 
 export async function resolveCheckoutItems(items: CheckoutLineItem[]) {
   const catalog = await getCatalogProducts();
-  const byId = new Map(catalog.map((product) => [product.id, product]));
+  const byId = new Map<string, GridProduct>();
+
+  for (const product of catalog) {
+    byId.set(product.id, product);
+
+    for (const variant of product.variants ?? []) {
+      byId.set(variant.id, {
+        ...product,
+        id: variant.id,
+        parentId: product.id,
+        name:
+          variant.name && variant.name !== "Default Title"
+            ? `${product.name} - ${variant.name}`
+            : product.name,
+        img: variant.img,
+        price: variant.price,
+        priceAmount: variant.priceAmount,
+        currencyCode: variant.currencyCode,
+        oldPrice: variant.oldPrice,
+      });
+    }
+  }
 
   const normalizedItems = items
     .map((item) => {

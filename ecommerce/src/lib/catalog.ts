@@ -1,5 +1,39 @@
+export type ProductVariantOption = {
+  name: string;
+  value: string;
+};
+
+export type ProductOptionGroup = {
+  name: string;
+  values: string[];
+};
+
+export type ProductSizeChart = {
+  headers: string[];
+  rows: string[][];
+  note?: string;
+};
+
+export type ProductVariant = {
+  id: string;
+  name: string;
+  availableForSale: boolean;
+  img: string;
+  price: string;
+  priceAmount: number;
+  currencyCode: string;
+  oldPrice: string;
+  options: ProductVariantOption[];
+};
+
 export type GridProduct = {
   id: string;
+  parentId?: string;
+  handle?: string;
+  category?: string;
+  categorySlug?: string;
+  subCategory?: string;
+  subCategorySlug?: string;
   name: string;
   price: string;
   priceAmount: number;
@@ -7,12 +41,19 @@ export type GridProduct = {
   oldPrice: string;
   img: string;
   description: string;
+  optionGroups?: ProductOptionGroup[];
+  sizeChart?: ProductSizeChart;
+  variants?: ProductVariant[];
 };
 
 export const fallbackProducts: GridProduct[] = [
   {
     id: "fallback-1",
     name: "Bohemian Maxi Dress",
+    category: "Dresses",
+    categorySlug: "dresses",
+    subCategory: "Bohemian Dresses",
+    subCategorySlug: "bohemian-dresses",
     price: "₹12,999",
     priceAmount: 12999,
     currencyCode: "INR",
@@ -23,6 +64,10 @@ export const fallbackProducts: GridProduct[] = [
   {
     id: "fallback-2",
     name: "Celestial Drop Pendant",
+    category: "Jewelry",
+    categorySlug: "jewelry",
+    subCategory: "Pendant",
+    subCategorySlug: "pendant",
     price: "₹4,999",
     priceAmount: 4999,
     currencyCode: "INR",
@@ -33,6 +78,10 @@ export const fallbackProducts: GridProduct[] = [
   {
     id: "fallback-3",
     name: "Palazzo Fusion Set",
+    category: "Ethnic Wear",
+    categorySlug: "ethnic-wear",
+    subCategory: "Palazzo Set",
+    subCategorySlug: "palazzo-set",
     price: "₹6,999",
     priceAmount: 6999,
     currencyCode: "INR",
@@ -43,6 +92,10 @@ export const fallbackProducts: GridProduct[] = [
   {
     id: "fallback-4",
     name: "Gemstone",
+    category: "Jewelry",
+    categorySlug: "jewelry",
+    subCategory: "Gemstone Jewelry",
+    subCategorySlug: "gemstone-jewelry",
     price: "₹12,999",
     priceAmount: 12999,
     currencyCode: "INR",
@@ -53,6 +106,10 @@ export const fallbackProducts: GridProduct[] = [
   {
     id: "fallback-5",
     name: "Luxe Evening Gown",
+    category: "Dresses",
+    categorySlug: "dresses",
+    subCategory: "Evening Gown",
+    subCategorySlug: "evening-gown",
     price: "₹15,999",
     priceAmount: 15999,
     currencyCode: "INR",
@@ -63,6 +120,10 @@ export const fallbackProducts: GridProduct[] = [
   {
     id: "fallback-6",
     name: "Royal Kundan Collar",
+    category: "Jewelry",
+    categorySlug: "jewelry",
+    subCategory: "Kundan Jewelry",
+    subCategorySlug: "kundan-jewelry",
     price: "₹10,999",
     priceAmount: 10999,
     currencyCode: "INR",
@@ -73,6 +134,10 @@ export const fallbackProducts: GridProduct[] = [
   {
     id: "fallback-7",
     name: "Midnight Kurta Set",
+    category: "Ethnic Wear",
+    categorySlug: "ethnic-wear",
+    subCategory: "Kurta Set",
+    subCategorySlug: "kurta-set",
     price: "₹8,499",
     priceAmount: 8499,
     currencyCode: "INR",
@@ -83,6 +148,10 @@ export const fallbackProducts: GridProduct[] = [
   {
     id: "fallback-8",
     name: "Scarlet Draped Dress",
+    category: "Dresses",
+    categorySlug: "dresses",
+    subCategory: "Draped Dress",
+    subCategorySlug: "draped-dress",
     price: "₹13,999",
     priceAmount: 13999,
     currencyCode: "INR",

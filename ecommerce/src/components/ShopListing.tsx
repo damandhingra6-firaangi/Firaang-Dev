@@ -1,39 +1,154 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Heart, ShoppingBag } from "lucide-react";
 import { GridProduct } from "@/lib/catalog";
+import { buildCategoryTree, slugify } from "@/lib/product-taxonomy";
+import ProductDetailsModal from "@/components/ProductDetailsModal";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
 
 type ShopListingProps = {
   products: GridProduct[];
   initialQuery?: string;
+  initialCategory?: string;
+  initialSubCategory?: string;
 };
 
-export default function ShopListing({ products, initialQuery = "" }: ShopListingProps) {
+export default function ShopListing({
+  products,
+  initialQuery = "",
+  initialCategory = "",
+  initialSubCategory = "",
+}: ShopListingProps) {
   const [query, setQuery] = useState(initialQuery);
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const [selectedSubCategory, setSelectedSubCategory] = useState(initialSubCategory);
+  const [selectedProduct, setSelectedProduct] = useState<GridProduct | null>(null);
   const wishlist = useShopStore((state) => state.wishlist);
   const toggleWishlist = useShopStore((state) => state.toggleWishlist);
   const addToCart = useShopStore((state) => state.addToCart);
   const openCart = useUiStore((state) => state.openCart);
+  const router = useRouter();
+  const pathname = usePathname();
 
   const wishlistIds = getWishlistIds(wishlist);
+  const categoryTree = useMemo(() => buildCategoryTree(products), [products]);
+
+  const selectedCategoryNode = useMemo(() => {
+    if (!selectedCategory) {
+      return null;
+    }
+
+    return categoryTree.find(
+      (category) =>
+        category.slug.toLowerCase() === selectedCategory.toLowerCase() ||
+        category.name.toLowerCase() === selectedCategory.toLowerCase()
+    ) ?? null;
+  }, [categoryTree, selectedCategory]);
+
+  const availableSubCategories = selectedCategoryNode?.subCategories ?? [];
+
+  useEffect(() => {
+    if (!selectedCategoryNode) {
+      if (selectedSubCategory) {
+        setSelectedSubCategory("");
+      }
+      return;
+    }
+
+    const hasSelectedSubCategory = availableSubCategories.some(
+      (subCategory) =>
+        subCategory.slug.toLowerCase() === selectedSubCategory.toLowerCase() ||
+        subCategory.name.toLowerCase() === selectedSubCategory.toLowerCase()
+    );
+
+    if (!hasSelectedSubCategory && selectedSubCategory) {
+      setSelectedSubCategory("");
+    }
+  }, [availableSubCategories, selectedCategoryNode, selectedSubCategory]);
+
+  useEffect(() => {
+    // Check if we're on a SEO route (e.g., /shop/t-shirts/gen-z-t-shirts)
+    const isSeoPatterRoute = pathname !== "/shop";
+
+    if (isSeoPatterRoute && selectedCategory && selectedSubCategory) {
+      // We're on a SEO route - navigate to new SEO URL when categories change
+      const categorySlug = slugify(selectedCategory);
+      const subCategorySlug = slugify(selectedSubCategory);
+
+      const params = new URLSearchParams();
+      if (query.trim()) {
+        params.set("q", query.trim());
+      }
+
+      const queryString = params.toString();
+      const seoUrl = `/shop/${categorySlug}/${subCategorySlug}${queryString ? `?${queryString}` : ""}`;
+      router.replace(seoUrl, { scroll: false });
+    } else if (!isSeoPatterRoute) {
+      // We're on the base /shop page - use query params
+      const params = new URLSearchParams();
+
+      if (query.trim()) {
+        params.set("q", query.trim());
+      }
+
+      if (selectedCategory) {
+        params.set("category", selectedCategory);
+      }
+
+      if (selectedSubCategory) {
+        params.set("subCategory", selectedSubCategory);
+      }
+
+      const queryString = params.toString();
+      const nextUrl = queryString ? `${pathname}?${queryString}` : pathname;
+      router.replace(nextUrl, { scroll: false });
+    }
+  }, [pathname, query, router, selectedCategory, selectedSubCategory]);
 
   const filteredProducts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-
-    if (!normalized) {
-      return products;
-    }
+    const normalizedCategory = selectedCategory.trim().toLowerCase();
+    const normalizedSubCategory = selectedSubCategory.trim().toLowerCase();
 
     return products.filter((product) => {
-      return (
+      const categoryMatch =
+        !normalizedCategory ||
+        product.categorySlug?.toLowerCase() === normalizedCategory ||
+        product.category?.toLowerCase() === normalizedCategory;
+
+      const subCategoryMatch =
+        !normalizedSubCategory ||
+        product.subCategorySlug?.toLowerCase() === normalizedSubCategory ||
+        product.subCategory?.toLowerCase() === normalizedSubCategory;
+
+      const searchMatch =
+        !normalized ||
         product.name.toLowerCase().includes(normalized) ||
-        product.description.toLowerCase().includes(normalized)
+        product.description.toLowerCase().includes(normalized);
+
+      return (
+        categoryMatch &&
+        subCategoryMatch &&
+        searchMatch
       );
     });
-  }, [products, query]);
+  }, [products, query, selectedCategory, selectedSubCategory]);
+
+  const handleOpenDetails = (product: GridProduct) => {
+    setSelectedProduct(product);
+  };
+
+  const handleToggleWishlist = (product: GridProduct) => {
+    toggleWishlist(product);
+  };
+
+  const handleAddToCart = (product: GridProduct) => {
+    addToCart(product);
+    openCart();
+  };
 
   return (
     <section className="section-shell py-12 md:py-16">
@@ -50,15 +165,101 @@ export default function ShopListing({ products, initialQuery = "" }: ShopListing
         />
       </div>
 
+      <div className="mb-4">
+        <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[var(--gold)]">Category</p>
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedCategory("");
+              setSelectedSubCategory("");
+            }}
+            className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.08em] transition ${
+              !selectedCategory
+                ? "border-[var(--gold)] bg-[#5a141e] text-white"
+                : "border-[var(--gold)]/35 text-[#f2dbd7] hover:border-[var(--gold)]/70"
+            }`}
+          >
+            All
+          </button>
+          {categoryTree.map((category) => {
+            const isSelected =
+              category.slug.toLowerCase() === selectedCategory.toLowerCase() ||
+              category.name.toLowerCase() === selectedCategory.toLowerCase();
+
+            return (
+              <button
+                key={category.slug}
+                type="button"
+                onClick={() => {
+                  setSelectedCategory(category.slug);
+                  setSelectedSubCategory("");
+                }}
+                className={`whitespace-nowrap rounded-full border px-4 py-2 text-xs uppercase tracking-[0.08em] transition ${
+                  isSelected
+                    ? "border-[var(--gold)] bg-[#5a141e] text-white"
+                    : "border-[var(--gold)]/35 text-[#f2dbd7] hover:border-[var(--gold)]/70"
+                }`}
+              >
+                {category.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {availableSubCategories.length > 0 ? (
+        <div className="mb-8 rounded-2xl border border-[var(--gold)]/25 bg-[#3d0c13]/70 p-3 md:p-4">
+          <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[var(--gold)]">Sub-category</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedSubCategory("")}
+              className={`rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.08em] transition ${
+                !selectedSubCategory
+                  ? "border-[var(--gold)] bg-[#5a141e] text-white"
+                  : "border-[var(--gold)]/35 text-[#f2dbd7] hover:border-[var(--gold)]/70"
+              }`}
+            >
+              All
+            </button>
+            {availableSubCategories.map((subCategory) => {
+              const isSelected =
+                subCategory.slug.toLowerCase() === selectedSubCategory.toLowerCase() ||
+                subCategory.name.toLowerCase() === selectedSubCategory.toLowerCase();
+
+              return (
+                <button
+                  key={subCategory.slug}
+                  type="button"
+                  onClick={() => setSelectedSubCategory(subCategory.slug)}
+                  className={`rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.08em] transition ${
+                    isSelected
+                      ? "border-[var(--gold)] bg-[#5a141e] text-white"
+                      : "border-[var(--gold)]/35 text-[#f2dbd7] hover:border-[var(--gold)]/70"
+                  }`}
+                >
+                  {subCategory.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
       {filteredProducts.length === 0 ? (
         <p className="text-[#d5bdb9]">No products found for your search.</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProducts.map((product) => (
-            <article key={product.id} className="overflow-hidden rounded-[18px] border border-[var(--gold)]/50 bg-[#4a0b12]">
-              <img src={product.img} alt={product.name} className="h-[320px] w-full object-cover" />
+            <article
+              key={product.id}
+              className="overflow-hidden rounded-[18px] border border-[var(--gold)]/50 bg-[#4a0b12] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(0,0,0,0.28)]"
+              onClick={() => handleOpenDetails(product)}
+            >
+              <img src={product.img} alt={product.name} className="h-[320px] w-full cursor-pointer object-cover" />
               <div className="space-y-3 p-4">
-                <h3 className="text-lg leading-tight">{product.name}</h3>
+                <h3 className="cursor-pointer text-lg leading-tight">{product.name}</h3>
                 <p className="line-clamp-2 text-sm text-[#e9c9c3]">{product.description}</p>
                 <div className="flex items-end gap-3">
                   <p className="text-xl">{product.price}</p>
@@ -67,10 +268,20 @@ export default function ShopListing({ products, initialQuery = "" }: ShopListing
                 <div className="flex gap-2">
                   <button
                     type="button"
+                    className="rounded-full border border-[var(--gold)]/70 px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[#f8e7db] transition hover:bg-[#5a141e]"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleOpenDetails(product);
+                    }}
+                  >
+                    Details
+                  </button>
+                  <button
+                    type="button"
                     className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[var(--gold)] px-4 py-2 text-sm font-medium text-[#3b0810]"
-                    onClick={() => {
-                      addToCart(product);
-                      openCart();
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleAddToCart(product);
                     }}
                   >
                     <ShoppingBag className="h-4 w-4" />
@@ -79,7 +290,10 @@ export default function ShopListing({ products, initialQuery = "" }: ShopListing
                   <button
                     type="button"
                     className="rounded-full border border-[var(--gold)] p-2"
-                    onClick={() => toggleWishlist(product)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleToggleWishlist(product);
+                    }}
                     aria-label={`Toggle wishlist for ${product.name}`}
                   >
                     <Heart className={`h-4 w-4 ${wishlistIds.has(product.id) ? "fill-[var(--gold)] text-[var(--gold)]" : ""}`} />
@@ -90,6 +304,15 @@ export default function ShopListing({ products, initialQuery = "" }: ShopListing
           ))}
         </div>
       )}
+
+      <ProductDetailsModal
+        product={selectedProduct}
+        isOpen={selectedProduct !== null}
+        isWishlisted={(product) => wishlistIds.has(product.id)}
+        onClose={() => setSelectedProduct(null)}
+        onToggleWishlist={handleToggleWishlist}
+        onAddToCart={handleAddToCart}
+      />
     </section>
   );
 }

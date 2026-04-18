@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { getCartCount, getCartItems, getCartSubtotal, useShopStore } from "@/store/useShopStore";
+import { useAccountStore } from "@/store/useAccountStore";
 import { useUiStore } from "@/store/useUiStore";
 
 type CartDrawerProps = {
@@ -23,6 +24,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const removeFromCart = useShopStore((state) => state.removeFromCart);
   const updateCartQuantity = useShopStore((state) => state.updateCartQuantity);
   const clearCart = useShopStore((state) => state.clearCart);
+  const addOrder = useAccountStore((state) => state.addOrder);
   const pushToast = useUiStore((state) => state.pushToast);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const isMountedRef = useRef(false);
@@ -139,6 +141,23 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             pushToast("Payment could not be verified", { variant: "error" });
             return;
           }
+
+          addOrder({
+            id: orderData.orderId,
+            createdAt: new Date().toISOString(),
+            totalAmount: subtotal,
+            currencyCode: orderData.currency,
+            status: "paid",
+            paymentId: response.razorpay_payment_id,
+            items: cartItems.map((item) => ({
+              productId: item.product.id,
+              name: item.product.name,
+              image: item.product.img,
+              unitPrice: item.product.priceAmount,
+              quantity: item.quantity,
+              lineTotal: item.product.priceAmount * item.quantity,
+            })),
+          });
 
           clearCart();
           onClose();

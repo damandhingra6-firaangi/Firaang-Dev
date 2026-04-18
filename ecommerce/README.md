@@ -35,6 +35,28 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
+## Deploy on cPanel
+
+This project can also run on cPanel if your hosting plan includes Node.js application support.
+
+1. Build the app with standalone output:
+
+```bash
+npm install
+npm run build
+npm run package:cpanel
+```
+
+2. Upload these items from the project root:
+
+- `dist/cpanel-deploy.zip`
+
+3. In cPanel, create a Node.js app and use the generated `server.js` from `.next/standalone` as the startup file.
+4. Set the same environment variables you use locally. A template is available in `.env.example`.
+5. Restart the Node.js app after each deployment.
+
+Detailed steps are documented in `CPANEL_DEPLOYMENT.md`.
+
 ## Shopify Storefront API Integration
 
 This project can load the homepage New Arrivals products from Shopify Storefront API.
@@ -54,6 +76,62 @@ Implementation details:
 - Product carousel rendering: `src/components/ProductGrid.tsx`
 
 If Shopify credentials are not configured or Shopify is unavailable, the UI falls back to local product data.
+
+## Product Size Charts Configuration
+
+Product-level fallback size charts are configured in `src/lib/size-charts.ts`.
+
+The modal resolves size charts in this order:
+
+1. Shopify metafield chart (`custom.size_chart_json` or `custom.size_chart`)
+2. Configured chart rule from `src/lib/size-charts.ts` (handle-first, then title match)
+3. Generic fallback chart from available size options
+
+### Add a New Product Size Chart in 1 Minute
+
+1. Open `src/lib/size-charts.ts`.
+2. Add a new object inside `PRODUCT_SIZE_CHART_RULES`.
+3. Prefer `handle` for exact matching.
+4. Use `titleIncludes` only as a backup pattern.
+5. Fill the `chart.headers` and `chart.rows` with garment measurements.
+
+Template:
+
+```ts
+{
+	key: "my-product-chart",
+	handle: "my-product-handle",
+	titleIncludes: "my product",
+	chart: {
+		headers: ["Size", "Chest", "Length", "Shoulder"],
+		rows: [
+			["XS", "-", "-", "-"],
+			["S", "-", "-", "-"],
+			["M", "-", "-", "-"],
+			["L", "-", "-", "-"],
+			["XL", "-", "-", "-"],
+			["2XL", "-", "-", "-"],
+		],
+		note: "*All measurements are in inches.",
+	},
+}
+```
+
+Notes:
+
+- Keep units consistent per chart (inches or cm).
+- If handle is known, do not rely only on `titleIncludes`.
+- Prefer real garment measurements over body measurements unless explicitly labeled.
+
+## Catalog Sub-Categories
+
+The catalog now supports category + sub-category filters and metadata in API/UI.
+
+- Taxonomy helpers and dynamic category tree: `src/lib/product-taxonomy.ts`
+- Product API with category/sub-category filters: `src/app/api/products/route.ts`
+- Sub-category lookup endpoint: `src/app/api/products/sub-categories/route.ts`
+- Shop filter chips UI: `src/components/ShopListing.tsx`
+- Full architecture + Mongoose schema blueprint: `docs/catalog-subcategories.md`
 
 ## Feedback Admin API
 

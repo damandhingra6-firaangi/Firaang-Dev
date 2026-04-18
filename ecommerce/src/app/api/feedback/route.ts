@@ -32,7 +32,12 @@ export async function GET(request: Request) {
 
   try {
     const result = await listFeedback(page, pageSize);
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...result,
+      meta: {
+        storage: result.storage,
+      },
+    });
   } catch (error) {
     console.error("Failed to read feedback", error);
     return NextResponse.json({ error: "Could not load feedback" }, { status: 500 });

@@ -1,7 +1,7 @@
 // components/ProductGrid.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type TouchEventHandler } from "react";
 import { ChevronLeft, ChevronRight, Eye, Heart, ShoppingBag } from "lucide-react";
 import { GridProduct } from "@/lib/catalog";
 import ProductDetailsModal from "@/components/ProductDetailsModal";
@@ -12,10 +12,16 @@ type ProductGridProps = {
   products: GridProduct[];
 };
 
+const MOBILE_AUTOPLAY_INTERVAL_MS = 4500;
+const MOBILE_AUTOPLAY_RESUME_DELAY_MS = 5500;
+
 export default function ProductGrid({ products }: ProductGridProps) {
   const [startIndex, setStartIndex] = useState(0);
   const [cardsPerView, setCardsPerView] = useState(5);
   const [selectedProduct, setSelectedProduct] = useState<GridProduct | null>(null);
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [isAutoplayPaused, setIsAutoplayPaused] = useState(false);
+  const resumeAutoplayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const wishlist = useShopStore((state) => state.wishlist);
   const cart = useShopStore((state) => state.cart);
@@ -49,6 +55,8 @@ export default function ProductGrid({ products }: ProductGridProps) {
   const canGoPrev = boundedStartIndex > 0;
   const canGoNext = boundedStartIndex < maxStart;
   const showNavigation = products.length > cardsPerView;
+  const mobilePosition = Math.min(boundedStartIndex + 1, products.length);
+  const mobileSlideCount = cardsPerView === 1 ? products.length : maxStart + 1;
 
   const visibleProducts = products.slice(boundedStartIndex, boundedStartIndex + cardsPerView);
 
@@ -77,6 +85,78 @@ export default function ProductGrid({ products }: ProductGridProps) {
   const handleAddToCart = (product: GridProduct) => {
     addToCart(product);
     openCart();
+  };
+
+  const pauseAutoplay = (resumeAfterMs: number) => {
+    setIsAutoplayPaused(true);
+
+    if (resumeAutoplayTimeoutRef.current) {
+      clearTimeout(resumeAutoplayTimeoutRef.current);
+      resumeAutoplayTimeoutRef.current = null;
+    }
+
+    if (resumeAfterMs > 0) {
+      resumeAutoplayTimeoutRef.current = setTimeout(() => {
+        setIsAutoplayPaused(false);
+      }, resumeAfterMs);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (resumeAutoplayTimeoutRef.current) {
+        clearTimeout(resumeAutoplayTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (cardsPerView !== 1 || !showNavigation || isAutoplayPaused || selectedProduct) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      setStartIndex((current) => (current >= maxStart ? 0 : current + 1));
+    }, MOBILE_AUTOPLAY_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [cardsPerView, isAutoplayPaused, maxStart, selectedProduct, showNavigation]);
+
+  const handleTouchStart: TouchEventHandler<HTMLDivElement> = (event) => {
+    if (cardsPerView !== 1 || !showNavigation) {
+      return;
+    }
+
+    pauseAutoplay(0);
+
+    const touch = event.touches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleTouchEnd: TouchEventHandler<HTMLDivElement> = (event) => {
+    if (!touchStart || cardsPerView !== 1 || !showNavigation) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - touchStart.x;
+    const deltaY = touch.clientY - touchStart.y;
+    setTouchStart(null);
+    pauseAutoplay(MOBILE_AUTOPLAY_RESUME_DELAY_MS);
+
+    const swipeThreshold = 42;
+    const isHorizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY);
+
+    if (!isHorizontalSwipe || Math.abs(deltaX) < swipeThreshold) {
+      return;
+    }
+
+    if (deltaX > 0) {
+      goToPrev();
+      return;
+    }
+
+    goToNext();
   };
 
   return (
@@ -128,7 +208,11 @@ export default function ProductGrid({ products }: ProductGridProps) {
           </>
         ) : null}
 
-        <div className="flex flex-wrap justify-center gap-5">
+        <div
+          className="flex flex-wrap justify-center gap-5"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           {visibleProducts.map((p) => (
             <article
               key={p.id}
@@ -194,12 +278,72 @@ export default function ProductGrid({ products }: ProductGridProps) {
             Swipe through {products.length} products
           </p>
         ) : null}
+
+        {showNavigation ? (
+          <div className="mt-4 flex items-center justify-center gap-3 md:hidden">
+            <button
+              type="button"
+              aria-label="Previous products"
+              onClick={() => {
+                pauseAutoplay(MOBILE_AUTOPLAY_RESUME_DELAY_MS);
+                goToPrev();
+              }}
+              disabled={!canGoPrev}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[#4d1018] disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+
+            <p className="min-w-[72px] text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[#d8bbb6]">
+              {mobilePosition}/{products.length}
+            </p>
+
+            <button
+              type="button"
+              aria-label="Next products"
+              onClick={() => {
+                pauseAutoplay(MOBILE_AUTOPLAY_RESUME_DELAY_MS);
+                goToNext();
+              }}
+              disabled={!canGoNext}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[#4d1018] disabled:opacity-40"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
+
+        {showNavigation && cardsPerView === 1 ? (
+          <div className="mt-3 flex items-center justify-center gap-2 md:hidden" aria-label="Product pagination">
+            {Array.from({ length: mobileSlideCount }).map((_, index) => {
+              const isActive = index === boundedStartIndex;
+
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => {
+                    pauseAutoplay(MOBILE_AUTOPLAY_RESUME_DELAY_MS);
+                    setStartIndex(index);
+                  }}
+                  aria-label={`Go to product ${index + 1}`}
+                  aria-current={isActive ? "true" : undefined}
+                  className={`h-2.5 rounded-full transition ${
+                    isActive
+                      ? "w-6 bg-[var(--gold)]"
+                      : "w-2.5 bg-[#c59b96]/55 hover:bg-[#dfb9b3]/80"
+                  }`}
+                />
+              );
+            })}
+          </div>
+        ) : null}
       </div>
 
       <ProductDetailsModal
         product={selectedProduct}
         isOpen={selectedProduct !== null}
-        isWishlisted={selectedProduct ? wishlistIds.has(selectedProduct.id) : false}
+        isWishlisted={(product) => wishlistIds.has(product.id)}
         onClose={() => setSelectedProduct(null)}
         onToggleWishlist={handleToggleWishlist}
         onAddToCart={handleAddToCart}
