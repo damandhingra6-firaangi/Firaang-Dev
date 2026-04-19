@@ -21,6 +21,11 @@ export type FeedbackListResult = {
   storage: FeedbackStorageSource;
 };
 
+export type SaveFeedbackResult = {
+  record: StoredFeedback;
+  storage: FeedbackStorageSource;
+};
+
 type FeedbackDocument = FeedbackInput & {
   submittedAt: Date;
 };
@@ -168,7 +173,7 @@ function paginateFeedback(
   };
 }
 
-export async function saveFeedback(input: FeedbackInput) {
+export async function saveFeedback(input: FeedbackInput): Promise<SaveFeedbackResult> {
   try {
     const collection = await getFeedbackCollection();
     const submittedAt = new Date();
@@ -183,7 +188,10 @@ export async function saveFeedback(input: FeedbackInput) {
       submittedAt: submittedAt.toISOString(),
     };
 
-    return record;
+    return {
+      record,
+      storage: "mongo",
+    };
   } catch (error) {
     if (!isMongoConnectionError(error)) {
       throw error;
@@ -197,7 +205,14 @@ export async function saveFeedback(input: FeedbackInput) {
 
     const existingItems = await readFallbackFeedback();
     await writeFallbackFeedback([record, ...existingItems]);
-    return record;
+    console.warn("Feedback stored using fallback file storage instead of MongoDB", {
+      filePath: FEEDBACK_FALLBACK_FILE,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      record,
+      storage: "fallback",
+    };
   }
 }
 

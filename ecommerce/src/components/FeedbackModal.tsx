@@ -96,8 +96,14 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         body: JSON.stringify(parsed.data),
       });
 
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        meta?: {
+          storage?: "mongo" | "fallback";
+        };
+      };
+
       if (!response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as { error?: string };
         const errorMessage = payload.error ?? "Feedback could not be submitted";
         pushToast(errorMessage, { variant: "error" });
         return;
@@ -107,7 +113,11 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         return;
       }
 
-      pushToast("Thanks for sharing feedback", { variant: "success" });
+      if (payload.meta?.storage === "fallback") {
+        pushToast("Feedback saved locally, but MongoDB is not connected.", { variant: "warning" });
+      } else {
+        pushToast("Thanks for sharing feedback", { variant: "success" });
+      }
       resetAndClose();
     } catch (error) {
       console.error("Feedback submission failed", error);

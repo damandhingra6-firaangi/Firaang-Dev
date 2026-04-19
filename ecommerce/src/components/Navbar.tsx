@@ -20,7 +20,7 @@ export default function Navbar() {
   const cart = useShopStore((state) => state.cart);
   const wishlist = useShopStore((state) => state.wishlist);
   const isSignedIn = useAccountStore((state) => state.isSignedIn);
-  const signOut = useAccountStore((state) => state.signOut);
+  const clearSession = useAccountStore((state) => state.clearSession);
   const cartCount = getCartCount(cart);
   const wishlistCount = getWishlistItems(wishlist).length;
 
@@ -64,12 +64,20 @@ export default function Navbar() {
     closeUserMenu();
   };
 
-  const handleSignOut = () => {
-    signOut();
-    setIsAccountSheetOpen(false);
-    setIsAccountModalOpen(false);
-    closeUserMenu();
-    pushToast("Signed out", { variant: "info" });
+  const handleSignOut = async () => {
+    try {
+      await fetch("/api/auth/signout", {
+        method: "POST",
+      });
+    } catch (error) {
+      console.error("Failed to sign out cleanly", error);
+    } finally {
+      clearSession();
+      setIsAccountSheetOpen(false);
+      setIsAccountModalOpen(false);
+      closeUserMenu();
+      pushToast("Signed out", { variant: "info" });
+    }
   };
 
   return (

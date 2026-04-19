@@ -1,0 +1,22 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/admin/feedback/page": "/admin/feedback",
+  "/admin/newsletter/page": "/admin/newsletter",
+  "/api/account/profile/route": "/api/account/profile",
+  "/api/account/session/route": "/api/account/session",
+  "/api/auth/google/route": "/api/auth/google",
+  "/api/auth/signout/route": "/api/auth/signout",
+  "/api/checkout/order/route": "/api/checkout/order",
+  "/api/checkout/verify/route": "/api/checkout/verify",
+  "/api/feedback/health/route": "/api/feedback/health",
+  "/api/feedback/route": "/api/feedback",
+  "/api/newsletter/route": "/api/newsletter",
+  "/api/products/route": "/api/products",
+  "/api/products/sub-categories/route": "/api/products/sub-categories",
+  "/favicon.ico/route": "/favicon.ico",
+  "/page": "/",
+  "/shop/[category]/[subCategory]/page": "/shop/[category]/[subCategory]",
+  "/shop/[category]/page": "/shop/[category]",
+  "/shop/page": "/shop"
+}

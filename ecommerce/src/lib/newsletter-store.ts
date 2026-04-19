@@ -30,6 +30,11 @@ export type NewsletterListResult = {
   storage: NewsletterStorageSource;
 };
 
+export type SaveNewsletterSubscriptionResult = {
+  created: boolean;
+  storage: NewsletterStorageSource;
+};
+
 export type NewsletterDateRange = {
   from?: Date;
   to?: Date;
@@ -212,7 +217,7 @@ async function getNewsletterCollection() {
   return collection;
 }
 
-export async function saveNewsletterSubscription(input: NewsletterInput) {
+export async function saveNewsletterSubscription(input: NewsletterInput): Promise<SaveNewsletterSubscriptionResult> {
   try {
     const collection = await getNewsletterCollection();
 
@@ -222,17 +227,25 @@ export async function saveNewsletterSubscription(input: NewsletterInput) {
         subscribedAt: new Date(),
       });
 
-      return { created: true as const };
+      return { created: true as const, storage: "mongo" };
     } catch (error) {
       if (error instanceof MongoServerError && error.code === 11000) {
-        return { created: false as const };
+        return { created: false as const, storage: "mongo" };
       }
 
       throw error;
     }
   } catch (error) {
     if (isMongoConnectionError(error)) {
-      return saveFallbackSubscription(input);
+      const fallbackResult = await saveFallbackSubscription(input);
+      console.warn("Newsletter subscriber stored using fallback file storage instead of MongoDB", {
+        filePath: NEWSLETTER_FALLBACK_FILE,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        ...fallbackResult,
+        storage: "fallback",
+      };
     }
 
     throw error;

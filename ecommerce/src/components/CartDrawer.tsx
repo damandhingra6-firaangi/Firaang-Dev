@@ -24,7 +24,8 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const removeFromCart = useShopStore((state) => state.removeFromCart);
   const updateCartQuantity = useShopStore((state) => state.updateCartQuantity);
   const clearCart = useShopStore((state) => state.clearCart);
-  const addOrder = useAccountStore((state) => state.addOrder);
+  const isSignedIn = useAccountStore((state) => state.isSignedIn);
+  const upsertOrder = useAccountStore((state) => state.upsertOrder);
   const pushToast = useUiStore((state) => state.pushToast);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const isMountedRef = useRef(false);
@@ -104,6 +105,9 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         orderId: string;
         amount: number;
         currency: string;
+        meta?: {
+          accountLinked?: boolean;
+        };
       };
 
       const razorpay = new window.Razorpay({
@@ -135,33 +139,52 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             return;
           }
 
-          const verification = (await verifyResponse.json()) as { verified?: boolean };
+          const verification = (await verifyResponse.json()) as {
+            verified?: boolean;
+            order?: {
+              id: string;
+              createdAt: string;
+              totalAmount: number;
+              currencyCode: string;
+              status: "paid" | "pending" | "failed";
+              paymentId?: string;
+              items: Array<{
+                productId: string;
+                name: string;
+                image: string;
+                unitPrice: number;
+                quantity: number;
+                lineTotal: number;
+              }>;
+            };
+            meta?: {
+              accountLinked?: boolean;
+            };
+          };
 
           if (!verification.verified) {
             pushToast("Payment could not be verified", { variant: "error" });
             return;
           }
 
-          addOrder({
-            id: orderData.orderId,
-            createdAt: new Date().toISOString(),
-            totalAmount: subtotal,
-            currencyCode: orderData.currency,
-            status: "paid",
-            paymentId: response.razorpay_payment_id,
-            items: cartItems.map((item) => ({
-              productId: item.product.id,
-              name: item.product.name,
-              image: item.product.img,
-              unitPrice: item.product.priceAmount,
-              quantity: item.quantity,
-              lineTotal: item.product.priceAmount * item.quantity,
-            })),
-          });
+          if (verification.order) {
+            upsertOrder(verification.order);
+          }
 
           clearCart();
           onClose();
-          pushToast("Payment successful. Order placed!", { variant: "success" });
+
+          if (verification.meta?.accountLinked) {
+            pushToast("Payment successful. Order saved to your account!", { variant: "success" });
+            return;
+          }
+
+          if (isSignedIn) {
+            pushToast("Payment successful, but the order could not be linked to your account.", { variant: "warning" });
+            return;
+          }
+
+          pushToast("Payment successful. Sign in with Google next time to sync orders across devices.", { variant: "success" });
         },
       });
 

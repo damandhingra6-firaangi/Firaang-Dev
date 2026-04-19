@@ -2,84 +2,59 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { AccountOrder, AccountProfile } from "@/lib/account-data";
 
-type AccountProfile = {
-  fullName: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  state: string;
-  pinCode: string;
-};
-
-type AccountOrderItem = {
-  productId: string;
-  name: string;
-  image: string;
-  unitPrice: number;
-  quantity: number;
-  lineTotal: number;
-};
-
-export type AccountOrder = {
-  id: string;
-  createdAt: string;
-  totalAmount: number;
-  currencyCode: string;
-  status: "paid" | "pending" | "failed";
-  paymentId?: string;
-  items: AccountOrderItem[];
-};
-
-type SignInPayload = {
-  email: string;
-  fullName?: string;
+type AccountSessionPayload = {
+  profile: AccountProfile;
+  orders: AccountOrder[];
 };
 
 type AccountState = {
+  isLoading: boolean;
   isSignedIn: boolean;
   profile: AccountProfile;
   orders: AccountOrder[];
-  signIn: (payload: SignInPayload) => void;
-  signOut: () => void;
+  setLoading: (isLoading: boolean) => void;
+  setSession: (payload: AccountSessionPayload) => void;
+  clearSession: () => void;
   updateProfile: (payload: Partial<AccountProfile>) => void;
-  addOrder: (order: AccountOrder) => void;
+  upsertOrder: (order: AccountOrder) => void;
 };
 
 const defaultProfile: AccountProfile = {
   fullName: "",
   email: "",
+  avatarUrl: "",
   phone: "",
   address: "",
   city: "",
   state: "",
   pinCode: "",
+  authProvider: "google",
 };
 
 export const useAccountStore = create<AccountState>()(
   persist(
     (set) => ({
+      isLoading: true,
       isSignedIn: false,
       profile: defaultProfile,
       orders: [],
-      signIn: ({ email, fullName }) =>
-        set((state) => ({
+      setLoading: (isLoading) => set({ isLoading }),
+      setSession: ({ profile, orders }) =>
+        set({
+          isLoading: false,
           isSignedIn: true,
-          profile: {
-            ...state.profile,
-            email,
-            fullName: fullName ?? state.profile.fullName,
-          },
-        })),
-      signOut: () =>
-        set((state) => ({
+          profile,
+          orders,
+        }),
+      clearSession: () =>
+        set({
+          isLoading: false,
           isSignedIn: false,
-          profile: {
-            ...state.profile,
-            email: "",
-          },
-        })),
+          profile: defaultProfile,
+          orders: [],
+        }),
       updateProfile: (payload) =>
         set((state) => ({
           profile: {
@@ -87,14 +62,15 @@ export const useAccountStore = create<AccountState>()(
             ...payload,
           },
         })),
-      addOrder: (order) =>
+      upsertOrder: (order) =>
         set((state) => ({
-          orders: [order, ...state.orders],
+          orders: [order, ...state.orders.filter((current) => current.id !== order.id)],
         })),
     }),
     {
       name: "firaangi-account-store",
       partialize: (state) => ({
+        isLoading: false,
         isSignedIn: state.isSignedIn,
         profile: state.profile,
         orders: state.orders,

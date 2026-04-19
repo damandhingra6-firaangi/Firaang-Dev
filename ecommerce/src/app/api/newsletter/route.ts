@@ -136,10 +136,10 @@ export async function POST(request: Request) {
     const result = await saveNewsletterSubscription(parsed.data);
 
     if (!result.created) {
-      return NextResponse.json({ ok: true, duplicate: true });
+      return NextResponse.json({ ok: true, duplicate: true, meta: { storage: result.storage } });
     }
 
-    return NextResponse.json({ ok: true, duplicate: false });
+    return NextResponse.json({ ok: true, duplicate: false, meta: { storage: result.storage } });
   } catch (error) {
     console.error("Failed to save newsletter subscription", error);
     return NextResponse.json({ error: "Could not subscribe right now" }, { status: 500 });

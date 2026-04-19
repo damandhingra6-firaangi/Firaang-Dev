@@ -57,6 +57,30 @@ npm run package:cpanel
 
 Detailed steps are documented in `CPANEL_DEPLOYMENT.md`.
 
+## Account Sign-In And Order Sync
+
+The account modal now supports Google sign-in with Mongo-backed sessions and order history.
+
+Required environment variables:
+
+- `GOOGLE_CLIENT_ID`
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+- `MONGODB_URI`
+- `MONGODB_DB_NAME`
+- `MONGODB_USERS_COLLECTION` (default: `users`)
+- `MONGODB_SESSIONS_COLLECTION` (default: `account_sessions`)
+- `MONGODB_ORDERS_COLLECTION` (default: `orders`)
+
+How it works:
+
+- Google sign-in verifies the Google ID token on the server
+- A Mongo-backed session cookie is created for the account
+- Authenticated checkouts create pending orders in MongoDB
+- Successful payment verification marks those orders as paid
+- The account modal reads synced profile and order history from MongoDB
+
+If Google sign-in is not configured, the account modal will show a configuration message instead of a fake local sign-in flow.
+
 ## Shopify Storefront API Integration
 
 This project can load the homepage New Arrivals products from Shopify Storefront API.
@@ -166,6 +190,10 @@ with the same `x-admin-key` header. This verifies Mongo connectivity and reports
 Admin dashboard route:
 
 /admin/feedback
+
+Full MongoDB setup (Atlas, env vars, schema, indexes, troubleshooting):
+
+- docs/mongodb-setup.md
 
 Open this page in the app, enter the admin key manually, then run health and recent feedback checks from the UI.
 

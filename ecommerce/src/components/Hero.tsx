@@ -90,6 +90,9 @@ export default function Hero() {
       const payload = (await response.json().catch(() => ({}))) as {
         duplicate?: boolean;
         error?: string;
+        meta?: {
+          storage?: "mongo" | "fallback";
+        };
       };
 
       if (!response.ok) {
@@ -101,6 +104,10 @@ export default function Hero() {
         setWaitlistConfirmationMessage("You are already on the jewellery waitlist.");
       } else {
         setWaitlistConfirmationMessage("You are on the jewellery waitlist. We will notify you first.");
+      }
+
+      if (payload.meta?.storage === "fallback") {
+        pushToast("Newsletter saved locally, but MongoDB is not connected.", { variant: "warning" });
       }
 
       setWaitlistEmail("");
@@ -116,15 +123,20 @@ export default function Hero() {
   return (
     <section className="relative min-h-[68vh] w-full overflow-hidden pt-20 max-[390px]:min-h-[64vh] min-[401px]:min-h-[71vh] md:min-h-[90vh] md:pt-28 lg:mt-24">
       <img
+        src="/Banner1.png"
+        alt={activeSlide.alt}
+        className="absolute left-0 top-0 h-full w-full object-cover object-[62%_top] max-[390px]:object-[66%_top] min-[401px]:object-[58%_top] md:hidden"
+      />
+      <img
         src={activeSlide.image}
         alt={activeSlide.alt}
-        className="absolute left-0 top-0 h-full w-full object-cover object-[62%_top] max-[390px]:object-[66%_top] min-[401px]:object-[58%_top] md:object-top"
+        className="absolute left-0 top-0 hidden h-full w-full object-cover object-top md:block"
       />
 
       <div className="absolute inset-0 bg-gradient-to-r from-[#30070bcc] via-[#4f0f17c2] to-[#220406de]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_40%,rgba(211,167,54,0.18),transparent_35%)]" />
 
-      <div className="absolute inset-x-0 bottom-0 top-[94px] z-10 section-shell flex flex-col items-center justify-start pt-8 text-center fade-in-up max-[390px]:top-[88px] max-[390px]:pt-6 min-[401px]:top-[98px] min-[401px]:pt-10 md:inset-0 md:justify-center md:pt-0">
+      <div className="absolute inset-x-0 bottom-0 top-[194px] z-10 section-shell flex flex-col items-center justify-start pt-8 text-center fade-in-up max-[390px]:top-[158px] max-[390px]:pt-6 min-[401px]:top-[108px] min-[401px]:pt-10 md:inset-0 md:justify-center md:pt-0">
         <p className="text-xs font-medium uppercase tracking-[0.35em] text-[var(--gold)] md:text-sm">
           {activeSlide.eyebrow}
         </p>

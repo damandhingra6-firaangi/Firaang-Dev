@@ -59,7 +59,13 @@ export async function POST(request: Request) {
 
   try {
     const savedFeedback = await saveFeedback(parsed.data);
-    return NextResponse.json({ ok: true, id: savedFeedback.id });
+    return NextResponse.json({
+      ok: true,
+      id: savedFeedback.record.id,
+      meta: {
+        storage: savedFeedback.storage,
+      },
+    });
   } catch (error) {
     console.error("Failed to persist feedback", error);
     return NextResponse.json({ error: "Could not store feedback at the moment" }, { status: 500 });
