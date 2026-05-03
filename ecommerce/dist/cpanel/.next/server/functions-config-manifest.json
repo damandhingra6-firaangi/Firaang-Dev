@@ -1,8 +1,11 @@
 {
   "version": 1,
   "functions": {
+    "/api/auth/mobile/request-otp": {},
+    "/api/auth/mobile/verify-otp": {},
     "/api/feedback": {},
     "/api/feedback/health": {},
+    "/api/health/otp-readiness": {},
     "/api/newsletter": {}
   }
 }

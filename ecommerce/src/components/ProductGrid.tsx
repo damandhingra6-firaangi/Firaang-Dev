@@ -3,7 +3,9 @@
 
 import { useEffect, useRef, useState, type TouchEventHandler } from "react";
 import { ChevronLeft, ChevronRight, Eye, Heart, ShoppingBag } from "lucide-react";
+import SafeImage from "@/components/SafeImage";
 import { GridProduct } from "@/lib/catalog";
+import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import ProductDetailsModal from "@/components/ProductDetailsModal";
 import { getCartCount, getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
@@ -28,6 +30,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
   const toggleWishlist = useShopStore((state) => state.toggleWishlist);
   const addToCart = useShopStore((state) => state.addToCart);
   const openCart = useUiStore((state) => state.openCart);
+  const displayCurrency = useUiStore((state) => state.currency);
 
   const wishlistIds = getWishlistIds(wishlist);
   const cartCount = getCartCount(cart);
@@ -220,7 +223,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
               onClick={() => handleOpenDetails(p)}
             >
             <div className="group relative">
-              <img src={p.img} alt={p.name} className="h-[290px] w-full object-cover sm:h-[330px] md:h-[360px] xl:h-[320px]" />
+              <SafeImage src={p.img} alt={p.name} className="h-[290px] w-full object-cover sm:h-[330px] md:h-[360px] xl:h-[320px]" />
               <div className="absolute inset-0 bg-black/25 opacity-0 transition duration-300 group-hover:opacity-100" />
               <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-0 transition duration-300 group-hover:opacity-100">
                 <button
@@ -265,8 +268,24 @@ export default function ProductGrid({ products }: ProductGridProps) {
                 {p.name}
               </h3>
               <div className="flex items-end gap-3">
-                <p className="font-[var(--font-poppins)] text-[30px] leading-none text-white md:text-[32px]">{p.price}</p>
-                {p.oldPrice ? <p className="font-[var(--font-poppins)] text-[14px] text-[#d5bdb9] line-through md:text-[15px]">{p.oldPrice}</p> : null}
+                <p className="font-[var(--font-poppins)] text-[30px] leading-none text-white md:text-[32px]">
+                  {formatCurrency(
+                    convertAmount(p.priceAmount, toSupportedCurrency(p.currencyCode), displayCurrency),
+                    displayCurrency,
+                  )}
+                </p>
+                {p.oldPrice ? (
+                  <p className="font-[var(--font-poppins)] text-[14px] text-[#d5bdb9] line-through md:text-[15px]">
+                    {formatCurrency(
+                      convertAmount(
+                        Number.parseFloat(p.oldPrice.replace(/[^\d.]/g, "")) || p.priceAmount,
+                        toSupportedCurrency(p.currencyCode),
+                        displayCurrency,
+                      ),
+                      displayCurrency,
+                    )}
+                  </p>
+                ) : null}
               </div>
             </div>
             </article>

@@ -1,0 +1,3 @@
+{
+  "/api/health/otp-readiness/route": "app/api/health/otp-readiness/route.js"
+}

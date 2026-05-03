@@ -1,6 +1,7 @@
 "use client";
 
 import { Heart, ShoppingBag, Trash2, X } from "lucide-react";
+import SafeImage from "@/components/SafeImage";
 import { getWishlistItems, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
 
@@ -49,7 +50,7 @@ export default function WishlistDrawer({ isOpen, onClose }: WishlistDrawerProps)
                 {wishlistItems.map((product) => (
                   <article key={product.id} className="rounded-xl border border-[var(--gold)]/40 p-3">
                     <div className="flex gap-3">
-                      <img src={product.img} alt={product.name} className="h-20 w-20 rounded-lg object-cover" />
+                      <SafeImage src={product.img} alt={product.name} className="h-20 w-20 rounded-lg object-cover" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{product.name}</p>
                         <p className="text-[#eac26a]">{product.price}</p>

@@ -1,5 +1,7 @@
 // components/Category.tsx
 
+import SafeImage from "@/components/SafeImage";
+
 const categories = [
   { name: "Boho Chic", img: "/cat1.jpg" },
   { name: "Ethnic Fusion", img: "/cat3.jpg" },
@@ -16,7 +18,7 @@ export default function Category() {
       <p className="text-center text-[11px] uppercase tracking-[0.12em] text-[var(--gold)] mb-3 md:text-[31px]">
         Clothing & Jewellery
       </p>
-      <img
+      <SafeImage
         src="/GoldenArrow.svg"
         alt="Decorative golden divider"
         className="mx-auto mb-10 w-[156px]"
@@ -25,7 +27,7 @@ export default function Category() {
       <div className="section-shell grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
         {categories.map((cat, i) => (
           <div key={i} className="relative group cursor-pointer overflow-hidden rounded-[18px] border border-[var(--gold)]/70">
-            <img
+            <SafeImage
               src={cat.img}
               alt={cat.name}
               className="h-[240px] w-full object-cover transition duration-500 group-hover:scale-105 md:h-[340px]"

@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Heart, ShoppingBag } from "lucide-react";
 import { GridProduct } from "@/lib/catalog";
+import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { buildCategoryTree, slugify } from "@/lib/product-taxonomy";
 import ProductDetailsModal from "@/components/ProductDetailsModal";
+import SafeImage from "@/components/SafeImage";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
 
@@ -30,6 +32,7 @@ export default function ShopListing({
   const toggleWishlist = useShopStore((state) => state.toggleWishlist);
   const addToCart = useShopStore((state) => state.addToCart);
   const openCart = useUiStore((state) => state.openCart);
+  const displayCurrency = useUiStore((state) => state.currency);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -257,13 +260,29 @@ export default function ShopListing({
               className="overflow-hidden rounded-[18px] border border-[var(--gold)]/50 bg-[#4a0b12] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(0,0,0,0.28)]"
               onClick={() => handleOpenDetails(product)}
             >
-              <img src={product.img} alt={product.name} className="h-[320px] w-full cursor-pointer object-cover" />
+              <SafeImage src={product.img} alt={product.name} className="h-[320px] w-full cursor-pointer object-cover" />
               <div className="space-y-3 p-4">
                 <h3 className="cursor-pointer text-lg leading-tight">{product.name}</h3>
                 <p className="line-clamp-2 text-sm text-[#e9c9c3]">{product.description}</p>
                 <div className="flex items-end gap-3">
-                  <p className="text-xl">{product.price}</p>
-                  {product.oldPrice ? <p className="text-sm text-[#d5bdb9] line-through">{product.oldPrice}</p> : null}
+                  <p className="text-xl">
+                    {formatCurrency(
+                      convertAmount(product.priceAmount, toSupportedCurrency(product.currencyCode), displayCurrency),
+                      displayCurrency,
+                    )}
+                  </p>
+                  {product.oldPrice ? (
+                    <p className="text-sm text-[#d5bdb9] line-through">
+                      {formatCurrency(
+                        convertAmount(
+                          Number.parseFloat(product.oldPrice.replace(/[^\d.]/g, "")) || product.priceAmount,
+                          toSupportedCurrency(product.currencyCode),
+                          displayCurrency,
+                        ),
+                        displayCurrency,
+                      )}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex gap-2">
                   <button

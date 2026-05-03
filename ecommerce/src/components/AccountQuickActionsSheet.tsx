@@ -51,7 +51,7 @@ export default function AccountQuickActionsSheet({
             className="flex w-full items-center gap-3 rounded-xl border border-[var(--gold)]/30 bg-[#3a0d14]/70 px-3 py-3 text-left text-sm text-[#f7e7df] transition hover:border-[var(--gold)]/65"
           >
             <LogIn className="h-4 w-4 text-[var(--gold)]" />
-            {isSignedIn ? "Switch Account" : "Sign In"}
+            {isSignedIn ? "Switch Account" : "Login or Signup"}
           </button>
 
           <button

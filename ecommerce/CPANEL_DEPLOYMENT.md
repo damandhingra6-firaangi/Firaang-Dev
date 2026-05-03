@@ -84,6 +84,8 @@ Required for this project:
 
 - `NODE_ENV=production`
 - `PORT` as provided by cPanel, if required by your host
+- `GOOGLE_CLIENT_ID`
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
 - `MONGODB_URI`
 - `MONGODB_DB_NAME`
 - `MONGODB_FEEDBACK_COLLECTION`

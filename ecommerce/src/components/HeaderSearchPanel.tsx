@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
+import SafeImage from "@/components/SafeImage";
 import { GridProduct } from "@/lib/catalog";
+import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
+import { useUiStore } from "@/store/useUiStore";
 
 type HeaderSearchPanelProps = {
   isOpen: boolean;
@@ -14,6 +17,7 @@ export default function HeaderSearchPanel({ isOpen, onClose }: HeaderSearchPanel
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState<GridProduct[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const displayCurrency = useUiStore((state) => state.currency);
 
   useEffect(() => {
     if (!isOpen) {
@@ -103,10 +107,15 @@ export default function HeaderSearchPanel({ isOpen, onClose }: HeaderSearchPanel
               onClick={onClose}
               className="flex items-center gap-3 rounded-xl border border-transparent px-3 py-2 transition hover:border-[var(--gold)]/40 hover:bg-[#451018]"
             >
-              <img src={product.img} alt={product.name} className="h-12 w-12 rounded-lg object-cover" />
+              <SafeImage src={product.img} alt={product.name} className="h-12 w-12 rounded-lg object-cover" />
               <div>
                 <p className="text-sm font-medium">{product.name}</p>
-                <p className="text-xs text-[#eac26a]">{product.price}</p>
+                <p className="text-xs text-[#eac26a]">
+                  {formatCurrency(
+                    convertAmount(product.priceAmount, toSupportedCurrency(product.currencyCode), displayCurrency),
+                    displayCurrency,
+                  )}
+                </p>
               </div>
             </Link>
           ))}

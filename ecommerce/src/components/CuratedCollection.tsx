@@ -1,3 +1,5 @@
+import SafeImage from "@/components/SafeImage";
+
 const curatedItems = [
   {
     title: "Zari Bloom Anarkali",
@@ -37,7 +39,7 @@ export default function CuratedCollection() {
         <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {curatedItems.map((item) => (
             <article key={item.title} className="border border-[#8a2c35]/70 bg-[#470a11]">
-              <img src={item.image} alt={item.title} className="h-52 w-full object-cover" />
+              <SafeImage src={item.image} alt={item.title} className="h-52 w-full object-cover" />
               <div className="space-y-3 p-4">
                 <h3 className="text-xl">{item.title}</h3>
                 <p className="min-h-12 text-sm text-[#e8cfc6]">{item.subtitle}</p>

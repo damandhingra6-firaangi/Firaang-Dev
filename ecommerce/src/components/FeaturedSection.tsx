@@ -1,3 +1,5 @@
+import SafeImage from "@/components/SafeImage";
+
 const featuredLogos = ["VOGUE", "ELLE", "BRIDES", "HARPER'S BAZAAR"];
 
 const gallery = ["/cat4.jpg", "/cat1.jpg", "/cat2.jpg", "/cat3.jpg"];
@@ -21,7 +23,7 @@ export default function FeaturedSection() {
         <h3 className="mt-12 text-center text-2xl">Our Social Radar</h3>
         <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
           {gallery.map((item, index) => (
-            <img key={`${item}-${index}`} src={item} alt="Firaangi showcase" className="h-36 w-full object-cover" />
+            <SafeImage key={`${item}-${index}`} src={item} alt="Firaangi showcase" className="h-36 w-full object-cover" />
           ))}
         </div>
       </div>

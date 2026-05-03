@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardList, Loader2, LogOut, Mail, ShieldCheck, Sparkles, UserCircle2, X } from "lucide-react";
+import { ClipboardList, KeyRound, Loader2, LogOut, Sparkles, Smartphone, X } from "lucide-react";
+import SafeImage from "@/components/SafeImage";
+import { ORDER_CANCELLATION_WINDOW_DAYS } from "@/lib/checkout-config";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useUiStore } from "@/store/useUiStore";
 
@@ -12,6 +14,14 @@ type AccountModalProps = {
   initialView: AccountView;
   onClose: () => void;
 };
+
+const CANCEL_REASONS = [
+  "Ordered by mistake",
+  "Need to change size or variant",
+  "Delivery is taking too long",
+  "Found a better price elsewhere",
+  "Other",
+] as const;
 
 function formatCurrency(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-IN", {
@@ -29,6 +39,17 @@ function formatDate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function canCancelOrder(createdAt: string, status: "paid" | "pending" | "failed" | "cancelled") {
+  if (status !== "paid" && status !== "pending") {
+    return false;
+  }
+
+  const createdAtMs = new Date(createdAt).getTime();
+  const elapsedMs = Date.now() - createdAtMs;
+  const windowMs = ORDER_CANCELLATION_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  return elapsedMs <= windowMs;
 }
 
 function loadGoogleScript() {
@@ -83,6 +104,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
   const setSession = useAccountStore((state) => state.setSession);
   const clearSession = useAccountStore((state) => state.clearSession);
   const updateProfile = useAccountStore((state) => state.updateProfile);
+  const upsertOrder = useAccountStore((state) => state.upsertOrder);
   const pushToast = useUiStore((state) => state.pushToast);
 
   const [activeView, setActiveView] = useState<AccountView>(initialView);
@@ -90,7 +112,34 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [googleState, setGoogleState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [normalizedOtpPhone, setNormalizedOtpPhone] = useState("");
+  const [mobileOtpStep, setMobileOtpStep] = useState<"phone" | "otp">("phone");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [debugOtp, setDebugOtp] = useState("");
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [cancelTargetOrderId, setCancelTargetOrderId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState<(typeof CANCEL_REASONS)[number]>(CANCEL_REASONS[0]);
+  const [cancelReasonDetail, setCancelReasonDetail] = useState("");
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
+
+  const profileInitials = useMemo(() => {
+    const source = (profile.fullName || profile.email || "").trim();
+
+    if (!source) {
+      return "FR";
+    }
+
+    const words = source.split(/\s+/).filter(Boolean);
+    if (words.length === 1) {
+      return words[0].slice(0, 2).toUpperCase();
+    }
+
+    return `${words[0][0] ?? ""}${words[1][0] ?? ""}`.toUpperCase();
+  }, [profile.email, profile.fullName]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -98,6 +147,10 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
     }
 
     setActiveView(initialView);
+    setMobileOtpStep("phone");
+    setOtpCode("");
+    setDebugOtp("");
+    setNormalizedOtpPhone("");
   }, [initialView, isOpen]);
 
   useEffect(() => {
@@ -123,7 +176,66 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
     return () => document.removeEventListener("keydown", onEscape);
   }, [isOpen, onClose]);
 
-  const totalSpend = useMemo(() => orders.reduce((sum, order) => sum + order.totalAmount, 0), [orders]);
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [profile.avatarUrl]);
+
+  const totalSpend = useMemo(
+    () => orders.reduce((sum, order) => (order.status === "cancelled" ? sum : sum + order.totalAmount), 0),
+    [orders],
+  );
+
+  const handleOrderCancel = async (orderId: string, reason: string) => {
+    if (cancellingOrderId) {
+      return;
+    }
+
+    setCancellingOrderId(orderId);
+
+    try {
+      const response = await fetch("/api/account/orders/cancel", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ orderId, reason }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        order?: typeof orders[number];
+      };
+
+      if (!response.ok || !payload.order) {
+        pushToast(payload.error ?? "Could not cancel order", { variant: "error" });
+        return;
+      }
+
+      upsertOrder(payload.order);
+      pushToast("Order cancelled successfully", { variant: "success" });
+      setCancelTargetOrderId(null);
+      setCancelReason(CANCEL_REASONS[0]);
+      setCancelReasonDetail("");
+    } catch (error) {
+      console.error("Order cancellation failed", error);
+      pushToast("Could not cancel order", { variant: "error" });
+    } finally {
+      setCancellingOrderId(null);
+    }
+  };
+
+  const handleCancelConfirmation = async () => {
+    if (!cancelTargetOrderId) {
+      return;
+    }
+
+    const finalReason =
+      cancelReason === "Other" && cancelReasonDetail.trim().length > 0
+        ? `Other: ${cancelReasonDetail.trim()}`
+        : cancelReason;
+
+    await handleOrderCancel(cancelTargetOrderId, finalReason);
+  };
 
   const handleGoogleCredential = async (credential: string) => {
     setIsAuthenticating(true);
@@ -159,6 +271,107 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
       pushToast("Google sign-in failed", { variant: "error" });
     } finally {
       setIsAuthenticating(false);
+    }
+  };
+
+  const handleRequestOtp = async () => {
+    if (isSendingOtp) {
+      return;
+    }
+
+    if (!mobileNumber.trim()) {
+      pushToast("Enter your mobile number", { variant: "warning" });
+      return;
+    }
+
+    setIsSendingOtp(true);
+
+    try {
+      const response = await fetch("/api/auth/mobile/request-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone: mobileNumber,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        phone?: string;
+        debugOtp?: string;
+      };
+
+      if (!response.ok || !payload.phone) {
+        pushToast(payload.error ?? "Could not send OTP", { variant: "error" });
+        return;
+      }
+
+      setNormalizedOtpPhone(payload.phone);
+      setMobileNumber(payload.phone);
+      setDebugOtp(payload.debugOtp ?? "");
+      setOtpCode("");
+      setMobileOtpStep("otp");
+      pushToast("OTP sent", { variant: "success" });
+    } catch (error) {
+      console.error("Request OTP failed", error);
+      pushToast("Could not send OTP", { variant: "error" });
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (isVerifyingOtp) {
+      return;
+    }
+
+    if (!otpCode.trim()) {
+      pushToast("Enter the OTP", { variant: "warning" });
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+
+    try {
+      const response = await fetch("/api/auth/mobile/verify-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone: normalizedOtpPhone || mobileNumber,
+          otp: otpCode.trim(),
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        profile?: typeof profile;
+        orders?: typeof orders;
+      };
+
+      if (!response.ok || !payload.profile || !payload.orders) {
+        pushToast(payload.error ?? "Could not verify OTP", { variant: "error" });
+        return;
+      }
+
+      setSession({
+        profile: payload.profile,
+        orders: payload.orders,
+      });
+      setActiveView("profile");
+      setMobileOtpStep("phone");
+      setOtpCode("");
+      setDebugOtp("");
+      setNormalizedOtpPhone("");
+      pushToast("Logged in successfully", { variant: "success" });
+    } catch (error) {
+      console.error("Verify OTP failed", error);
+      pushToast("Could not verify OTP", { variant: "error" });
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -274,9 +487,9 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
   }
 
   return (
-    <div className="fixed inset-0 z-[120] bg-black/65 px-4 py-10" onClick={onClose}>
+    <div className="fixed inset-0 z-[120] overflow-y-auto bg-black/65 px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
       <section
-        className="mx-auto mt-8 w-full max-w-5xl overflow-hidden rounded-[30px] border border-[var(--gold)]/45 bg-[linear-gradient(180deg,#3a0710_0%,#2a040a_100%)] shadow-[0_30px_80px_rgba(0,0,0,0.45)] md:mt-14"
+        className="mx-auto my-1 flex w-full max-w-4xl flex-col overflow-hidden rounded-[30px] border border-[var(--gold)]/45 bg-[linear-gradient(180deg,#3a0710_0%,#2a040a_100%)] shadow-[0_30px_80px_rgba(0,0,0,0.45)] max-h-[calc(100dvh-0.5rem)] sm:max-h-[calc(100dvh-1rem)]"
         onClick={(event) => event.stopPropagation()}
       >
         <header className="flex items-start justify-between border-b border-[var(--gold)]/20 px-5 py-5 md:px-7">
@@ -307,74 +520,123 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                     : "border border-[var(--gold)]/40 text-[var(--gold)] hover:border-[var(--gold)]/70"
                 }`}
               >
-                {view === "signin" ? "Sign In" : view === "profile" ? "My Profile" : "Orders"}
+                {view === "signin" ? "Login or Signup" : view === "profile" ? "My Profile" : "Orders"}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="max-h-[72vh] overflow-y-auto px-5 py-5 md:px-7 md:py-6">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-7 md:py-6">
           {activeView === "signin" ? (
-            <div className="grid gap-5 md:grid-cols-[1.1fr_0.9fr]">
-              <div className="rounded-[28px] border border-[var(--gold)]/20 bg-[rgba(74,12,20,0.58)] p-5 shadow-xl backdrop-blur md:p-6">
+            <div className="mx-auto w-full max-w-2xl space-y-4">
+              <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[rgba(74,12,20,0.58)] p-5 shadow-xl backdrop-blur md:p-6">
                 <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--gold)]/30 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[var(--gold)]">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Secure Account Access
-                </p>
-                <h3 className="text-2xl md:text-3xl">Continue with Google</h3>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-[#e9d3cc]">
-                  Sign in once to sync profile details and keep your paid orders available across devices.
+                  Login or Signup
                 </p>
 
                 {isSignedIn ? (
-                  <div className="mt-6 rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-4 text-sm text-emerald-50">
-                    <p className="font-semibold">You are signed in as {profile.email}</p>
-                    <p className="mt-1 text-emerald-100/90">Open your profile or orders tab to manage your account.</p>
+                  <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-4 text-sm text-emerald-50">
+                    <p className="font-semibold">You are signed in as {profile.email || profile.phone}</p>
                   </div>
-                ) : isGoogleConfigured ? (
-                  <>
-                    <div className="mt-6 min-h-12" ref={googleButtonRef} />
-                    {googleState === "loading" || isAuthenticating ? (
-                      <p className="mt-3 inline-flex items-center gap-2 text-sm text-[#e7d0c6]">
-                        <Loader2 className="h-4 w-4 animate-spin text-[var(--gold)]" />
-                        Preparing secure Google sign-in...
-                      </p>
-                    ) : null}
-                    {googleState === "error" ? (
-                      <p className="mt-3 rounded-xl border border-rose-400/30 bg-rose-950/45 px-4 py-3 text-sm text-rose-100">
-                        Google sign-in could not be loaded. Check your Google client configuration and try again.
-                      </p>
-                    ) : null}
-                  </>
                 ) : (
-                  <div className="mt-6 rounded-2xl border border-amber-300/25 bg-amber-500/10 p-4 text-sm text-amber-50">
-                    Google sign-in is not configured yet. Add NEXT_PUBLIC_GOOGLE_CLIENT_ID and GOOGLE_CLIENT_ID to enable it.
+                  <div className="space-y-5">
+                    <div className="rounded-2xl border border-[var(--gold)]/20 bg-[#3a0d14]/70 p-4">
+                      <p className="mb-3 flex items-center gap-2 text-sm text-[#f1d8ce]">
+                        <Sparkles className="h-4 w-4 text-[var(--gold)]" />
+                        Continue with Google
+                      </p>
+
+                      {isGoogleConfigured ? (
+                        <>
+                          <div className="min-h-12" ref={googleButtonRef} />
+                          {googleState === "loading" || isAuthenticating ? (
+                            <p className="mt-3 inline-flex items-center gap-2 text-sm text-[#e7d0c6]">
+                              <Loader2 className="h-4 w-4 animate-spin text-[var(--gold)]" />
+                              Loading Google...
+                            </p>
+                          ) : null}
+                          {googleState === "error" ? (
+                            <p className="mt-3 rounded-xl border border-rose-400/30 bg-rose-950/45 px-4 py-3 text-sm text-rose-100">
+                              Google login is unavailable right now.
+                            </p>
+                          ) : null}
+                        </>
+                      ) : (
+                        <p className="text-sm text-[#f1d8ce]">Google login is not configured.</p>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl border border-[var(--gold)]/20 bg-[#3a0d14]/70 p-4">
+                      <p className="mb-3 flex items-center gap-2 text-sm text-[#f1d8ce]">
+                        <Smartphone className="h-4 w-4 text-[var(--gold)]" />
+                        Login with Mobile OTP
+                      </p>
+
+                      {mobileOtpStep === "phone" ? (
+                        <div className="space-y-3">
+                          <input
+                            type="tel"
+                            value={mobileNumber}
+                            onChange={(event) => setMobileNumber(event.target.value)}
+                            placeholder="Enter mobile number"
+                            className="w-full rounded-xl border border-[var(--gold)]/30 bg-[#2d0a10] px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleRequestOtp();
+                            }}
+                            disabled={isSendingOtp}
+                            className="gold-button w-full"
+                          >
+                            {isSendingOtp ? "Sending OTP..." : "Send OTP"}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-xs text-[#dfc3bb]">OTP sent to {normalizedOtpPhone || mobileNumber}</p>
+                          <div className="relative">
+                            <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--gold)]/80" />
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={6}
+                              value={otpCode}
+                              onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, ""))}
+                              placeholder="Enter 6-digit OTP"
+                              className="w-full rounded-xl border border-[var(--gold)]/30 bg-[#2d0a10] py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                            />
+                          </div>
+                          {debugOtp ? <p className="text-xs text-[var(--gold)]">Dev OTP: {debugOtp}</p> : null}
+                          <div className="flex flex-col gap-2 sm:flex-row">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void handleVerifyOtp();
+                              }}
+                              disabled={isVerifyingOtp}
+                              className="gold-button w-full"
+                            >
+                              {isVerifyingOtp ? "Verifying..." : "Verify OTP"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMobileOtpStep("phone");
+                                setOtpCode("");
+                                setDebugOtp("");
+                              }}
+                              className="outline-button w-full"
+                            >
+                              Change Number
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-              </div>
-
-              <div className="space-y-4 rounded-[28px] border border-[var(--gold)]/20 bg-[rgba(45,8,14,0.76)] p-5 shadow-xl md:p-6">
-                <div className="rounded-2xl border border-[var(--gold)]/20 bg-[#3a0d14]/70 p-4">
-                  <p className="mb-2 flex items-center gap-2 text-sm text-[#f1d8ce]">
-                    <ShieldCheck className="h-4 w-4 text-[var(--gold)]" />
-                    Session-backed account security
-                  </p>
-                  <p className="text-sm leading-6 text-[#dcbfb7]">Authenticated sessions are stored on the server, and your profile + order history are read from MongoDB instead of browser-only local state.</p>
-                </div>
-                <div className="rounded-2xl border border-[var(--gold)]/20 bg-[#3a0d14]/70 p-4">
-                  <p className="mb-2 flex items-center gap-2 text-sm text-[#f1d8ce]">
-                    <ClipboardList className="h-4 w-4 text-[var(--gold)]" />
-                    Order sync after checkout
-                  </p>
-                  <p className="text-sm leading-6 text-[#dcbfb7]">Paid orders are linked to your signed-in account so they appear automatically in the Orders tab after payment verification.</p>
-                </div>
-                <div className="rounded-2xl border border-[var(--gold)]/20 bg-[#3a0d14]/70 p-4">
-                  <p className="mb-2 flex items-center gap-2 text-sm text-[#f1d8ce]">
-                    <Mail className="h-4 w-4 text-[var(--gold)]" />
-                    Profile completion ready
-                  </p>
-                  <p className="text-sm leading-6 text-[#dcbfb7]">After sign-in, you can complete phone, address, city, state, and PIN details inside your profile.</p>
-                </div>
               </div>
             </div>
           ) : null}
@@ -386,11 +648,17 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
               <form className="grid gap-4 md:grid-cols-2" onSubmit={handleProfileSave}>
                 <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-[var(--gold)]/20 bg-[#3a0d14]/70 p-5">
                   <div className="flex items-center gap-4">
-                    {profile.avatarUrl ? (
-                      <img src={profile.avatarUrl} alt={profile.fullName || profile.email} className="h-14 w-14 rounded-full border border-[var(--gold)]/35 object-cover" />
+                    {profile.avatarUrl && !avatarLoadFailed ? (
+                      <img
+                        src={profile.avatarUrl}
+                        alt={profile.fullName || profile.email}
+                        onError={() => setAvatarLoadFailed(true)}
+                        referrerPolicy="no-referrer"
+                        className="h-14 w-14 rounded-full border border-[var(--gold)]/35 object-cover"
+                      />
                     ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--gold)]/35 bg-[#4b121a]">
-                        <UserCircle2 className="h-7 w-7 text-[var(--gold)]" />
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--gold)]/35 bg-[#4b121a] text-sm font-semibold tracking-[0.06em] text-[var(--gold)]">
+                        {profileInitials}
                       </div>
                     )}
                     <div>
@@ -482,9 +750,9 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
               </form>
             ) : (
               <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[#3a0d14]/65 p-5 text-center">
-                <p className="text-sm text-[#f1d8ce]">Sign in with Google to unlock your profile and synced order history.</p>
+                <p className="text-sm text-[#f1d8ce]">Login to manage your profile.</p>
                 <button type="button" onClick={() => setActiveView("signin")} className="gold-button mt-4">
-                  Go To Sign In
+                  Go To Login
                 </button>
               </div>
             )
@@ -514,7 +782,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
 
                 {orders.length === 0 ? (
                   <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[#3a0d14]/65 p-5 text-sm text-[#f1d8ce]">
-                    No synced orders yet. Sign in before checkout and paid orders will appear here automatically.
+                    No synced orders yet. Login before checkout and paid orders will appear here automatically.
                   </div>
                 ) : (
                   orders.map((order) => (
@@ -526,16 +794,42 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                         </div>
                         <div className="text-right">
                           <p className="text-lg text-white">{formatCurrency(order.totalAmount, order.currencyCode)}</p>
-                          <p className={`text-xs uppercase tracking-[0.12em] ${order.status === "paid" ? "text-emerald-300" : order.status === "pending" ? "text-amber-300" : "text-rose-300"}`}>
+                          <p className={`text-xs uppercase tracking-[0.12em] ${order.status === "paid" ? "text-emerald-300" : order.status === "pending" ? "text-amber-300" : order.status === "cancelled" ? "text-slate-300" : "text-rose-300"}`}>
                             {order.status}
                           </p>
+                          <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-[#d7bbb5]">
+                            {order.paymentMethod === "cod" ? "Cash on Delivery" : "Online"}
+                          </p>
+                          {order.status === "cancelled" && order.cancelledAt ? (
+                            <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-slate-300">
+                              Cancelled on {formatDate(order.cancelledAt)}
+                            </p>
+                          ) : null}
+                          {canCancelOrder(order.createdAt, order.status) ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCancelTargetOrderId(order.id);
+                              }}
+                              disabled={cancellingOrderId === order.id}
+                              className="mt-2 rounded-full border border-[#f0b5b8]/40 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-[#ffd5d7] transition hover:bg-[#5a1420] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {cancellingOrderId === order.id ? "Cancelling..." : `Cancel (within ${ORDER_CANCELLATION_WINDOW_DAYS} days)`}
+                            </button>
+                          ) : null}
                         </div>
                       </div>
 
                       <div className="space-y-3">
+                        {order.status === "cancelled" && order.cancelReason ? (
+                          <div className="rounded-xl border border-slate-300/25 bg-slate-900/25 px-3 py-2">
+                            <p className="text-[11px] uppercase tracking-[0.12em] text-slate-200">Cancellation Reason</p>
+                            <p className="mt-1 text-sm text-slate-100/90">{order.cancelReason}</p>
+                          </div>
+                        ) : null}
                         {order.items.map((item) => (
                           <div key={`${order.id}-${item.productId}`} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/15 p-3">
-                            <img src={item.image} alt={item.name} className="h-14 w-14 rounded-xl object-cover" />
+                            <SafeImage src={item.image} alt={item.name} className="h-14 w-14 rounded-xl object-cover" />
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm text-white">{item.name}</p>
                               <p className="text-xs text-[#d7bbb5]">Qty {item.quantity}</p>
@@ -550,15 +844,91 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
               </div>
             ) : (
               <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[#3a0d14]/65 p-5 text-center">
-                <p className="text-sm text-[#f1d8ce]">Sign in with Google to keep your paid orders synced to this account.</p>
+                <p className="text-sm text-[#f1d8ce]">Login to view your synced orders.</p>
                 <button type="button" onClick={() => setActiveView("signin")} className="gold-button mt-4">
-                  Go To Sign In
+                  Go To Login
                 </button>
               </div>
             )
           ) : null}
         </div>
       </section>
+
+      {cancelTargetOrderId ? (
+        <div className="fixed inset-0 z-[121] bg-black/70 px-4 py-8" onClick={() => setCancelTargetOrderId(null)}>
+          <div
+            className="mx-auto mt-12 w-full max-w-lg rounded-2xl border border-[var(--gold)]/45 bg-[#2b060b] p-5 shadow-2xl md:mt-24 md:p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-[var(--gold)]">Confirm Cancellation</p>
+                <h3 className="mt-1 text-2xl leading-tight">Cancel Order</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCancelTargetOrderId(null)}
+                aria-label="Close cancel confirmation"
+                className="rounded-full p-2 transition hover:bg-[#4a1118]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-[#f0d9d0]">
+              You can cancel this order because it is within the {ORDER_CANCELLATION_WINDOW_DAYS}-day cancellation window.
+            </p>
+
+            <label className="mb-3 block">
+              <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#f2d7c3]">Reason</span>
+              <select
+                value={cancelReason}
+                onChange={(event) => setCancelReason(event.target.value as (typeof CANCEL_REASONS)[number])}
+                className="w-full rounded-lg border border-[var(--gold)]/35 bg-[#3a0d14] px-3 py-2.5 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+              >
+                {CANCEL_REASONS.map((reason) => (
+                  <option key={reason} value={reason}>
+                    {reason}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {cancelReason === "Other" ? (
+              <label className="mb-4 block">
+                <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#f2d7c3]">Details (optional)</span>
+                <textarea
+                  value={cancelReasonDetail}
+                  onChange={(event) => setCancelReasonDetail(event.target.value)}
+                  rows={3}
+                  maxLength={120}
+                  className="w-full resize-none rounded-lg border border-[var(--gold)]/35 bg-[#3a0d14] px-3 py-2.5 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                />
+              </label>
+            ) : null}
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setCancelTargetOrderId(null)}
+                className="rounded-full border border-[var(--gold)]/45 px-4 py-2 text-xs uppercase tracking-[0.12em] text-[var(--gold)] transition hover:bg-[#4a1118]"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleCancelConfirmation();
+                }}
+                disabled={cancellingOrderId === cancelTargetOrderId}
+                className="rounded-full bg-[#c44f59] px-4 py-2 text-xs uppercase tracking-[0.12em] text-white transition hover:bg-[#dc6670] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {cancellingOrderId === cancelTargetOrderId ? "Cancelling..." : "Confirm Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

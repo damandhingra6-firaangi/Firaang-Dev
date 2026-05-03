@@ -67,7 +67,11 @@ function isMongoConnectionError(error: unknown) {
         combined.includes("eai_again") ||
         combined.includes("querysrv") ||
         combined.includes("mongodb_uri is not configured") ||
-        combined.includes("server selection")
+        combined.includes("server selection") ||
+        combined.includes("ssl") ||
+        combined.includes("tls") ||
+        combined.includes("certificate") ||
+        combined.includes("handshake")
       ) {
         return true;
       }

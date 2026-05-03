@@ -43,6 +43,15 @@ const CATEGORY_RULES: CategoryRule[] = [
 
 const SUB_CATEGORY_RULES_BY_CATEGORY: Record<string, SubCategoryRule[]> = {
   "T-Shirts": [
+    { name: "Devotional", match: [/shiv/i, /shiva/i, /mahadev/i, /hanuman/i, /krishna/i, /ram/i, /om/i, /devotional/i, /spiritual/i, /bhakti/i, /ganesh/i] },
+    { name: "Animal", match: [/animal/i, /cat/i, /dog/i, /tiger/i, /lion/i, /wolf/i, /eagle/i, /panther/i, /bear/i] },
+    { name: "Games & Sports", match: [/game/i, /gaming/i, /esports/i, /football/i, /cricket/i, /tennis/i, /basketball/i, /sport/i] },
+    { name: "Anime Art", match: [/anime/i, /manga/i, /otaku/i] },
+    { name: "Dark Art", match: [/dark/i, /occult/i, /noir/i, /grim/i] },
+    { name: "Abstract Art", match: [/abstract/i, /geometry/i, /pattern/i] },
+    { name: "Motivation", match: [/motivat/i, /hustle/i, /mindset/i, /discipline/i, /focus/i] },
+    { name: "Yoga & Wellness", match: [/yoga/i, /wellness/i, /flow/i, /zen/i, /meditat/i] },
+    { name: "Gothic", match: [/gothic/i, /skull/i, /horror/i, /metal/i] },
     { name: "Gen Z T-Shirts", match: [/gen\s*z/i, /street/i, /y2k/i] },
     { name: "Oversized T-Shirts", match: [/oversized/i, /boxy/i, /relaxed/i] },
     { name: "Graphic T-Shirts", match: [/graphic/i, /print/i, /art/i, /logo/i] },

@@ -60,6 +60,12 @@
       "namedRegex": "^/_not\\-found(?:/)?$"
     },
     {
+      "page": "/about",
+      "regex": "^/about(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/about(?:/)?$"
+    },
+    {
       "page": "/admin/feedback",
       "regex": "^/admin/feedback(?:/)?$",
       "routeKeys": {},
@@ -70,6 +76,12 @@
       "regex": "^/admin/newsletter(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/admin/newsletter(?:/)?$"
+    },
+    {
+      "page": "/api/account/orders/cancel",
+      "regex": "^/api/account/orders/cancel(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/account/orders/cancel(?:/)?$"
     },
     {
       "page": "/api/account/profile",
@@ -90,10 +102,34 @@
       "namedRegex": "^/api/auth/google(?:/)?$"
     },
     {
+      "page": "/api/auth/mobile/request-otp",
+      "regex": "^/api/auth/mobile/request\\-otp(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/auth/mobile/request\\-otp(?:/)?$"
+    },
+    {
+      "page": "/api/auth/mobile/verify-otp",
+      "regex": "^/api/auth/mobile/verify\\-otp(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/auth/mobile/verify\\-otp(?:/)?$"
+    },
+    {
       "page": "/api/auth/signout",
       "regex": "^/api/auth/signout(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/auth/signout(?:/)?$"
+    },
+    {
+      "page": "/api/auth/signup",
+      "regex": "^/api/auth/signup(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/auth/signup(?:/)?$"
+    },
+    {
+      "page": "/api/checkout/cod",
+      "regex": "^/api/checkout/cod(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/checkout/cod(?:/)?$"
     },
     {
       "page": "/api/checkout/order",
@@ -120,10 +156,22 @@
       "namedRegex": "^/api/feedback/health(?:/)?$"
     },
     {
+      "page": "/api/health/otp-readiness",
+      "regex": "^/api/health/otp\\-readiness(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/health/otp\\-readiness(?:/)?$"
+    },
+    {
       "page": "/api/newsletter",
       "regex": "^/api/newsletter(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/newsletter(?:/)?$"
+    },
+    {
+      "page": "/api/orders/track",
+      "regex": "^/api/orders/track(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/orders/track(?:/)?$"
     },
     {
       "page": "/api/products",
@@ -138,16 +186,46 @@
       "namedRegex": "^/api/products/sub\\-categories(?:/)?$"
     },
     {
+      "page": "/contact",
+      "regex": "^/contact(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/contact(?:/)?$"
+    },
+    {
+      "page": "/exchange-return",
+      "regex": "^/exchange\\-return(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/exchange\\-return(?:/)?$"
+    },
+    {
       "page": "/favicon.ico",
       "regex": "^/favicon\\.ico(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/favicon\\.ico(?:/)?$"
     },
     {
+      "page": "/privacy-policy",
+      "regex": "^/privacy\\-policy(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/privacy\\-policy(?:/)?$"
+    },
+    {
       "page": "/shop",
       "regex": "^/shop(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/shop(?:/)?$"
+    },
+    {
+      "page": "/size-guide",
+      "regex": "^/size\\-guide(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/size\\-guide(?:/)?$"
+    },
+    {
+      "page": "/track-order",
+      "regex": "^/track\\-order(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/track\\-order(?:/)?$"
     }
   ],
   "dataRoutes": [],

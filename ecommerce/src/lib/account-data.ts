@@ -1,6 +1,10 @@
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, createHash, randomInt, scrypt as scryptCallback, scryptSync, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 import { ObjectId, type Collection } from "mongodb";
+import { ORDER_CANCELLATION_WINDOW_DAYS } from "@/lib/checkout-config";
 import { getMongoDb } from "@/lib/mongodb";
+
+const scrypt = promisify(scryptCallback);
 
 export type AccountProfile = {
   fullName: string;
@@ -11,7 +15,7 @@ export type AccountProfile = {
   city: string;
   state: string;
   pinCode: string;
-  authProvider: "google";
+  authProvider: "google" | "email" | "mobile";
 };
 
 export type AccountOrderItem = {
@@ -28,7 +32,10 @@ export type AccountOrder = {
   createdAt: string;
   totalAmount: number;
   currencyCode: string;
-  status: "paid" | "pending" | "failed";
+  status: "paid" | "pending" | "failed" | "cancelled";
+  paymentMethod: "online" | "cod";
+  cancelledAt?: string;
+  cancelReason?: string;
   paymentId?: string;
   items: AccountOrderItem[];
 };
@@ -47,11 +54,21 @@ type AccountUserDocument = {
   city?: string;
   state?: string;
   pinCode?: string;
-  authProvider: "google";
+  authProvider: "google" | "email" | "mobile";
   googleSub: string;
+  passwordHash?: string;
   createdAt: Date;
   updatedAt: Date;
   lastSignedInAt: Date;
+};
+
+type AccountMobileOtpDocument = {
+  phone: string;
+  otpHash: string;
+  attempts: number;
+  createdAt: Date;
+  expiresAt: Date;
+  consumedAt?: Date;
 };
 
 type AccountSessionDocument = {
@@ -67,7 +84,10 @@ type AccountOrderDocument = {
   paymentId?: string;
   totalAmount: number;
   currencyCode: string;
-  status: "paid" | "pending" | "failed";
+  status: "paid" | "pending" | "failed" | "cancelled";
+  paymentMethod?: "online" | "cod";
+  cancelledAt?: Date;
+  cancelReason?: string;
   items: AccountOrderItem[];
   createdAt: Date;
   updatedAt: Date;
@@ -76,6 +96,8 @@ type AccountOrderDocument = {
 const USERS_COLLECTION_NAME = process.env.MONGODB_USERS_COLLECTION ?? "users";
 const SESSIONS_COLLECTION_NAME = process.env.MONGODB_SESSIONS_COLLECTION ?? "account_sessions";
 const ORDERS_COLLECTION_NAME = process.env.MONGODB_ORDERS_COLLECTION ?? "orders";
+const MOBILE_OTPS_COLLECTION_NAME = process.env.MONGODB_MOBILE_OTPS_COLLECTION ?? "account_mobile_otps";
+const MOBILE_OTP_COOLDOWN_MS = 45 * 1000;
 
 let ensureAccountIndexesPromise: Promise<void> | null = null;
 
@@ -83,8 +105,58 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+export function normalizePhoneNumber(phone: string) {
+  const raw = phone.trim();
+  const digits = raw.replace(/\D/g, "");
+
+  if (digits.length === 10) {
+    return `+91${digits}`;
+  }
+
+  if (digits.length === 11 && digits.startsWith("0")) {
+    return `+91${digits.slice(1)}`;
+  }
+
+  if (digits.length === 12 && digits.startsWith("91")) {
+    return `+${digits}`;
+  }
+
+  if (raw.startsWith("+") && digits.length >= 10 && digits.length <= 15) {
+    return `+${digits}`;
+  }
+
+  return "";
+}
+
+export function isSupportedMobileNumber(phone: string) {
+  return /^\+91[6-9]\d{9}$/.test(phone);
+}
+
 function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+function hashOtpCode(phone: string, code: string) {
+  return createHash("sha256").update(`${phone}:${code}`).digest("hex");
+}
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16);
+  const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
+  return `${salt.toString("hex")}:${derivedKey.toString("hex")}`;
+}
+
+function verifyPassword(password: string, storedHash: string) {
+  const [saltHex, hashHex] = storedHash.split(":");
+
+  if (!saltHex || !hashHex) {
+    return false;
+  }
+
+  const salt = Buffer.from(saltHex, "hex");
+  const stored = Buffer.from(hashHex, "hex");
+  const derived = Buffer.from(scryptSync(password, salt, stored.length));
+  return stored.length === derived.length && timingSafeEqual(stored, derived);
 }
 
 function mapProfile(document: AccountUserDocument): AccountProfile {
@@ -108,6 +180,9 @@ function mapOrder(document: AccountOrderDocument): AccountOrder {
     totalAmount: document.totalAmount,
     currencyCode: document.currencyCode,
     status: document.status,
+    paymentMethod: document.paymentMethod ?? "online",
+    cancelledAt: document.cancelledAt?.toISOString(),
+    cancelReason: document.cancelReason,
     paymentId: document.paymentId,
     items: document.items,
   };
@@ -119,6 +194,7 @@ async function getCollections() {
   const users = db.collection<AccountUserDocument>(USERS_COLLECTION_NAME);
   const sessions = db.collection<AccountSessionDocument>(SESSIONS_COLLECTION_NAME);
   const orders = db.collection<AccountOrderDocument>(ORDERS_COLLECTION_NAME);
+  const mobileOtps = db.collection<AccountMobileOtpDocument>(MOBILE_OTPS_COLLECTION_NAME);
 
   if (!ensureAccountIndexesPromise) {
     ensureAccountIndexesPromise = Promise.all([
@@ -128,6 +204,21 @@ async function getCollections() {
       sessions.createIndex({ expiresAt: 1 }, { name: "session_expires_ttl", expireAfterSeconds: 0 }),
       orders.createIndex({ orderId: 1 }, { name: "order_id_unique", unique: true }),
       orders.createIndex({ userId: 1, createdAt: -1 }, { name: "order_user_created_desc" }),
+      mobileOtps.createIndex({ phone: 1, createdAt: -1 }, { name: "mobile_otp_phone_created_desc" }),
+        users.createIndex(
+          { phone: 1 },
+          {
+            name: "user_phone_unique_non_empty",
+            unique: true,
+            partialFilterExpression: {
+              phone: {
+                $exists: true,
+                $gt: "",
+              },
+            },
+          },
+        ),
+      mobileOtps.createIndex({ expiresAt: 1 }, { name: "mobile_otp_expires_ttl", expireAfterSeconds: 0 }),
     ])
       .then(() => undefined)
       .catch((error) => {
@@ -137,7 +228,7 @@ async function getCollections() {
   }
 
   await ensureAccountIndexesPromise;
-  return { users, sessions, orders };
+  return { users, sessions, orders, mobileOtps };
 }
 
 async function listOrdersForUserId(orders: Collection<AccountOrderDocument>, userId: ObjectId) {
@@ -184,6 +275,215 @@ export async function upsertGoogleAccount(input: {
   if (!user) {
     throw new Error("Failed to load Google account after upsert");
   }
+
+  return {
+    userId: user._id.toHexString(),
+    profile: mapProfile(user),
+  };
+}
+
+export async function createEmailAccount(input: {
+  email: string;
+  fullName: string;
+  password: string;
+}) {
+  const { users } = await getCollections();
+  const now = new Date();
+  const email = normalizeEmail(input.email);
+
+  const existing = await users.findOne({ email });
+
+  if (existing) {
+    throw new Error(existing.authProvider === "google" ? "EMAIL_EXISTS_GOOGLE" : "EMAIL_EXISTS");
+  }
+
+  const passwordHash = await hashPassword(input.password);
+
+  const insertResult = await users.insertOne({
+    email,
+    fullName: input.fullName,
+    avatarUrl: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    pinCode: "",
+    authProvider: "email",
+    googleSub: `email:${email}`,
+    passwordHash,
+    createdAt: now,
+    updatedAt: now,
+    lastSignedInAt: now,
+  });
+
+  const user = await users.findOne({ _id: insertResult.insertedId });
+
+  if (!user) {
+    throw new Error("FAILED_TO_CREATE_EMAIL_ACCOUNT");
+  }
+
+  return {
+    userId: user._id.toHexString(),
+    profile: mapProfile(user),
+  };
+}
+
+export async function createMobileOtp(phone: string) {
+  const { mobileOtps } = await getCollections();
+  const latestRecord = await mobileOtps.findOne({ phone }, { sort: { createdAt: -1 } });
+
+  if (latestRecord) {
+    const elapsedMs = Date.now() - latestRecord.createdAt.getTime();
+
+    if (elapsedMs < MOBILE_OTP_COOLDOWN_MS) {
+      const retryAfterSeconds = Math.ceil((MOBILE_OTP_COOLDOWN_MS - elapsedMs) / 1000);
+      throw new Error(`OTP_COOLDOWN:${retryAfterSeconds}`);
+    }
+  }
+
+  const code = `${randomInt(0, 1000000)}`.padStart(6, "0");
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 1000 * 60 * 5);
+
+  await mobileOtps.deleteMany({ phone });
+
+  await mobileOtps.insertOne({
+    phone,
+    otpHash: hashOtpCode(phone, code),
+    attempts: 0,
+    createdAt: now,
+    expiresAt,
+  });
+
+  return {
+    code,
+    expiresAt,
+  };
+}
+
+export async function verifyMobileOtpCode(phone: string, code: string) {
+  const { mobileOtps } = await getCollections();
+  const record = await mobileOtps.findOne(
+    { phone, consumedAt: { $exists: false } },
+    { sort: { createdAt: -1 } },
+  );
+
+  if (!record) {
+    return { ok: false as const, reason: "OTP_NOT_FOUND" as const };
+  }
+
+  if (record.expiresAt.getTime() <= Date.now()) {
+    return { ok: false as const, reason: "OTP_EXPIRED" as const };
+  }
+
+  if (record.attempts >= 5) {
+    return { ok: false as const, reason: "OTP_TOO_MANY_ATTEMPTS" as const };
+  }
+
+  if (record.otpHash !== hashOtpCode(phone, code)) {
+    await mobileOtps.updateOne({ _id: record._id }, { $inc: { attempts: 1 } });
+    return { ok: false as const, reason: "OTP_INVALID" as const };
+  }
+
+  await mobileOtps.updateOne(
+    { _id: record._id },
+    {
+      $set: {
+        consumedAt: new Date(),
+      },
+    },
+  );
+
+  return { ok: true as const };
+}
+
+export async function upsertMobileAccount(input: { phone: string }) {
+  const { users } = await getCollections();
+  const now = new Date();
+  const existingByPhone = await users.findOne({ phone: input.phone });
+
+  if (existingByPhone) {
+    await users.updateOne(
+      { _id: existingByPhone._id },
+      {
+        $set: {
+          lastSignedInAt: now,
+          updatedAt: now,
+        },
+      },
+    );
+
+    const refreshedUser = await users.findOne({ _id: existingByPhone._id });
+
+    if (!refreshedUser) {
+      throw new Error("FAILED_TO_LOAD_MOBILE_ACCOUNT");
+    }
+
+    return {
+      userId: refreshedUser._id.toHexString(),
+      profile: mapProfile(refreshedUser),
+    };
+  }
+
+  const syntheticEmail = `mobile.${input.phone.replace(/\D/g, "")}@firaangi.local`;
+
+  await users.updateOne(
+    { email: syntheticEmail },
+    {
+      $set: {
+        email: syntheticEmail,
+        fullName: "Firaangi Shopper",
+        avatarUrl: "",
+        phone: input.phone,
+        authProvider: "mobile",
+        googleSub: `mobile:${input.phone}`,
+        updatedAt: now,
+        lastSignedInAt: now,
+      },
+      $setOnInsert: {
+        address: "",
+        city: "",
+        state: "",
+        pinCode: "",
+        createdAt: now,
+      },
+    },
+    { upsert: true },
+  );
+
+  const user = await users.findOne({ email: syntheticEmail });
+
+  if (!user) {
+    throw new Error("FAILED_TO_CREATE_MOBILE_ACCOUNT");
+  }
+
+  return {
+    userId: user._id.toHexString(),
+    profile: mapProfile(user),
+  };
+}
+
+export async function authenticateEmailAccount(input: { email: string; password: string }) {
+  const { users } = await getCollections();
+  const email = normalizeEmail(input.email);
+  const user = await users.findOne({ email });
+
+  if (!user || user.authProvider !== "email" || !user.passwordHash) {
+    return null;
+  }
+
+  if (!verifyPassword(input.password, user.passwordHash)) {
+    return null;
+  }
+
+  await users.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        lastSignedInAt: new Date(),
+      },
+    },
+  );
 
   return {
     userId: user._id.toHexString(),
@@ -280,6 +580,7 @@ export async function createPendingOrderForSessionToken(
     orderId: string;
     totalAmount: number;
     currencyCode: string;
+    paymentMethod?: "online" | "cod";
     items: AccountOrderItem[];
   },
 ) {
@@ -299,6 +600,7 @@ export async function createPendingOrderForSessionToken(
         userId: session.userId,
         totalAmount: input.totalAmount,
         currencyCode: input.currencyCode,
+        paymentMethod: input.paymentMethod ?? "online",
         items: input.items,
         status: "pending",
         updatedAt: now,
@@ -335,4 +637,70 @@ export async function markOrderPaidForSessionToken(token: string, input: { order
 
   const updatedOrder = await orders.findOne({ orderId: input.orderId, userId: session.userId });
   return updatedOrder ? mapOrder(updatedOrder) : null;
+}
+
+export async function cancelOrderForSessionToken(token: string, input: { orderId: string; reason?: string }) {
+  const { sessions, orders } = await getCollections();
+  const session = await sessions.findOne({ tokenHash: hashSessionToken(token) });
+
+  if (!session) {
+    return { order: null, reason: "UNAUTHENTICATED" as const };
+  }
+
+  const existingOrder = await orders.findOne({ orderId: input.orderId, userId: session.userId });
+
+  if (!existingOrder) {
+    return { order: null, reason: "NOT_FOUND" as const };
+  }
+
+  if (existingOrder.status === "cancelled") {
+    return { order: mapOrder(existingOrder), reason: "ALREADY_CANCELLED" as const };
+  }
+
+  if (existingOrder.status === "failed") {
+    return { order: null, reason: "FAILED_ORDER" as const };
+  }
+
+  const cancellationWindowMs = ORDER_CANCELLATION_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const isEligible = Date.now() - existingOrder.createdAt.getTime() <= cancellationWindowMs;
+
+  if (!isEligible) {
+    return { order: null, reason: "WINDOW_EXPIRED" as const };
+  }
+
+  const now = new Date();
+
+  await orders.updateOne(
+    { orderId: input.orderId, userId: session.userId },
+    {
+      $set: {
+        status: "cancelled",
+        cancelledAt: now,
+        cancelReason: input.reason?.trim() || "User requested cancellation",
+        updatedAt: now,
+      },
+    },
+  );
+
+  const updatedOrder = await orders.findOne({ orderId: input.orderId, userId: session.userId });
+  return { order: updatedOrder ? mapOrder(updatedOrder) : null, reason: null as null };
+}
+
+export async function findOrderForTracking(input: { orderId: string; email: string }) {
+  const { users, orders } = await getCollections();
+  const email = input.email.trim().toLowerCase();
+  const orderId = input.orderId.trim();
+
+  if (!email || !orderId) {
+    return null;
+  }
+
+  const user = await users.findOne({ email });
+
+  if (!user) {
+    return null;
+  }
+
+  const order = await orders.findOne({ orderId, userId: user._id });
+  return order ? mapOrder(order) : null;
 }

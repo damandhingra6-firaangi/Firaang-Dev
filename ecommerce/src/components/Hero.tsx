@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import SafeImage from "@/components/SafeImage";
 import { newsletterSchema } from "@/lib/newsletter";
 import { useUiStore } from "@/store/useUiStore";
 
@@ -122,12 +123,12 @@ export default function Hero() {
 
   return (
     <section className="relative min-h-[68vh] w-full overflow-hidden pt-20 max-[390px]:min-h-[64vh] min-[401px]:min-h-[71vh] md:min-h-[90vh] md:pt-28 lg:mt-24">
-      <img
+      <SafeImage
         src="/Banner1.png"
         alt={activeSlide.alt}
         className="absolute left-0 top-0 h-full w-full object-cover object-[62%_top] max-[390px]:object-[66%_top] min-[401px]:object-[58%_top] md:hidden"
       />
-      <img
+      <SafeImage
         src={activeSlide.image}
         alt={activeSlide.alt}
         className="absolute left-0 top-0 hidden h-full w-full object-cover object-top md:block"

@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { GridProduct } from "@/lib/catalog";
+import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { Check, ChevronDown, Heart, ShoppingBag, Sparkles, X } from "lucide-react";
 import { getConfiguredSizeChart } from "@/lib/size-charts";
+import SafeImage from "@/components/SafeImage";
+import { useUiStore } from "@/store/useUiStore";
 
 type ProductDetailsModalProps = {
   product: GridProduct | null;
@@ -65,6 +68,7 @@ export default function ProductDetailsModal({
   onToggleWishlist,
   onAddToCart,
 }: ProductDetailsModalProps) {
+  const displayCurrency = useUiStore((state) => state.currency);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
@@ -294,7 +298,7 @@ export default function ProductDetailsModal({
         <div className="grid max-h-[82vh] gap-6 overflow-y-auto p-5 md:grid-cols-[1.15fr_1fr] md:gap-8 md:p-7">
           <div className="space-y-3">
             <div className="overflow-hidden rounded-2xl border border-[var(--gold)]/25 bg-[#1f0409]">
-              <img
+              <SafeImage
                 src={resolvedProduct?.img ?? product.img}
                 alt={resolvedProduct?.name ?? product.name}
                 className="h-[320px] w-full object-cover sm:h-[420px] md:h-[500px]"
@@ -329,7 +333,7 @@ export default function ProductDetailsModal({
                       }`}
                       aria-label={`Preview ${preview.label}`}
                     >
-                      <img src={preview.img} alt={preview.label} className="h-14 w-full object-cover sm:h-16" />
+                      <SafeImage src={preview.img} alt={preview.label} className="h-14 w-full object-cover sm:h-16" />
                     </button>
                   );
                 })}
@@ -341,9 +345,28 @@ export default function ProductDetailsModal({
             <p className="mb-5 text-base leading-relaxed text-[#f1d9d3]">{product.description}</p>
 
             <div className="mb-6 flex items-end gap-3 border-b border-[var(--gold)]/15 pb-5">
-              <p className="text-3xl leading-none">{resolvedProduct?.price ?? product.price}</p>
+              <p className="text-3xl leading-none">
+                {formatCurrency(
+                  convertAmount(
+                    resolvedProduct?.priceAmount ?? product.priceAmount,
+                    toSupportedCurrency(resolvedProduct?.currencyCode ?? product.currencyCode),
+                    displayCurrency,
+                  ),
+                  displayCurrency,
+                )}
+              </p>
               {(resolvedProduct?.oldPrice ?? product.oldPrice) ? (
-                <p className="text-base text-[#d5bdb9] line-through">{resolvedProduct?.oldPrice ?? product.oldPrice}</p>
+                <p className="text-base text-[#d5bdb9] line-through">
+                  {formatCurrency(
+                    convertAmount(
+                      Number.parseFloat((resolvedProduct?.oldPrice ?? product.oldPrice).replace(/[^\d.]/g, "")) ||
+                        (resolvedProduct?.priceAmount ?? product.priceAmount),
+                      toSupportedCurrency(resolvedProduct?.currencyCode ?? product.currencyCode),
+                      displayCurrency,
+                    ),
+                    displayCurrency,
+                  )}
+                </p>
               ) : null}
             </div>
 

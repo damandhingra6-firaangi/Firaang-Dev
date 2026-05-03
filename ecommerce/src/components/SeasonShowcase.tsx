@@ -1,3 +1,5 @@
+import SafeImage from "@/components/SafeImage";
+
 const seasons = [
   { id: "season-boho-1", title: "Boho Chic", image: "/cat1.jpg" },
   { id: "season-boho-2", title: "Boho Chic", image: "/cat2.jpg" },
@@ -13,7 +15,7 @@ export default function SeasonShowcase() {
         <p className="mt-2 text-center text-[11px] uppercase tracking-[0.12em] text-[var(--gold)]">
           Curated Looks for Every Time of Year
         </p>
-        <img
+        <SafeImage
           src="/GoldenArrow.svg"
           alt="Decorative golden divider"
           className="mx-auto mb-8 mt-3 w-[156px]"
@@ -21,7 +23,7 @@ export default function SeasonShowcase() {
         <div className="grid gap-5 md:grid-cols-4">
           {seasons.map((season) => (
             <div key={season.id} className="group relative overflow-hidden border border-[#8a2c35]/70">
-              <img
+              <SafeImage
                 src={season.image}
                 alt={season.title}
                 className="h-64 w-full object-cover transition duration-500 group-hover:scale-105"

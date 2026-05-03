@@ -21,6 +21,9 @@ type UiState = {
   isSearchOpen: boolean;
   isUserMenuOpen: boolean;
   isFeedbackOpen: boolean;
+  isAccountModalOpen: boolean;
+  language: "EN" | "HI";
+  currency: "INR" | "USD" | "AED";
   toasts: ToastMessage[];
   openCart: () => void;
   closeCart: () => void;
@@ -32,6 +35,10 @@ type UiState = {
   closeUserMenu: () => void;
   openFeedback: () => void;
   closeFeedback: () => void;
+  openAccountModal: () => void;
+  closeAccountModal: () => void;
+  setLanguage: (language: "EN" | "HI") => void;
+  setCurrency: (currency: "INR" | "USD" | "AED") => void;
   pushToast: (message: string, options?: ToastOptions | number) => void;
   dismissToast: (id: number) => void;
 };
@@ -42,6 +49,9 @@ export const useUiStore = create<UiState>((set) => ({
   isSearchOpen: false,
   isUserMenuOpen: false,
   isFeedbackOpen: false,
+  isAccountModalOpen: false,
+  language: "EN",
+  currency: "INR",
   toasts: [],
   openCart: () => set({ isCartOpen: true }),
   closeCart: () => set({ isCartOpen: false }),
@@ -53,6 +63,10 @@ export const useUiStore = create<UiState>((set) => ({
   closeUserMenu: () => set({ isUserMenuOpen: false }),
   openFeedback: () => set({ isFeedbackOpen: true }),
   closeFeedback: () => set({ isFeedbackOpen: false }),
+  openAccountModal: () => set({ isAccountModalOpen: true }),
+  closeAccountModal: () => set({ isAccountModalOpen: false }),
+  setLanguage: (language) => set({ language }),
+  setCurrency: (currency) => set({ currency }),
   pushToast: (message, options) => {
     const normalizedOptions = typeof options === "number" ? { durationMs: options } : options ?? {};
     const durationMs = normalizedOptions.durationMs ?? 2200;

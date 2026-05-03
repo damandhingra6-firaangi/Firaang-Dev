@@ -70,14 +70,28 @@ Required environment variables:
 - `MONGODB_USERS_COLLECTION` (default: `users`)
 - `MONGODB_SESSIONS_COLLECTION` (default: `account_sessions`)
 - `MONGODB_ORDERS_COLLECTION` (default: `orders`)
+- `MONGODB_MOBILE_OTPS_COLLECTION` (default: `account_mobile_otps`)
+- `SMS_PROVIDER` (use `twilio`)
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_FROM_NUMBER` or `TWILIO_MESSAGING_SERVICE_SID`
+- `TWILIO_VERIFY_SERVICE_SID` (optional, enables Twilio Verify API)
+- `SMS_OTP_MESSAGE_TEMPLATE` (optional)
 
 How it works:
 
 - Google sign-in verifies the Google ID token on the server
+- Mobile OTP login sends OTP over SMS through Twilio
+- If `TWILIO_VERIFY_SERVICE_SID` is set, OTP send/check uses Twilio Verify API
+- If Twilio Verify is not enabled, app uses local OTP storage + Twilio SMS delivery
 - A Mongo-backed session cookie is created for the account
 - Authenticated checkouts create pending orders in MongoDB
 - Successful payment verification marks those orders as paid
 - The account modal reads synced profile and order history from MongoDB
+
+OTP delivery setup details:
+
+- `docs/sms-otp-setup.md`
 
 If Google sign-in is not configured, the account modal will show a configuration message instead of a fake local sign-in flow.
 
@@ -91,6 +105,17 @@ This project can load the homepage New Arrivals products from Shopify Storefront
 	- `SHOPIFY_STOREFRONT_ACCESS_TOKEN`: Storefront API access token
 	- `SHOPIFY_API_VERSION`: API version (default: `2025-01`)
 3. Restart the dev server.
+
+Optional display-currency environment variables:
+
+- `NEXT_PUBLIC_FX_USD_TO_INR` (default: `83`)
+- `NEXT_PUBLIC_FX_AED_TO_INR` (default: `22.6`)
+
+Notes:
+
+- These rates are used only for display conversion in UI when user selects USD/AED.
+- Razorpay checkout is still charged in INR.
+- After changing FX values, restart the app/server.
 
 Implementation details:
 

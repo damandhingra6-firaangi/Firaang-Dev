@@ -1,4 +1,5 @@
 import Navbar from "@/components/Navbar";
+import Newsletter from "@/components/Newsletter";
 import ShopListing from "@/components/ShopListing";
 import { fallbackProducts } from "@/lib/catalog";
 import { getStorefrontProducts } from "@/lib/shopify";
@@ -26,6 +27,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
         initialCategory={category}
         initialSubCategory={subCategory}
       />
+      <Newsletter />
     </main>
   );
 }

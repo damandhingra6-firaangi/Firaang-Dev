@@ -1,4 +1,5 @@
 import { GridProduct } from "@/lib/catalog";
+import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { deriveProductTaxonomy } from "@/lib/product-taxonomy";
 
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
@@ -134,20 +135,6 @@ const productsQuery = `#graphql
 
 function normalizeStoreDomain(value: string) {
   return value.replace(/^https?:\/\//, "").replace(/\/$/, "");
-}
-
-function formatMoney(amount: string, currencyCode: string) {
-  const numericValue = Number.parseFloat(amount);
-
-  if (Number.isNaN(numericValue)) {
-    return amount;
-  }
-
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: currencyCode,
-    maximumFractionDigits: 0,
-  }).format(numericValue);
 }
 
 function prettifyHeaderLabel(input: string) {
@@ -366,27 +353,28 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
 
   const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
-    },
-    body: JSON.stringify({
-      query: productsQuery,
-      variables: { first: limit },
-    }),
-    cache: "no-store",
-  });
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
+      },
+      body: JSON.stringify({
+        query: productsQuery,
+        variables: { first: limit },
+      }),
+      cache: "no-store",
+    });
 
-  if (!response.ok) {
-    return [];
-  }
+    if (!response.ok) {
+      return [];
+    }
 
-  const json = (await response.json()) as ShopifyProductsResponse;
-  const productEdges = json.data?.products?.edges ?? [];
+    const json = (await response.json()) as ShopifyProductsResponse;
+    const productEdges = json.data?.products?.edges ?? [];
 
-  return productEdges.map(({ node }) => {
+    return productEdges.map(({ node }) => {
       const imageUrl = node.featuredImage?.url ?? "/cat1.jpg";
       const sizeChart = parseSizeChart(node.sizeChartJson?.value) ?? parseSizeChart(node.sizeChart?.value);
       const taxonomy = deriveProductTaxonomy({
@@ -403,15 +391,27 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
         subCategory: taxonomy.subCategory,
         subCategorySlug: taxonomy.subCategorySlug,
         name: node.title,
-        price: formatMoney(
-          node.priceRange.minVariantPrice.amount,
-          node.priceRange.minVariantPrice.currencyCode
+        price: formatCurrency(
+          convertAmount(
+            Number.parseFloat(node.priceRange.minVariantPrice.amount),
+            toSupportedCurrency(node.priceRange.minVariantPrice.currencyCode),
+            "INR",
+          ),
+          "INR",
         ),
-        priceAmount: Number.parseFloat(node.priceRange.minVariantPrice.amount),
-        currencyCode: node.priceRange.minVariantPrice.currencyCode,
-        oldPrice: formatMoney(
-          node.compareAtPriceRange.minVariantPrice.amount,
-          node.compareAtPriceRange.minVariantPrice.currencyCode
+        priceAmount: convertAmount(
+          Number.parseFloat(node.priceRange.minVariantPrice.amount),
+          toSupportedCurrency(node.priceRange.minVariantPrice.currencyCode),
+          "INR",
+        ),
+        currencyCode: "INR",
+        oldPrice: formatCurrency(
+          convertAmount(
+            Number.parseFloat(node.compareAtPriceRange.minVariantPrice.amount),
+            toSupportedCurrency(node.compareAtPriceRange.minVariantPrice.currencyCode),
+            "INR",
+          ),
+          "INR",
         ),
         img: imageUrl,
         description:
@@ -435,16 +435,38 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
               name: variantNode.title,
               availableForSale: variantNode.availableForSale,
               img: variantImage,
-              price: formatMoney(variantNode.price.amount, variantNode.price.currencyCode),
-              priceAmount: Number.parseFloat(variantNode.price.amount),
-              currencyCode: variantNode.price.currencyCode,
+              price: formatCurrency(
+                convertAmount(
+                  Number.parseFloat(variantNode.price.amount),
+                  toSupportedCurrency(variantNode.price.currencyCode),
+                  "INR",
+                ),
+                "INR",
+              ),
+              priceAmount: convertAmount(
+                Number.parseFloat(variantNode.price.amount),
+                toSupportedCurrency(variantNode.price.currencyCode),
+                "INR",
+              ),
+              currencyCode: "INR",
               oldPrice: variantNode.compareAtPrice
-                ? formatMoney(variantNode.compareAtPrice.amount, variantNode.compareAtPrice.currencyCode)
+                ? formatCurrency(
+                    convertAmount(
+                      Number.parseFloat(variantNode.compareAtPrice.amount),
+                      toSupportedCurrency(variantNode.compareAtPrice.currencyCode),
+                      "INR",
+                    ),
+                    "INR",
+                  )
                 : "",
               options: variantNode.selectedOptions,
             };
           })
           .filter((variant): variant is NonNullable<typeof variant> => variant !== null),
       } satisfies GridProduct;
-    });
+      });
+  } catch (error) {
+    console.error("Shopify fetch failed", error);
+    return [];
+  }
 }

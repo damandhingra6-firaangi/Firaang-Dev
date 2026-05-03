@@ -7,16 +7,24 @@ type GoogleAuthRequest = {
   credential?: string;
 };
 
-function getGoogleClientId() {
-  return process.env.GOOGLE_CLIENT_ID ?? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+function getGoogleClientIds() {
+  const raw = [
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+  ]
+    .flatMap((value) => (value ?? "").split(","))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  return Array.from(new Set(raw));
 }
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as GoogleAuthRequest | null;
   const credential = body?.credential?.trim() ?? "";
-  const googleClientId = getGoogleClientId();
+  const googleClientIds = getGoogleClientIds();
 
-  if (!googleClientId) {
+  if (googleClientIds.length === 0) {
     return NextResponse.json({ error: "Google sign-in is not configured" }, { status: 503 });
   }
 
@@ -25,10 +33,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const client = new OAuth2Client(googleClientId);
+    const client = new OAuth2Client(googleClientIds[0]);
     const ticket = await client.verifyIdToken({
       idToken: credential,
-      audience: googleClientId,
+      audience: googleClientIds,
     });
 
     const payload = ticket.getPayload();
@@ -37,15 +45,56 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Google account is missing required profile information" }, { status: 400 });
     }
 
-    const account = await upsertGoogleAccount({
-      email: payload.email,
-      fullName: payload.name ?? payload.email.split("@")[0] ?? "Firaangi Shopper",
-      avatarUrl: payload.picture,
-      googleSub: payload.sub,
-    });
+    let account;
 
-    const session = await createAccountSession(account.userId);
-    const snapshot = await getAccountSnapshotBySessionToken(session.token);
+    try {
+      account = await upsertGoogleAccount({
+        email: payload.email,
+        fullName: payload.name ?? payload.email.split("@")[0] ?? "Firaangi Shopper",
+        avatarUrl: payload.picture,
+        googleSub: payload.sub,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown account persistence error";
+      console.error("Google sign-in account upsert failed", { message, email: payload.email });
+
+      if (message.includes("MONGODB_URI")) {
+        return NextResponse.json({ error: "Account database is not configured on production" }, { status: 503 });
+      }
+
+      if (
+        message.toLowerCase().includes("server selection") ||
+        message.toLowerCase().includes("atlas") ||
+        message.toLowerCase().includes("tls") ||
+        message.toLowerCase().includes("certificate") ||
+        message.toLowerCase().includes("econnrefused") ||
+        message.toLowerCase().includes("querysrv")
+      ) {
+        return NextResponse.json({ error: "Could not connect to account database" }, { status: 503 });
+      }
+
+      return NextResponse.json({ error: "Could not save Google account" }, { status: 500 });
+    }
+
+    let session;
+
+    try {
+      session = await createAccountSession(account.userId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown session creation error";
+      console.error("Google sign-in session creation failed", { message, userId: account.userId });
+      return NextResponse.json({ error: "Could not create account session" }, { status: 500 });
+    }
+
+    let snapshot;
+
+    try {
+      snapshot = await getAccountSnapshotBySessionToken(session.token);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown snapshot loading error";
+      console.error("Google sign-in snapshot load failed", { message, userId: account.userId });
+      return NextResponse.json({ error: "Could not load account data after sign-in" }, { status: 500 });
+    }
 
     if (!snapshot) {
       return NextResponse.json({ error: "Could not create account session" }, { status: 500 });
@@ -70,7 +119,36 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
-    console.error("Google sign-in failed", error);
+    const message = error instanceof Error ? error.message : "Unknown Google auth error";
+    const code = (error as { code?: string } | null)?.code ?? "";
+    console.error("Google sign-in failed", {
+      message,
+      code,
+      configuredGoogleClientIds: googleClientIds,
+    });
+
+    if (
+      message.toLowerCase().includes("token used too late") ||
+      message.toLowerCase().includes("wrong number of segments") ||
+      message.toLowerCase().includes("wrong recipient") ||
+      message.toLowerCase().includes("invalid token")
+    ) {
+      return NextResponse.json({ error: "Invalid Google credential. Please retry sign-in." }, { status: 401 });
+    }
+
+    if (
+      code === "ENOTFOUND" ||
+      code === "ECONNREFUSED" ||
+      code === "ECONNRESET" ||
+      code === "ETIMEDOUT" ||
+      message.toLowerCase().includes("fetch failed") ||
+      message.toLowerCase().includes("network") ||
+      message.toLowerCase().includes("certificate") ||
+      message.toLowerCase().includes("tls")
+    ) {
+      return NextResponse.json({ error: "Could not reach Google from production server" }, { status: 503 });
+    }
+
     return NextResponse.json({ error: "Google sign-in failed" }, { status: 500 });
   }
 }

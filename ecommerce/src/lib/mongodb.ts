@@ -1,4 +1,4 @@
-import { Db, MongoClient } from "mongodb";
+import { Db, MongoClient, type MongoClientOptions } from "mongodb";
 
 const mongoDbName = process.env.MONGODB_DB_NAME ?? "firaangi";
 
@@ -21,11 +21,28 @@ function getMongoClientPromise() {
     throw new Error("MONGODB_URI is not configured");
   }
 
-  const clientPromise = new MongoClient(mongoUri).connect();
+  const mongoClientOptions: MongoClientOptions = {
+    serverSelectionTimeoutMS: 15000,
+    tls: true,
+  };
 
-  if (process.env.NODE_ENV !== "production") {
-    globalForMongo.__firaangiMongoClientPromise = clientPromise;
+  // Emergency-only switch for diagnosing broken CA bundles on host providers.
+  if (process.env.MONGODB_TLS_INSECURE === "true") {
+    mongoClientOptions.tlsAllowInvalidCertificates = true;
+    mongoClientOptions.tlsAllowInvalidHostnames = true;
   }
+
+  const clientPromise = new MongoClient(mongoUri, mongoClientOptions)
+    .connect()
+    .catch((error) => {
+      // Allow subsequent retries after a transient failure instead of caching a rejected promise.
+      if (globalForMongo.__firaangiMongoClientPromise === clientPromise) {
+        globalForMongo.__firaangiMongoClientPromise = undefined;
+      }
+      throw error;
+    });
+
+  globalForMongo.__firaangiMongoClientPromise = clientPromise;
 
   return clientPromise;
 }

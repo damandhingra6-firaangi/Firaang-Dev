@@ -3,7 +3,7 @@ import Navbar from "@/components/Navbar";
 import ShopListing from "@/components/ShopListing";
 import { fallbackProducts } from "@/lib/catalog";
 import { getStorefrontProducts } from "@/lib/shopify";
-import { buildCategoryTree } from "@/lib/product-taxonomy";
+import { buildCategoryTree, slugify } from "@/lib/product-taxonomy";
 
 type CategoryPageProps = {
   params: Promise<{ category: string }>;
@@ -12,7 +12,7 @@ type CategoryPageProps = {
 
 // Helper function to normalize slugs for comparison
 function normalizeSlug(slug: string): string {
-  return slug.toLowerCase().replace(/-/g, " ");
+  return slugify(slug);
 }
 
 export default async function CategoryPage({
@@ -34,7 +34,7 @@ export default async function CategoryPage({
   // Find the category by slug
   const normalizedCategorySlug = normalizeSlug(categorySlug);
   const categoryNode = categoryTree.find(
-    (cat) => cat.slug.toLowerCase() === normalizedCategorySlug
+    (cat) => normalizeSlug(cat.slug) === normalizedCategorySlug
   );
 
   if (!categoryNode) {

@@ -1,22 +1,45 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2, Mail, MapPin, Phone } from "lucide-react";
+import Link from "next/link";
 import { newsletterSchema } from "@/lib/newsletter";
 import { useUiStore } from "@/store/useUiStore";
+import SafeImage from "@/components/SafeImage";
+
+const CURRENCY_ICON_MAP: Record<"INR" | "USD" | "AED", string> = {
+  INR: "/India.svg",
+  USD: "/USD.svg",
+  AED: "/AED.svg",
+};
 
 export default function Newsletter() {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
   const pushToast = useUiStore((state) => state.pushToast);
+  const currency = useUiStore((state) => state.currency);
+  const setCurrency = useUiStore((state) => state.setCurrency);
   const isMountedRef = useRef(false);
+  const currencyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
-
     return () => {
       isMountedRef.current = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const handleOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (currencyRef.current && !currencyRef.current.contains(target)) {
+        setIsCurrencyOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
   const handleSubscribe = async (event: FormEvent<HTMLFormElement>) => {
@@ -34,9 +57,7 @@ export default function Newsletter() {
     try {
       const response = await fetch("/api/newsletter", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parsed.data),
       });
 
@@ -53,70 +74,227 @@ export default function Newsletter() {
         pushToast("Subscribed successfully. Welcome to the club!", { variant: "success" });
       }
 
-      if (isMountedRef.current) {
-        setEmail("");
-      }
+      if (isMountedRef.current) setEmail("");
     } catch (error) {
       console.error("Newsletter subscription failed", error);
       pushToast("Could not subscribe right now", { variant: "error" });
     } finally {
-      if (isMountedRef.current) {
-        setIsSubmitting(false);
-      }
+      if (isMountedRef.current) setIsSubmitting(false);
     }
   };
 
   return (
     <>
-      {/* Instagram Section */}
-      {/* <section className="bg-[var(--secondary)] py-12">
-        <div className="section-shell">
-          <div className="flex items-center justify-center gap-2 text-[var(--gold)]">
-            <h2 className="text-2xl font-bold">@Firaangi_boutique</h2>
-          </div>
-          <p className="mt-2 text-center text-[11px] uppercase tracking-[0.28em] text-[var(--gold)]">
-            Follow Us On Instagram
-          </p>
-
-          <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-6">
-            {["/cat1.jpg", "/cat2.jpg", "/cat3.jpg", "/cat4.jpg", "/hero.jpg", "/cat1.jpg"].map((img, i) => (
-              <img key={i} src={img} alt="Instagram post" className="aspect-square w-full object-cover rounded" />
-            ))}
-          </div>
-        </div>
-      </section> */}
-
       {/* Newsletter Section */}
       <section data-newsletter-section className="bg-[var(--primary)] py-16">
         <div className="section-shell max-w-2xl text-center">
-          <p className="text-xs uppercase tracking-[0.28em] text-[var(--gold)]">Stay Connected</p>
-          <h2 className="mt-2 text-4xl md:text-5xl">Join The Firaangi Club</h2>
-          <p className="mt-4 text-sm text-[#efd6cd]">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-[var(--gold)]">Stay Connected</p>
+          <h2 className="mt-2 text-[44px] font-semibold leading-[1.08] tracking-[0.01em] md:text-[50px]" style={{ fontFamily: "var(--font-playfair), serif" }}>
+            Join The Firaangi Club
+          </h2>
+          <p className="mt-4 text-[18px] font-normal leading-[1.55] text-[#efd6cd]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
             Be the first to know about new collections, exclusive offers, and luxury style tips.
           </p>
 
-          <form className="mt-6 flex flex-col gap-3 sm:flex-row" onSubmit={handleSubscribe}>
+          <form className="mx-auto mt-6 flex w-full max-w-[520px] flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-center" onSubmit={handleSubscribe}>
             <input
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="Your email address"
-              className="flex-1 bg-[#4a0b12] px-4 py-3 text-sm text-white placeholder-[#999] outline-none"
+              className="w-full rounded-md border border-[#ffffff1f] bg-[#4a0b12] px-3.5 py-2.5 text-[14px] font-medium text-white placeholder-[#9f7e7d] outline-none transition focus:border-[var(--gold)]/60 focus:bg-[#531019] sm:max-w-[320px]"
               aria-label="Email address"
               required
             />
             <button
               type="submit"
               data-newsletter-subscribe
-              className="gold-button inline-flex items-center justify-center gap-2 px-6 py-3"
+              className="gold-button inline-flex h-[42px] items-center justify-center gap-2 rounded-md px-5 py-2.5 text-[14px]"
               disabled={isSubmitting}
             >
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {isSubmitting ? "Subscribing..." : "Subscribe"}
             </button>
           </form>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="border-t border-[#ffffff14] bg-[var(--primary)] pb-0 pt-12">
+        <div className="section-shell">
+          <div className="grid gap-9 border-b border-[#ffffff14] pb-9 md:grid-cols-2 lg:grid-cols-[1.45fr_1fr_1fr_1fr_1.35fr]">
+            {/* Brand */}
+            <div>
+              <SafeImage src="/Firaangi Logo Design.svg" alt="Firaangi" className="h-[52px] w-auto" />
+              <p className="mt-5 max-w-sm text-[16px] font-medium leading-[1.6] text-[#d6bbb5]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+                Where fashion meets global elegance. Curated clothing and jewellery for the modern connoisseur.
+              </p>
+              <p className="mt-4 inline-flex rounded-full border border-[var(--gold)]/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--gold)]">
+                Trusted Checkout by Razorpay
+              </p>
+            </div>
+
+            {/* Shop */}
+            <div>
+              <p className="mb-4 text-[25px] font-semibold leading-[1.05] text-[#f4e1da]" style={{ fontFamily: "var(--font-playfair), serif" }}>Shop</p>
+              <ul className="space-y-2.5 text-[17px] font-medium uppercase tracking-[0.04em] text-[#dfc0ba]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+                <li>
+                  <Link href="/shop/t-shirts" className="transition hover:text-[var(--gold)]">
+                    Clothing
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/shop?category=hair-accessories" className="transition hover:text-[var(--gold)]">
+                    Jewellery
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/shop" className="transition hover:text-[var(--gold)]">
+                    Collections
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/shop" className="transition hover:text-[var(--gold)]">
+                    New Arrivals
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/shop" className="transition hover:text-[var(--gold)]">
+                    Sale
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Company */}
+            <div>
+              <p className="mb-4 text-[25px] font-semibold leading-[1.05] text-[#f4e1da]" style={{ fontFamily: "var(--font-playfair), serif" }}>Company</p>
+              <ul className="space-y-2.5 text-[17px] font-medium uppercase tracking-[0.04em] text-[#dfc0ba]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+                <li>
+                  <Link href="/about" className="transition hover:text-[var(--gold)]">
+                    About Us
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/about" className="transition hover:text-[var(--gold)]">
+                    Our Story
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="transition hover:text-[var(--gold)]">
+                    Careers
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="transition hover:text-[var(--gold)]">
+                    Press
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/about" className="transition hover:text-[var(--gold)]">
+                    Sustainability
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Support */}
+            <div>
+              <p className="mb-4 text-[25px] font-semibold leading-[1.05] text-[#f4e1da]" style={{ fontFamily: "var(--font-playfair), serif" }}>Support</p>
+              <ul className="space-y-2.5 text-[17px] font-medium uppercase tracking-[0.04em] text-[#dfc0ba]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+                <li>
+                  <Link href="/contact" className="transition hover:text-[var(--gold)]">Contact</Link>
+                </li>
+                <li>
+                  <Link href="/track-order" className="transition hover:text-[var(--gold)]">Shipping</Link>
+                </li>
+                <li>
+                  <Link href="/exchange-return" className="transition hover:text-[var(--gold)]">Returns</Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="transition hover:text-[var(--gold)]">FAQs</Link>
+                </li>
+                <li>
+                  <Link href="/size-guide" className="transition hover:text-[var(--gold)]">Size Guide</Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Contact Info */}
+            <div>
+              <p className="mb-4 text-[25px] font-semibold leading-[1.05] text-[#f4e1da]" style={{ fontFamily: "var(--font-playfair), serif" }}>
+                Contact Information
+              </p>
+              <ul className="space-y-3.5 text-[16px] font-medium leading-[1.5] text-[#e1c4be]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+                <li className="flex items-start gap-3 border-b border-[#ffffff10] pb-3">
+                  <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-[#3b0810]">
+                    <MapPin className="h-3.5 w-3.5" />
+                  </span>
+                  <span>Firaangi Studio, Chandigarh, India</span>
+                </li>
+                <li className="flex items-start gap-3 border-b border-[#ffffff10] pb-3">
+                  <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-[#3b0810]">
+                    <Phone className="h-3.5 w-3.5" />
+                  </span>
+                  <a href="tel:+918556008254" className="transition hover:text-[var(--gold)]">+91 85560 08254</a>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-[#3b0810]">
+                    <Mail className="h-3.5 w-3.5" />
+                  </span>
+                  <a href="mailto:support@firaangi.com" className="transition hover:text-[var(--gold)]">support@firaangi.com</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="grid gap-4 py-4 text-[13px] font-medium text-[#d2b3ae] md:grid-cols-[1fr_auto_1fr] md:items-center" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+            <p className="text-center md:text-left">© 2026 Firaangi. All rights reserved.</p>
+
+            <div className="flex items-center justify-center gap-2">
+              <div className="relative" ref={currencyRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCurrencyOpen((prev) => !prev);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[#ffffff20] bg-[#7f202a]/70 px-2.5 py-1.5 text-[11px] text-[#f4ddd4]"
+                >
+                  <SafeImage src={CURRENCY_ICON_MAP[currency]} alt={`${currency} currency`} className="h-3.5 w-3.5 rounded-full object-cover" />
+                  {currency}
+                  <ChevronDown className={`h-3 w-3 transition ${isCurrencyOpen ? "rotate-180" : ""}`} />
+                </button>
+                {isCurrencyOpen ? (
+                  <div className="absolute bottom-[calc(100%+8px)] left-0 z-20 min-w-full overflow-hidden rounded-md border border-[#ffffff1a] bg-[#5d111a] shadow-[0_14px_26px_rgba(0,0,0,0.35)]">
+                    {["INR", "USD", "AED"].map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => {
+                          setCurrency(option as "INR" | "USD" | "AED");
+                          setIsCurrencyOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] text-[#f2d8cf] transition hover:bg-[#7f202a]/70"
+                      >
+                        <SafeImage src={CURRENCY_ICON_MAP[option as "INR" | "USD" | "AED"]} alt={`${option} currency`} className="h-3.5 w-3.5 rounded-full object-cover" />
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 md:justify-end">
+              <span>We Accept</span>
+              <span className="inline-flex items-center rounded-md bg-[#f8f8f8] px-2 py-1 text-[10px] font-bold tracking-wide text-[#0a0a0a]">RAZORPAY</span>
+              <span className="inline-flex items-center rounded-md bg-[#f7f7f7] px-2 py-1 text-[10px] font-bold tracking-wide text-[#1a1a1a]">UPI</span>
+              <span className="inline-flex items-center rounded-md bg-[#f0f0f0] px-2 py-1 text-[10px] font-bold tracking-wide text-[#1a1a1a]">CARDS</span>
+              <span className="inline-flex items-center rounded-md bg-[#ebebeb] px-2 py-1 text-[10px] font-bold tracking-wide text-[#1a1a1a]">NETBANKING</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </>
   );
 }
