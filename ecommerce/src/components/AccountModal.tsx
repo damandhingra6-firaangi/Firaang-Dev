@@ -489,7 +489,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
   return (
     <div className="fixed inset-0 z-[120] overflow-y-auto bg-black/65 px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
       <section
-        className="mx-auto my-1 flex w-full max-w-4xl flex-col overflow-hidden rounded-[30px] border border-[var(--gold)]/45 bg-[linear-gradient(180deg,#3a0710_0%,#2a040a_100%)] shadow-[0_30px_80px_rgba(0,0,0,0.45)] max-h-[calc(100dvh-0.5rem)] sm:max-h-[calc(100dvh-1rem)]"
+        className="mx-auto my-1 flex w-full max-w-4xl flex-col overflow-hidden rounded-[30px] border border-[var(--gold)]/45 bg-[image:var(--popup-gradient)] shadow-[0_30px_80px_rgba(0,0,0,0.45)] max-h-[calc(100dvh-0.5rem)] sm:max-h-[calc(100dvh-1rem)]"
         onClick={(event) => event.stopPropagation()}
       >
         <header className="flex items-start justify-between border-b border-[var(--gold)]/20 px-5 py-5 md:px-7">
@@ -501,7 +501,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
             type="button"
             onClick={onClose}
             aria-label="Close account panel"
-            className="rounded-full p-2 transition hover:bg-[#4a1118]"
+            className="rounded-full p-2 transition hover:bg-[var(--popup-hover2)]"
           >
             <X className="h-6 w-6" />
           </button>
@@ -529,7 +529,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-7 md:py-6">
           {activeView === "signin" ? (
             <div className="mx-auto w-full max-w-2xl space-y-4">
-              <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[rgba(74,12,20,0.58)] p-5 shadow-xl backdrop-blur md:p-6">
+              <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[var(--popup-card)] p-5 shadow-xl backdrop-blur md:p-6">
                 <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--gold)]/30 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[var(--gold)]">
                   <Sparkles className="h-3.5 w-3.5" />
                   Login or Signup
@@ -541,8 +541,8 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                   </div>
                 ) : (
                   <div className="space-y-5">
-                    <div className="rounded-2xl border border-[var(--gold)]/20 bg-[#3a0d14]/70 p-4">
-                      <p className="mb-3 flex items-center gap-2 text-sm text-[#f1d8ce]">
+<div className="rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-4">
+                      <p className="mb-3 flex items-center gap-2 text-sm text-[var(--popup-subtext)]">
                         <Sparkles className="h-4 w-4 text-[var(--gold)]" />
                         Continue with Google
                       </p>
@@ -551,7 +551,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                         <>
                           <div className="min-h-12" ref={googleButtonRef} />
                           {googleState === "loading" || isAuthenticating ? (
-                            <p className="mt-3 inline-flex items-center gap-2 text-sm text-[#e7d0c6]">
+                            <p className="mt-3 inline-flex items-center gap-2 text-sm text-[var(--popup-subtext)]">
                               <Loader2 className="h-4 w-4 animate-spin text-[var(--gold)]" />
                               Loading Google...
                             </p>
@@ -563,12 +563,12 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                           ) : null}
                         </>
                       ) : (
-                        <p className="text-sm text-[#f1d8ce]">Google login is not configured.</p>
+                        <p className="text-sm text-[var(--popup-subtext)]">Google login is not configured.</p>
                       )}
                     </div>
 
-                    <div className="rounded-2xl border border-[var(--gold)]/20 bg-[#3a0d14]/70 p-4">
-                      <p className="mb-3 flex items-center gap-2 text-sm text-[#f1d8ce]">
+<div className="rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-4">
+                      <p className="mb-3 flex items-center gap-2 text-sm text-[var(--popup-subtext)]">
                         <Smartphone className="h-4 w-4 text-[var(--gold)]" />
                         Login with Mobile OTP
                       </p>
@@ -580,7 +580,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                             value={mobileNumber}
                             onChange={(event) => setMobileNumber(event.target.value)}
                             placeholder="Enter mobile number"
-                            className="w-full rounded-xl border border-[var(--gold)]/30 bg-[#2d0a10] px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                            className="w-full rounded-xl border border-[var(--gold)]/30 bg-[var(--popup-input-deep)] px-4 py-3 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
                           />
                           <button
                             type="button"
@@ -595,7 +595,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                         </div>
                       ) : (
                         <div className="space-y-3">
-                          <p className="text-xs text-[#dfc3bb]">OTP sent to {normalizedOtpPhone || mobileNumber}</p>
+                          <p className="text-xs text-[var(--popup-muted)]">OTP sent to {normalizedOtpPhone || mobileNumber}</p>
                           <div className="relative">
                             <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--gold)]/80" />
                             <input
@@ -605,7 +605,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                               value={otpCode}
                               onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, ""))}
                               placeholder="Enter 6-digit OTP"
-                              className="w-full rounded-xl border border-[var(--gold)]/30 bg-[#2d0a10] py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                              className="w-full rounded-xl border border-[var(--gold)]/30 bg-[var(--popup-input-deep)] py-3 pl-10 pr-4 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
                             />
                           </div>
                           {debugOtp ? <p className="text-xs text-[var(--gold)]">Dev OTP: {debugOtp}</p> : null}
@@ -643,10 +643,10 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
 
           {activeView === "profile" ? (
             isLoading ? (
-              <div className="rounded-2xl border border-[var(--gold)]/20 bg-[#3a0d14]/60 p-5 text-sm text-[#e3c8c1]">Loading your profile...</div>
+              <div className="rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-5 text-sm text-[var(--popup-subtext)]">Loading your profile...</div>
             ) : isSignedIn ? (
               <form className="grid gap-4 md:grid-cols-2" onSubmit={handleProfileSave}>
-                <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-[var(--gold)]/20 bg-[#3a0d14]/70 p-5">
+                <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-5">
                   <div className="flex items-center gap-4">
                     {profile.avatarUrl && !avatarLoadFailed ? (
                       <img
@@ -657,20 +657,20 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                         className="h-14 w-14 rounded-full border border-[var(--gold)]/35 object-cover"
                       />
                     ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--gold)]/35 bg-[#4b121a] text-sm font-semibold tracking-[0.06em] text-[var(--gold)]">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--gold)]/35 bg-[var(--popup-input)] text-sm font-semibold tracking-[0.06em] text-[var(--gold)]">
                         {profileInitials}
                       </div>
                     )}
                     <div>
-                      <p className="text-lg font-semibold text-white">{profile.fullName || "Firaangi Shopper"}</p>
-                      <p className="text-sm text-[#e3c6bf]">{profile.email}</p>
+                      <p className="text-lg font-semibold text-[var(--popup-footer-text)]">{profile.fullName || "Firaangi Shopper"}</p>
+                      <p className="text-sm text-[var(--popup-subtext)]">{profile.email}</p>
                       <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[var(--gold)]">Signed in with {profile.authProvider}</p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={handleSignOut}
-                    className="inline-flex items-center gap-2 rounded-full border border-[var(--gold)]/35 px-4 py-2 text-xs uppercase tracking-[0.12em] text-[var(--gold)] transition hover:bg-[#4a1118]"
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--gold)]/35 px-4 py-2 text-xs uppercase tracking-[0.12em] text-[var(--gold)] transition hover:bg-[var(--popup-hover2)]"
                   >
                     <LogOut className="h-4 w-4" />
                     Sign Out
@@ -678,67 +678,67 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                 </div>
 
                 <label>
-                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#f2d7c3]">Full Name</span>
+                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[var(--popup-label)]">Full Name</span>
                   <input
                     type="text"
                     value={profileDraft.fullName}
                     onChange={(event) => setProfileDraft((prev) => ({ ...prev, fullName: event.target.value }))}
-                    className="w-full rounded-xl border border-[var(--gold)]/30 bg-[#3a0d14] px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                    className="w-full rounded-xl border border-[var(--gold)]/30 bg-[var(--popup-input)] px-4 py-3 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
                   />
                 </label>
 
                 <label>
-                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#f2d7c3]">Email</span>
-                  <input type="email" value={profile.email} disabled className="w-full rounded-xl border border-[var(--gold)]/20 bg-[#2d0a10] px-4 py-3 text-sm text-[#d7bbb5] outline-none" />
+                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[var(--popup-label)]">Email</span>
+                  <input type="email" value={profile.email} disabled className="w-full rounded-xl border border-[var(--gold)]/20 bg-[var(--popup-input-deep)] px-4 py-3 text-sm text-[var(--popup-muted)] outline-none" />
                 </label>
 
                 <label>
-                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#f2d7c3]">Phone</span>
+                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[var(--popup-label)]">Phone</span>
                   <input
                     type="tel"
                     value={profileDraft.phone}
                     onChange={(event) => setProfileDraft((prev) => ({ ...prev, phone: event.target.value }))}
-                    className="w-full rounded-xl border border-[var(--gold)]/30 bg-[#3a0d14] px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                    className="w-full rounded-xl border border-[var(--gold)]/30 bg-[var(--popup-input)] px-4 py-3 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
                   />
                 </label>
 
                 <label>
-                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#f2d7c3]">City</span>
+                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[var(--popup-label)]">City</span>
                   <input
                     type="text"
                     value={profileDraft.city}
                     onChange={(event) => setProfileDraft((prev) => ({ ...prev, city: event.target.value }))}
-                    className="w-full rounded-xl border border-[var(--gold)]/30 bg-[#3a0d14] px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                    className="w-full rounded-xl border border-[var(--gold)]/30 bg-[var(--popup-input)] px-4 py-3 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
                   />
                 </label>
 
                 <label>
-                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#f2d7c3]">State</span>
+                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[var(--popup-label)]">State</span>
                   <input
                     type="text"
                     value={profileDraft.state}
                     onChange={(event) => setProfileDraft((prev) => ({ ...prev, state: event.target.value }))}
-                    className="w-full rounded-xl border border-[var(--gold)]/30 bg-[#3a0d14] px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                    className="w-full rounded-xl border border-[var(--gold)]/30 bg-[var(--popup-input)] px-4 py-3 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
                   />
                 </label>
 
                 <label>
-                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#f2d7c3]">PIN Code</span>
+                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[var(--popup-label)]">PIN Code</span>
                   <input
                     type="text"
                     value={profileDraft.pinCode}
                     onChange={(event) => setProfileDraft((prev) => ({ ...prev, pinCode: event.target.value }))}
-                    className="w-full rounded-xl border border-[var(--gold)]/30 bg-[#3a0d14] px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                    className="w-full rounded-xl border border-[var(--gold)]/30 bg-[var(--popup-input)] px-4 py-3 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
                   />
                 </label>
 
                 <label className="md:col-span-2">
-                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#f2d7c3]">Address</span>
+                  <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[var(--popup-label)]">Address</span>
                   <textarea
                     value={profileDraft.address}
                     onChange={(event) => setProfileDraft((prev) => ({ ...prev, address: event.target.value }))}
                     rows={4}
-                    className="w-full resize-none rounded-xl border border-[var(--gold)]/30 bg-[#3a0d14] px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                    className="w-full resize-none rounded-xl border border-[var(--gold)]/30 bg-[var(--popup-input)] px-4 py-3 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
                   />
                 </label>
 
@@ -749,8 +749,8 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                 </div>
               </form>
             ) : (
-              <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[#3a0d14]/65 p-5 text-center">
-                <p className="text-sm text-[#f1d8ce]">Login to manage your profile.</p>
+              <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-5 text-center">
+                <p className="text-sm text-[var(--popup-subtext)]">Login to manage your profile.</p>
                 <button type="button" onClick={() => setActiveView("signin")} className="gold-button mt-4">
                   Go To Login
                 </button>
@@ -760,44 +760,44 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
 
           {activeView === "orders" ? (
             isLoading ? (
-              <div className="rounded-2xl border border-[var(--gold)]/20 bg-[#3a0d14]/60 p-5 text-sm text-[#e3c8c1]">Loading your orders...</div>
+              <div className="rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-5 text-sm text-[var(--popup-subtext)]">Loading your orders...</div>
             ) : isSignedIn ? (
               <div className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[#3a0d14]/70 p-5">
-                    <p className="mb-2 flex items-center gap-2 text-sm text-[#f1d8ce]">
+                  <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-5">
+                    <p className="mb-2 flex items-center gap-2 text-sm text-[var(--popup-subtext)]">
                       <ClipboardList className="h-4 w-4 text-[var(--gold)]" />
                       Total orders synced
                     </p>
-                    <p className="text-3xl font-semibold text-white">{orders.length}</p>
+                    <p className="text-3xl font-semibold text-[var(--popup-footer-text)]">{orders.length}</p>
                   </div>
-                  <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[#3a0d14]/70 p-5">
-                    <p className="mb-2 flex items-center gap-2 text-sm text-[#f1d8ce]">
+                  <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-5">
+                    <p className="mb-2 flex items-center gap-2 text-sm text-[var(--popup-subtext)]">
                       <Sparkles className="h-4 w-4 text-[var(--gold)]" />
                       Lifetime spend
                     </p>
-                    <p className="text-3xl font-semibold text-white">{formatCurrency(totalSpend, "INR")}</p>
+                    <p className="text-3xl font-semibold text-[var(--popup-footer-text)]">{formatCurrency(totalSpend, "INR")}</p>
                   </div>
                 </div>
 
                 {orders.length === 0 ? (
-                  <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[#3a0d14]/65 p-5 text-sm text-[#f1d8ce]">
+                  <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-5 text-sm text-[var(--popup-subtext)]">
                     No synced orders yet. Login before checkout and paid orders will appear here automatically.
                   </div>
                 ) : (
                   orders.map((order) => (
-                    <article key={order.id} className="rounded-[24px] border border-[var(--gold)]/25 bg-[#3a0d14]/65 p-5 shadow-xl">
+                    <article key={order.id} className="rounded-[24px] border border-[var(--gold)]/25 bg-[var(--popup-inner)] p-5 shadow-xl">
                       <div className="mb-4 flex flex-wrap items-start justify-between gap-4 border-b border-[var(--gold)]/15 pb-3">
                         <div>
                           <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--gold)]">Order #{order.id.slice(-8)}</p>
-                          <p className="mt-1 text-sm text-[#d7bbb5]">{formatDate(order.createdAt)}</p>
+                          <p className="mt-1 text-sm text-[var(--popup-muted)]">{formatDate(order.createdAt)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-lg text-white">{formatCurrency(order.totalAmount, order.currencyCode)}</p>
+                          <p className="text-lg text-[var(--popup-footer-text)]">{formatCurrency(order.totalAmount, order.currencyCode)}</p>
                           <p className={`text-xs uppercase tracking-[0.12em] ${order.status === "paid" ? "text-emerald-300" : order.status === "pending" ? "text-amber-300" : order.status === "cancelled" ? "text-slate-300" : "text-rose-300"}`}>
                             {order.status}
                           </p>
-                          <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-[#d7bbb5]">
+                          <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-[var(--popup-muted)]">
                             {order.paymentMethod === "cod" ? "Cash on Delivery" : "Online"}
                           </p>
                           {order.status === "cancelled" && order.cancelledAt ? (
@@ -812,7 +812,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                                 setCancelTargetOrderId(order.id);
                               }}
                               disabled={cancellingOrderId === order.id}
-                              className="mt-2 rounded-full border border-[#f0b5b8]/40 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-[#ffd5d7] transition hover:bg-[#5a1420] disabled:cursor-not-allowed disabled:opacity-60"
+                              className="mt-2 rounded-full border border-[#f0b5b8]/40 px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-[#ffd5d7] transition hover:bg-[var(--popup-hover2)] disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {cancellingOrderId === order.id ? "Cancelling..." : `Cancel (within ${ORDER_CANCELLATION_WINDOW_DAYS} days)`}
                             </button>
@@ -831,10 +831,10 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                           <div key={`${order.id}-${item.productId}`} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/15 p-3">
                             <SafeImage src={item.image} alt={item.name} className="h-14 w-14 rounded-xl object-cover" />
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm text-white">{item.name}</p>
-                              <p className="text-xs text-[#d7bbb5]">Qty {item.quantity}</p>
+                              <p className="truncate text-sm text-[var(--popup-footer-text)]">{item.name}</p>
+                              <p className="text-xs text-[var(--popup-muted)]">Qty {item.quantity}</p>
                             </div>
-                            <p className="text-sm text-[#eac26a]">{formatCurrency(item.lineTotal, order.currencyCode)}</p>
+                            <p className="text-sm text-[var(--gold)]">{formatCurrency(item.lineTotal, order.currencyCode)}</p>
                           </div>
                         ))}
                       </div>
@@ -843,8 +843,8 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                 )}
               </div>
             ) : (
-              <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[#3a0d14]/65 p-5 text-center">
-                <p className="text-sm text-[#f1d8ce]">Login to view your synced orders.</p>
+              <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-5 text-center">
+                <p className="text-sm text-[var(--popup-subtext)]">Login to view your synced orders.</p>
                 <button type="button" onClick={() => setActiveView("signin")} className="gold-button mt-4">
                   Go To Login
                 </button>
@@ -857,7 +857,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
       {cancelTargetOrderId ? (
         <div className="fixed inset-0 z-[121] bg-black/70 px-4 py-8" onClick={() => setCancelTargetOrderId(null)}>
           <div
-            className="mx-auto mt-12 w-full max-w-lg rounded-2xl border border-[var(--gold)]/45 bg-[#2b060b] p-5 shadow-2xl md:mt-24 md:p-6"
+            className="mx-auto mt-12 w-full max-w-lg rounded-2xl border border-[var(--gold)]/45 bg-[var(--popup-bg)] p-5 shadow-2xl md:mt-24 md:p-6"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between">
@@ -869,22 +869,22 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                 type="button"
                 onClick={() => setCancelTargetOrderId(null)}
                 aria-label="Close cancel confirmation"
-                className="rounded-full p-2 transition hover:bg-[#4a1118]"
+                className="rounded-full p-2 transition hover:bg-[var(--popup-hover2)]"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <p className="mb-4 text-sm text-[#f0d9d0]">
+            <p className="mb-4 text-sm text-[var(--popup-subtext)]">
               You can cancel this order because it is within the {ORDER_CANCELLATION_WINDOW_DAYS}-day cancellation window.
             </p>
 
             <label className="mb-3 block">
-              <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#f2d7c3]">Reason</span>
+              <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[var(--popup-label)]">Reason</span>
               <select
                 value={cancelReason}
                 onChange={(event) => setCancelReason(event.target.value as (typeof CANCEL_REASONS)[number])}
-                className="w-full rounded-lg border border-[var(--gold)]/35 bg-[#3a0d14] px-3 py-2.5 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                className="w-full rounded-lg border border-[var(--gold)]/35 bg-[var(--popup-input)] px-3 py-2.5 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
               >
                 {CANCEL_REASONS.map((reason) => (
                   <option key={reason} value={reason}>
@@ -896,13 +896,13 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
 
             {cancelReason === "Other" ? (
               <label className="mb-4 block">
-                <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#f2d7c3]">Details (optional)</span>
+                <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[var(--popup-label)]">Details (optional)</span>
                 <textarea
                   value={cancelReasonDetail}
                   onChange={(event) => setCancelReasonDetail(event.target.value)}
                   rows={3}
                   maxLength={120}
-                  className="w-full resize-none rounded-lg border border-[var(--gold)]/35 bg-[#3a0d14] px-3 py-2.5 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                  className="w-full resize-none rounded-lg border border-[var(--gold)]/35 bg-[var(--popup-input)] px-3 py-2.5 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
                 />
               </label>
             ) : null}
@@ -911,7 +911,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
               <button
                 type="button"
                 onClick={() => setCancelTargetOrderId(null)}
-                className="rounded-full border border-[var(--gold)]/45 px-4 py-2 text-xs uppercase tracking-[0.12em] text-[var(--gold)] transition hover:bg-[#4a1118]"
+                className="rounded-full border border-[var(--gold)]/45 px-4 py-2 text-xs uppercase tracking-[0.12em] text-[var(--gold)] transition hover:bg-[var(--popup-hover2)]"
               >
                 Keep Order
               </button>

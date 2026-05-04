@@ -27,21 +27,21 @@ export default function WishlistDrawer({ isOpen, onClose }: WishlistDrawerProps)
       />
 
       <aside
-        className={`fixed right-0 top-0 z-[94] h-full w-full max-w-md transform border-l border-[var(--gold)]/40 bg-[#2b060b] transition duration-300 ${
+        className={`fixed right-0 top-0 z-[94] h-full w-full max-w-md transform border-l border-[var(--gold)]/40 bg-[var(--popup-bg)] transition duration-300 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between border-b border-[var(--gold)]/40 px-5 py-4">
             <h3 className="text-xl">Wishlist ({wishlistItems.length})</h3>
-            <button type="button" onClick={onClose} aria-label="Close wishlist" className="rounded-full p-2 hover:bg-[#461017]">
+            <button type="button" onClick={onClose} aria-label="Close wishlist" className="rounded-full p-2 hover:bg-[var(--popup-hover)]">
               <X className="h-5 w-5" />
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 py-4">
             {wishlistItems.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-center text-[#d5bdb9]">
+              <div className="flex h-full flex-col items-center justify-center text-center text-[var(--popup-muted)]">
                 <Heart className="mb-3 h-8 w-8" />
                 <p>Your wishlist is empty.</p>
               </div>
@@ -53,7 +53,7 @@ export default function WishlistDrawer({ isOpen, onClose }: WishlistDrawerProps)
                       <SafeImage src={product.img} alt={product.name} className="h-20 w-20 rounded-lg object-cover" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{product.name}</p>
-                        <p className="text-[#eac26a]">{product.price}</p>
+                        <p className="text-[var(--gold)]">{product.price}</p>
                       </div>
                     </div>
 
@@ -74,7 +74,7 @@ export default function WishlistDrawer({ isOpen, onClose }: WishlistDrawerProps)
 
                       <button
                         type="button"
-                        className="rounded-full p-2 text-[#eac26a] transition hover:bg-[#461017]"
+                        className="rounded-full p-2 text-[var(--gold)] transition hover:bg-[var(--popup-hover)]"
                         onClick={() => {
                           toggleWishlist(product);
                           pushToast("Removed from wishlist", { variant: "info" });

@@ -86,13 +86,13 @@ export default function Newsletter() {
   return (
     <>
       {/* Newsletter Section */}
-      <section data-newsletter-section className="bg-[var(--primary)] py-16">
+      <section data-newsletter-section className="bg-[var(--newsletter-bg)] py-16">
         <div className="section-shell max-w-2xl text-center">
           <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-[var(--gold)]">Stay Connected</p>
           <h2 className="mt-2 text-[44px] font-semibold leading-[1.08] tracking-[0.01em] md:text-[50px]" style={{ fontFamily: "var(--font-playfair), serif" }}>
             Join The Firaangi Club
           </h2>
-          <p className="mt-4 text-[18px] font-normal leading-[1.55] text-[#efd6cd]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+          <p className="mt-4 text-[18px] font-normal leading-[1.55] text-[var(--newsletter-subtext)]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
             Be the first to know about new collections, exclusive offers, and luxury style tips.
           </p>
 
@@ -102,7 +102,7 @@ export default function Newsletter() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Your email address"
-              className="w-full rounded-md border border-[#ffffff1f] bg-[#4a0b12] px-3.5 py-2.5 text-[14px] font-medium text-white placeholder-[#9f7e7d] outline-none transition focus:border-[var(--gold)]/60 focus:bg-[#531019] sm:max-w-[320px]"
+              className="w-full rounded-md border border-[var(--newsletter-input-border)] bg-[var(--newsletter-input-bg)] px-3.5 py-2.5 text-[14px] font-medium text-[var(--nav-text)] placeholder-[var(--newsletter-input-ph)] outline-none transition focus:border-[var(--gold)]/60 focus:bg-[var(--newsletter-input-focus-bg)] sm:max-w-[320px]"
               aria-label="Email address"
               required
             />
@@ -120,13 +120,13 @@ export default function Newsletter() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-[#ffffff14] bg-[var(--primary)] pb-0 pt-12">
+      <footer className="border-t border-[var(--footer-border)] bg-[var(--footer-bg)] pb-0 pt-12">
         <div className="section-shell">
-          <div className="grid gap-9 border-b border-[#ffffff14] pb-9 md:grid-cols-2 lg:grid-cols-[1.45fr_1fr_1fr_1fr_1.35fr]">
+            <div className="grid gap-9 border-b border-[var(--footer-border)] pb-9 md:grid-cols-2 lg:grid-cols-[1.45fr_1fr_1fr_1fr_1.35fr]">
             {/* Brand */}
             <div>
               <SafeImage src="/Firaangi Logo Design.svg" alt="Firaangi" className="h-[52px] w-auto" />
-              <p className="mt-5 max-w-sm text-[16px] font-medium leading-[1.6] text-[#d6bbb5]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+              <p className="mt-5 max-w-sm text-[16px] font-medium leading-[1.6] text-[var(--footer-links)]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
                 Where fashion meets global elegance. Curated clothing and jewellery for the modern connoisseur.
               </p>
               <p className="mt-4 inline-flex rounded-full border border-[var(--gold)]/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--gold)]">
@@ -136,8 +136,8 @@ export default function Newsletter() {
 
             {/* Shop */}
             <div>
-              <p className="mb-4 text-[25px] font-semibold leading-[1.05] text-[#f4e1da]" style={{ fontFamily: "var(--font-playfair), serif" }}>Shop</p>
-              <ul className="space-y-2.5 text-[17px] font-medium uppercase tracking-[0.04em] text-[#dfc0ba]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+              <p className="mb-4 text-[25px] font-semibold leading-[1.05] text-[var(--footer-heading)]" style={{ fontFamily: "var(--font-playfair), serif" }}>Shop</p>
+              <ul className="space-y-2.5 text-[17px] font-medium uppercase tracking-[0.04em] text-[var(--footer-links)]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
                 <li>
                   <Link href="/shop/t-shirts" className="transition hover:text-[var(--gold)]">
                     Clothing
@@ -168,8 +168,8 @@ export default function Newsletter() {
 
             {/* Company */}
             <div>
-              <p className="mb-4 text-[25px] font-semibold leading-[1.05] text-[#f4e1da]" style={{ fontFamily: "var(--font-playfair), serif" }}>Company</p>
-              <ul className="space-y-2.5 text-[17px] font-medium uppercase tracking-[0.04em] text-[#dfc0ba]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+              <p className="mb-4 text-[25px] font-semibold leading-[1.05] text-[var(--footer-heading)]" style={{ fontFamily: "var(--font-playfair), serif" }}>Company</p>
+              <ul className="space-y-2.5 text-[17px] font-medium uppercase tracking-[0.04em] text-[var(--footer-links)]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
                 <li>
                   <Link href="/about" className="transition hover:text-[var(--gold)]">
                     About Us
@@ -200,8 +200,8 @@ export default function Newsletter() {
 
             {/* Support */}
             <div>
-              <p className="mb-4 text-[25px] font-semibold leading-[1.05] text-[#f4e1da]" style={{ fontFamily: "var(--font-playfair), serif" }}>Support</p>
-              <ul className="space-y-2.5 text-[17px] font-medium uppercase tracking-[0.04em] text-[#dfc0ba]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+              <p className="mb-4 text-[25px] font-semibold leading-[1.05] text-[var(--footer-heading)]" style={{ fontFamily: "var(--font-playfair), serif" }}>Support</p>
+              <ul className="space-y-2.5 text-[17px] font-medium uppercase tracking-[0.04em] text-[var(--footer-links)]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
                 <li>
                   <Link href="/contact" className="transition hover:text-[var(--gold)]">Contact</Link>
                 </li>
@@ -222,17 +222,17 @@ export default function Newsletter() {
 
             {/* Contact Info */}
             <div>
-              <p className="mb-4 text-[25px] font-semibold leading-[1.05] text-[#f4e1da]" style={{ fontFamily: "var(--font-playfair), serif" }}>
+              <p className="mb-4 text-[25px] font-semibold leading-[1.05] text-[var(--footer-heading)]" style={{ fontFamily: "var(--font-playfair), serif" }}>
                 Contact Information
               </p>
-              <ul className="space-y-3.5 text-[16px] font-medium leading-[1.5] text-[#e1c4be]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
-                <li className="flex items-start gap-3 border-b border-[#ffffff10] pb-3">
+              <ul className="space-y-3.5 text-[16px] font-medium leading-[1.5] text-[var(--footer-links)]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+                <li className="flex items-start gap-3 border-b border-[var(--footer-contact-border)] pb-3">
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-[#3b0810]">
                     <MapPin className="h-3.5 w-3.5" />
                   </span>
                   <span>Firaangi Studio, Chandigarh, India</span>
                 </li>
-                <li className="flex items-start gap-3 border-b border-[#ffffff10] pb-3">
+                <li className="flex items-start gap-3 border-b border-[var(--footer-contact-border)] pb-3">
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-[#3b0810]">
                     <Phone className="h-3.5 w-3.5" />
                   </span>
@@ -248,7 +248,7 @@ export default function Newsletter() {
             </div>
           </div>
 
-          <div className="grid gap-4 py-4 text-[13px] font-medium text-[#d2b3ae] md:grid-cols-[1fr_auto_1fr] md:items-center" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+          <div className="grid gap-4 py-4 text-[13px] font-medium text-[var(--footer-bottom)] md:grid-cols-[1fr_auto_1fr] md:items-center" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
             <p className="text-center md:text-left">© 2026 Firaangi. All rights reserved.</p>
 
             <div className="flex items-center justify-center gap-2">
@@ -258,14 +258,14 @@ export default function Newsletter() {
                   onClick={() => {
                     setIsCurrencyOpen((prev) => !prev);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-[#ffffff20] bg-[#7f202a]/70 px-2.5 py-1.5 text-[11px] text-[#f4ddd4]"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[var(--currency-border)] bg-[var(--currency-bg)] px-2.5 py-1.5 text-[11px] text-[var(--currency-text)]"
                 >
                   <SafeImage src={CURRENCY_ICON_MAP[currency]} alt={`${currency} currency`} className="h-3.5 w-3.5 rounded-full object-cover" />
                   {currency}
                   <ChevronDown className={`h-3 w-3 transition ${isCurrencyOpen ? "rotate-180" : ""}`} />
                 </button>
                 {isCurrencyOpen ? (
-                  <div className="absolute bottom-[calc(100%+8px)] left-0 z-20 min-w-full overflow-hidden rounded-md border border-[#ffffff1a] bg-[#5d111a] shadow-[0_14px_26px_rgba(0,0,0,0.35)]">
+                  <div className="absolute bottom-[calc(100%+8px)] left-0 z-20 min-w-full overflow-hidden rounded-md border border-[var(--footer-border)] bg-[var(--currency-dropdown)] shadow-[0_14px_26px_rgba(0,0,0,0.35)]">
                     {["INR", "USD", "AED"].map((option) => (
                       <button
                         key={option}
@@ -274,7 +274,7 @@ export default function Newsletter() {
                           setCurrency(option as "INR" | "USD" | "AED");
                           setIsCurrencyOpen(false);
                         }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] text-[#f2d8cf] transition hover:bg-[#7f202a]/70"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] text-[var(--currency-option)] transition hover:bg-[var(--panel-hover)]"
                       >
                         <SafeImage src={CURRENCY_ICON_MAP[option as "INR" | "USD" | "AED"]} alt={`${option} currency`} className="h-3.5 w-3.5 rounded-full object-cover" />
                         {option}

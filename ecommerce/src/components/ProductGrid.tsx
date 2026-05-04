@@ -163,7 +163,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
   };
 
   return (
-    <section className="bg-[var(--secondary)] py-16">
+    <section className="bg-[var(--arrivals-bg)] py-16">
       <h2 className="text-center text-3xl mb-2 md:text-4xl">New Arrivals</h2>
       <p className="text-center text-[11px] uppercase tracking-[0.12em] text-[var(--gold)]">
         Fresh Finds for the Season
@@ -177,7 +177,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
       <div className="section-shell mb-6 flex justify-end">
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-full border border-[var(--gold)] px-4 py-2 text-sm text-white transition hover:bg-[#55121a]"
+          className="inline-flex items-center gap-2 rounded-full border border-[var(--gold)] px-4 py-2 text-sm text-[var(--arrivals-card-title)] transition hover:bg-[var(--arrivals-hover)]"
           onClick={openCart}
           aria-label="Open cart"
         >
@@ -194,7 +194,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
               aria-label="Previous products"
               onClick={goToPrev}
               disabled={!canGoPrev}
-              className="absolute -left-3 top-[46%] z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[#4d1018] disabled:opacity-40 md:flex"
+              className="absolute -left-3 top-[46%] z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[var(--arrivals-hover)] disabled:opacity-40 md:flex"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -204,7 +204,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
               aria-label="Next products"
               onClick={goToNext}
               disabled={!canGoNext}
-              className="absolute -right-3 top-[46%] z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[#4d1018] disabled:opacity-40 md:flex"
+              className="absolute -right-3 top-[46%] z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[var(--arrivals-hover)] disabled:opacity-40 md:flex"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -219,12 +219,12 @@ export default function ProductGrid({ products }: ProductGridProps) {
           {visibleProducts.map((p) => (
             <article
               key={p.id}
-              className="w-full max-w-[340px] overflow-hidden rounded-[24px] border border-[var(--gold)]/65 bg-gradient-to-b from-[#5c0f19] to-[#3a070d] shadow-[0_16px_36px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(0,0,0,0.36)] sm:max-w-[300px] xl:max-w-[260px]"
+              className="w-full max-w-[340px] overflow-hidden rounded-[24px] border border-[var(--gold)]/65 bg-[image:var(--arrivals-card-bg)] shadow-[0_16px_36px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(0,0,0,0.36)] sm:max-w-[300px] xl:max-w-[260px]"
               onClick={() => handleOpenDetails(p)}
             >
             <div className="group relative">
               <SafeImage src={p.img} alt={p.name} className="h-[290px] w-full object-cover sm:h-[330px] md:h-[360px] xl:h-[320px]" />
-              <div className="absolute inset-0 bg-black/25 opacity-0 transition duration-300 group-hover:opacity-100" />
+              <div className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100" style={{ background: 'var(--card-hover-overlay)' }} />
               <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-0 transition duration-300 group-hover:opacity-100">
                 <button
                   type="button"
@@ -240,7 +240,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
                 <button
                   type="button"
                   aria-label={`Add ${p.name} to wishlist`}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--gold)] bg-[#2b060b] text-white"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--gold)] bg-[var(--arrivals-action-bg)] text-[var(--arrivals-card-title)]"
                   onClick={(event) => {
                     event.stopPropagation();
                     handleToggleWishlist(p);
@@ -253,7 +253,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
                 <button
                   type="button"
                   aria-label={`Add ${p.name} to cart`}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--gold)] bg-[#2b060b] text-white"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--gold)] bg-[var(--arrivals-action-bg)] text-[var(--arrivals-card-title)]"
                   onClick={(event) => {
                     event.stopPropagation();
                     handleAddToCart(p);
@@ -264,18 +264,18 @@ export default function ProductGrid({ products }: ProductGridProps) {
               </div>
             </div>
             <div className="space-y-2 p-4 pb-5 md:p-5">
-              <h3 className="line-clamp-2 min-h-[44px] font-[var(--font-poppins)] text-[17px] font-semibold leading-[1.3] md:text-[18px]">
+              <h3 className="line-clamp-2 min-h-[44px] font-[var(--font-poppins)] text-[17px] font-semibold leading-[1.3] text-[var(--arrivals-card-title)] md:text-[18px]">
                 {p.name}
               </h3>
               <div className="flex items-end gap-3">
-                <p className="font-[var(--font-poppins)] text-[30px] leading-none text-white md:text-[32px]">
+                <p className="font-[var(--font-poppins)] text-[30px] leading-none text-[var(--arrivals-price)] md:text-[32px]">
                   {formatCurrency(
                     convertAmount(p.priceAmount, toSupportedCurrency(p.currencyCode), displayCurrency),
                     displayCurrency,
                   )}
                 </p>
                 {p.oldPrice ? (
-                  <p className="font-[var(--font-poppins)] text-[14px] text-[#d5bdb9] line-through md:text-[15px]">
+                  <p className="font-[var(--font-poppins)] text-[14px] text-[var(--arrivals-old-price)] line-through md:text-[15px]">
                     {formatCurrency(
                       convertAmount(
                         Number.parseFloat(p.oldPrice.replace(/[^\d.]/g, "")) || p.priceAmount,
@@ -293,7 +293,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
         </div>
 
         {showNavigation ? (
-          <p className="mt-5 text-center text-xs uppercase tracking-[0.14em] text-[#d8bbb6] md:hidden">
+          <p className="mt-5 text-center text-xs uppercase tracking-[0.14em] text-[var(--arrivals-muted)] md:hidden">
             Swipe through {products.length} products
           </p>
         ) : null}
@@ -308,12 +308,12 @@ export default function ProductGrid({ products }: ProductGridProps) {
                 goToPrev();
               }}
               disabled={!canGoPrev}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[#4d1018] disabled:opacity-40"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[var(--arrivals-hover)] disabled:opacity-40"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
 
-            <p className="min-w-[72px] text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[#d8bbb6]">
+            <p className="min-w-[72px] text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--arrivals-muted)]">
               {mobilePosition}/{products.length}
             </p>
 
@@ -325,7 +325,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
                 goToNext();
               }}
               disabled={!canGoNext}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[#4d1018] disabled:opacity-40"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[var(--arrivals-hover)] disabled:opacity-40"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -350,7 +350,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
                   className={`h-2.5 rounded-full transition ${
                     isActive
                       ? "w-6 bg-[var(--gold)]"
-                      : "w-2.5 bg-[#c59b96]/55 hover:bg-[#dfb9b3]/80"
+                      : "w-2.5 bg-[var(--arrivals-dot)] hover:bg-[var(--arrivals-dot-hover)]"
                   }`}
                 />
               );

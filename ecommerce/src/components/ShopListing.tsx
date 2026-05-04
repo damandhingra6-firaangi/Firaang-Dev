@@ -164,7 +164,7 @@ export default function ShopListing({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search in catalog..."
-          className="w-full rounded-xl border border-[var(--gold)]/50 bg-[#4a0b12] px-4 py-3 text-sm text-white outline-none placeholder:text-[#d5bdb9] md:w-[360px]"
+          className="w-full rounded-xl border border-[var(--gold)]/50 bg-[var(--shop-input-bg)] px-4 py-3 text-sm text-[var(--shop-input-text)] outline-none placeholder:text-[var(--shop-input-ph)] md:w-[360px]"
         />
       </div>
 
@@ -179,8 +179,8 @@ export default function ShopListing({
             }}
             className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.08em] transition ${
               !selectedCategory
-                ? "border-[var(--gold)] bg-[#5a141e] text-white"
-                : "border-[var(--gold)]/35 text-[#f2dbd7] hover:border-[var(--gold)]/70"
+                ? "border-[var(--gold)] bg-[var(--shop-filter-active)] text-white"
+                : "border-[var(--gold)]/35 text-[var(--shop-filter-text)] hover:border-[var(--gold)]/70"
             }`}
           >
             All
@@ -200,8 +200,8 @@ export default function ShopListing({
                 }}
                 className={`whitespace-nowrap rounded-full border px-4 py-2 text-xs uppercase tracking-[0.08em] transition ${
                   isSelected
-                    ? "border-[var(--gold)] bg-[#5a141e] text-white"
-                    : "border-[var(--gold)]/35 text-[#f2dbd7] hover:border-[var(--gold)]/70"
+                    ? "border-[var(--gold)] bg-[var(--shop-filter-active)] text-white"
+                    : "border-[var(--gold)]/35 text-[var(--shop-filter-text)] hover:border-[var(--gold)]/70"
                 }`}
               >
                 {category.name}
@@ -212,7 +212,7 @@ export default function ShopListing({
       </div>
 
       {availableSubCategories.length > 0 ? (
-        <div className="mb-8 rounded-2xl border border-[var(--gold)]/25 bg-[#3d0c13]/70 p-3 md:p-4">
+        <div className="mb-8 rounded-2xl border border-[var(--gold)]/25 bg-[var(--shop-subcategory-panel)] p-3 md:p-4">
           <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[var(--gold)]">Sub-category</p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -220,8 +220,8 @@ export default function ShopListing({
               onClick={() => setSelectedSubCategory("")}
               className={`rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.08em] transition ${
                 !selectedSubCategory
-                  ? "border-[var(--gold)] bg-[#5a141e] text-white"
-                  : "border-[var(--gold)]/35 text-[#f2dbd7] hover:border-[var(--gold)]/70"
+                  ? "border-[var(--gold)] bg-[var(--shop-filter-active)] text-white"
+                  : "border-[var(--gold)]/35 text-[var(--shop-filter-text)] hover:border-[var(--gold)]/70"
               }`}
             >
               All
@@ -238,8 +238,8 @@ export default function ShopListing({
                   onClick={() => setSelectedSubCategory(subCategory.slug)}
                   className={`rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.08em] transition ${
                     isSelected
-                      ? "border-[var(--gold)] bg-[#5a141e] text-white"
-                      : "border-[var(--gold)]/35 text-[#f2dbd7] hover:border-[var(--gold)]/70"
+                      ? "border-[var(--gold)] bg-[var(--shop-filter-active)] text-white"
+                      : "border-[var(--gold)]/35 text-[var(--shop-filter-text)] hover:border-[var(--gold)]/70"
                   }`}
                 >
                   {subCategory.name}
@@ -251,28 +251,28 @@ export default function ShopListing({
       ) : null}
 
       {filteredProducts.length === 0 ? (
-        <p className="text-[#d5bdb9]">No products found for your search.</p>
+        <p className="text-[var(--shop-card-desc)]">No products found for your search.</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProducts.map((product) => (
             <article
               key={product.id}
-              className="overflow-hidden rounded-[18px] border border-[var(--gold)]/50 bg-[#4a0b12] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(0,0,0,0.28)]"
+              className="overflow-hidden rounded-[18px] border border-[var(--gold)]/50 bg-[var(--shop-card-bg)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(0,0,0,0.18)]"
               onClick={() => handleOpenDetails(product)}
             >
               <SafeImage src={product.img} alt={product.name} className="h-[320px] w-full cursor-pointer object-cover" />
               <div className="space-y-3 p-4">
-                <h3 className="cursor-pointer text-lg leading-tight">{product.name}</h3>
-                <p className="line-clamp-2 text-sm text-[#e9c9c3]">{product.description}</p>
+                <h3 className="cursor-pointer text-lg leading-tight text-[var(--arrivals-card-title)]">{product.name}</h3>
+                <p className="line-clamp-2 text-sm text-[var(--shop-card-desc)]">{product.description}</p>
                 <div className="flex items-end gap-3">
-                  <p className="text-xl">
+                  <p className="text-xl text-[var(--arrivals-price)]">
                     {formatCurrency(
                       convertAmount(product.priceAmount, toSupportedCurrency(product.currencyCode), displayCurrency),
                       displayCurrency,
                     )}
                   </p>
                   {product.oldPrice ? (
-                    <p className="text-sm text-[#d5bdb9] line-through">
+                    <p className="text-sm text-[var(--shop-card-old-price)] line-through">
                       {formatCurrency(
                         convertAmount(
                           Number.parseFloat(product.oldPrice.replace(/[^\d.]/g, "")) || product.priceAmount,
@@ -287,7 +287,7 @@ export default function ShopListing({
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    className="rounded-full border border-[var(--gold)]/70 px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[#f8e7db] transition hover:bg-[#5a141e]"
+                    className="rounded-full border border-[var(--gold)]/70 px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--popup-footer-text)] transition hover:bg-[var(--popup-hover)]"
                     onClick={(event) => {
                       event.stopPropagation();
                       handleOpenDetails(product);

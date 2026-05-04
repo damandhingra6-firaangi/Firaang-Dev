@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Search, Heart, ShoppingBag, User, ChevronDown, Menu, X } from "lucide-react";
+import { Heart, ShoppingBag, User, ChevronDown, Menu, X, Moon, Sun } from "lucide-react";
 import AccountModal from "@/components/AccountModal";
 import AccountQuickActionsSheet from "@/components/AccountQuickActionsSheet";
 import CartDrawer from "./CartDrawer";
@@ -14,9 +14,11 @@ import WishlistDrawer from "@/components/WishlistDrawer";
 import { useAccountStore } from "@/store/useAccountStore";
 import { getCartCount, getWishlistItems, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { theme, toggleTheme, mounted } = useTheme();
   const [isAccountSheetOpen, setIsAccountSheetOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [activeAccountView, setActiveAccountView] = useState<"signin" | "profile" | "orders">("signin");
@@ -195,12 +197,12 @@ export default function Navbar() {
 
   return (
     <header className="fixed top-0 z-50 w-full">
-      <div className="bg-[#7a202a] px-3 py-1.5 text-center text-[8px] font-medium uppercase tracking-[0.18em] md:py-2 md:text-xs md:tracking-[0.22em]">
+      <div className="bg-[var(--announcement-bg)] px-3 py-1.5 text-center text-[8px] font-medium uppercase tracking-[0.18em] text-[var(--announcement-fg)] md:py-2 md:text-xs md:tracking-[0.22em]">
         <span className="md:hidden">Free Shipping Above ₹700 | Festive Edit Live</span>
         <span className="hidden md:inline">Free Shipping on Orders Above ₹700 | New Festive Edit Live</span>
       </div>
 
-      <div className="flex items-center justify-between border-y border-[#8a2c35]/60 bg-[var(--secondary)] px-4 py-3 md:px-10 md:py-4">
+      <div className="flex items-center justify-between border-y border-[color:var(--nav-border)]/60 bg-[var(--nav-bg)] px-4 py-3 text-[var(--nav-text)] md:px-10 md:py-4">
         <Link href="/">
           <SafeImage
             src="/Firaangi Logo Design.svg"
@@ -212,7 +214,7 @@ export default function Navbar() {
         <nav className="hidden gap-8 text-base font-normal tracking-[0.12em] md:flex" style={{ fontSize: "16px" }}>
           <Link
             href="/"
-            className={isNavItemActive("/") ? "text-[var(--gold)]" : "transition hover:text-[var(--gold)]"}
+            className={isNavItemActive("/") ? "text-[var(--nav-active)]" : "transition hover:text-[var(--nav-active)]"}
           >
             HOME
           </Link>
@@ -225,8 +227,8 @@ export default function Navbar() {
                 setIsCategoriesOpen((prev) => !prev);
                 setIsCollectionsOpen(false);
               }}
-              className={`inline-flex items-center gap-1 transition hover:text-[var(--gold)] ${
-                pathname.startsWith("/shop") ? "text-[var(--gold)]" : ""
+              className={`inline-flex items-center gap-1 transition hover:text-[var(--nav-active)] ${
+                pathname.startsWith("/shop") ? "text-[var(--nav-active)]" : ""
               }`}
             >
               CATEGORIES
@@ -234,14 +236,14 @@ export default function Navbar() {
             </button>
 
             {isCategoriesOpen ? (
-              <div className="absolute left-1/2 top-[calc(100%+14px)] z-[110] w-52 -translate-x-1/2 overflow-hidden rounded-2xl border border-[var(--gold)]/30 bg-[#240609] shadow-[0_24px_52px_rgba(0,0,0,0.55)] backdrop-blur-md">
+              <div className="absolute left-1/2 top-[calc(100%+14px)] z-[110] w-52 -translate-x-1/2 overflow-hidden rounded-2xl border border-[var(--gold)]/30 bg-[var(--menu-bg)] shadow-[0_24px_52px_rgba(0,0,0,0.28)] backdrop-blur-md">
                 <div className="px-2 py-2">
                   {categories.map((category) => (
                     <Link
                       key={category.label}
                       href={buildShopFilterHref(category.slug)}
                       onClick={() => setIsCategoriesOpen(false)}
-                      className="group flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm tracking-[0.06em] text-[#f2d8cf] transition hover:bg-[var(--gold)]/10 hover:text-[var(--gold)]"
+                      className="group flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm tracking-[0.06em] text-[var(--menu-text)] transition hover:bg-[var(--gold)]/10 hover:text-[var(--gold)]"
                     >
                       <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-[var(--gold)]/40 bg-[var(--gold)]/10 px-1 text-[10px] font-semibold text-[var(--gold)]">
                         {category.icon}
@@ -262,8 +264,8 @@ export default function Navbar() {
                 setIsCollectionsOpen((prev) => !prev);
                 setIsCategoriesOpen(false);
               }}
-              className={`inline-flex items-center gap-1 transition hover:text-[var(--gold)] ${
-                pathname.startsWith("/shop") ? "text-[var(--gold)]" : ""
+              className={`inline-flex items-center gap-1 transition hover:text-[var(--nav-active)] ${
+                pathname.startsWith("/shop") ? "text-[var(--nav-active)]" : ""
               }`}
             >
               COLLECTIONS
@@ -275,7 +277,7 @@ export default function Navbar() {
             </button>
 
             {isCollectionsOpen ? (
-              <div className="absolute left-1/2 top-[calc(100%+14px)] z-[110] w-56 -translate-x-1/2 overflow-hidden rounded-2xl border border-[var(--gold)]/30 bg-[#240609] shadow-[0_24px_52px_rgba(0,0,0,0.55)] backdrop-blur-md">
+              <div className="absolute left-1/2 top-[calc(100%+14px)] z-[110] w-56 -translate-x-1/2 overflow-hidden rounded-2xl border border-[var(--gold)]/30 bg-[var(--menu-bg)] shadow-[0_24px_52px_rgba(0,0,0,0.28)] backdrop-blur-md">
                 <div className="px-2 py-2">
                   {collections.map((col) => (
                     <Link
@@ -284,7 +286,7 @@ export default function Navbar() {
                       onClick={() => setIsCollectionsOpen(false)}
                       className="group flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm transition hover:bg-[var(--gold)]/10"
                     >
-                      <span className="tracking-[0.06em] text-[#f2d8cf] transition group-hover:text-[var(--gold)]">
+                      <span className="tracking-[0.06em] text-[var(--menu-text)] transition group-hover:text-[var(--gold)]">
                         {col.label}
                       </span>
                       {"tag" in col && col.tag ? (
@@ -312,7 +314,7 @@ export default function Navbar() {
             <Link
               key={item.label}
               href={item.href}
-              className={isNavItemActive(item.href) ? "text-[var(--gold)]" : "transition hover:text-[var(--gold)]"}
+              className={isNavItemActive(item.href) ? "text-[var(--nav-active)]" : "transition hover:text-[var(--nav-active)]"}
             >
               {item.label}
             </Link>
@@ -323,22 +325,21 @@ export default function Navbar() {
           <button
             type="button"
             aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-            className="inline-flex rounded-full border border-[var(--gold)]/30 p-2 text-[#f5ddd2] md:hidden"
+            className="inline-flex rounded-full border border-[var(--gold)]/30 p-2 text-[var(--nav-text)] md:hidden"
             onClick={() => setIsMobileMenuOpen((prev) => !prev)}
           >
             {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
-          <button type="button" aria-label="Search products" onClick={openSearch}>
-            <Search className="h-5 w-5 cursor-pointer hover:text-[var(--gold)]" />
-          </button>
-          <button type="button" aria-label="Open wishlist" className="relative" onClick={openWishlist}>
-            <Heart className="h-5 w-5 cursor-pointer hover:text-[var(--gold)]" />
-            {wishlistCount > 0 ? (
-              <span className="absolute -right-2 -top-2 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[10px] font-semibold text-[#30070e]">
-                {wishlistCount}
-              </span>
-            ) : null}
-          </button>
+          {pathname.startsWith("/shop") ? (
+            <button type="button" aria-label="Open wishlist" className="relative" onClick={openWishlist}>
+              <Heart className="h-5 w-5 cursor-pointer hover:text-[var(--gold)]" />
+              {wishlistCount > 0 ? (
+                <span className="absolute -right-2 -top-2 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[10px] font-semibold text-[#30070e]">
+                  {wishlistCount}
+                </span>
+              ) : null}
+            </button>
+          ) : null}
           <button type="button" aria-label="Open cart" className="relative" onClick={openCart}>
             <ShoppingBag className="h-5 w-5 cursor-pointer hover:text-[var(--gold)]" />
             {cartCount > 0 ? (
@@ -347,6 +348,21 @@ export default function Navbar() {
               </span>
             ) : null}
           </button>
+
+          {mounted && (
+            <button
+              type="button"
+              aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+              onClick={toggleTheme}
+              className="transition-colors duration-200 hover:text-[var(--gold)]"
+            >
+              {theme === "dark" ? (
+                <Sun className="h-5 w-5 cursor-pointer" />
+              ) : (
+                <Moon className="h-5 w-5 cursor-pointer" />
+              )}
+            </button>
+          )}
 
           <button
             type="button"
@@ -362,25 +378,25 @@ export default function Navbar() {
           </button>
 
           {isUserMenuOpen ? (
-            <div className="absolute right-0 top-[74px] z-[101] hidden min-w-[220px] rounded-xl border border-[var(--gold)]/40 bg-[#2b060b] p-2 shadow-xl md:block">
+            <div className="absolute right-0 top-[74px] z-[101] hidden min-w-[220px] rounded-xl border border-[var(--gold)]/40 bg-[var(--panel-bg)] p-2 shadow-xl md:block">
               <button
                 type="button"
                 onClick={() => openAccountModal("signin")}
-                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[#451018]"
+                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--panel-hover)]"
               >
                 {isSignedIn ? "Switch Account" : "Login or Signup"}
               </button>
               <button
                 type="button"
                 onClick={() => openAccountModal("profile")}
-                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[#451018]"
+                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--panel-hover)]"
               >
                 My Profile
               </button>
               <button
                 type="button"
                 onClick={() => openAccountModal("orders")}
-                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[#451018]"
+                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--panel-hover)]"
               >
                 Orders
               </button>
@@ -390,7 +406,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={handleSignOut}
-                    className="block w-full rounded-md px-3 py-2 text-left text-sm text-[#ffd3d8] hover:bg-[#5a1420]"
+                    className="block w-full rounded-md px-3 py-2 text-left text-sm text-[var(--menu-text)] hover:bg-[var(--panel-signout)]"
                   >
                     Sign Out
                   </button>

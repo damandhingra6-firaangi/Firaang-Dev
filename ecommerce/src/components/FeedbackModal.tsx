@@ -136,19 +136,19 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
   return (
     <div className="fixed inset-0 z-[115] bg-black/65 px-4 py-10" onClick={onClose}>
       <div
-        className="mx-auto mt-16 w-full max-w-xl rounded-2xl border border-[var(--gold)]/50 bg-[#2b060b] p-6 shadow-2xl md:mt-24"
+        className="mx-auto mt-16 w-full max-w-xl rounded-2xl border border-[var(--gold)]/50 bg-[var(--popup-bg)] p-6 shadow-2xl md:mt-24"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold">Share Feedback</h2>
-            <p className="mt-1 text-sm text-[#d5bdb9]">Tell us what worked and what we should improve.</p>
+            <p className="mt-1 text-sm text-[var(--popup-muted)]">Tell us what worked and what we should improve.</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close feedback form"
-            className="rounded-full p-2 transition hover:bg-[#4a1118]"
+            className="rounded-full p-2 transition hover:bg-[var(--popup-hover2)]"
           >
             <X className="h-5 w-5" />
           </button>
@@ -157,29 +157,29 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <label className="text-sm">
-              <span className="mb-1 block text-[#f2d7c3]">Name</span>
+              <span className="mb-1 block text-[var(--popup-label)]">Name</span>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(event) => updateField("name", event.target.value)}
                 placeholder="Your name"
-                className="w-full rounded-lg border border-[var(--gold)]/35 bg-[#3a0d14] px-3 py-2 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                className="w-full rounded-lg border border-[var(--gold)]/35 bg-[var(--popup-input)] px-3 py-2 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
               />
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-[#f2d7c3]">Email</span>
+              <span className="mb-1 block text-[var(--popup-label)]">Email</span>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(event) => updateField("email", event.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-lg border border-[var(--gold)]/35 bg-[#3a0d14] px-3 py-2 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                className="w-full rounded-lg border border-[var(--gold)]/35 bg-[var(--popup-input)] px-3 py-2 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
               />
             </label>
           </div>
 
           <label className="block text-sm">
-            <span className="mb-1 block text-[#f2d7c3]">Feedback</span>
+            <span className="mb-1 block text-[var(--popup-label)]">Feedback</span>
             <textarea
               value={formData.message}
               onChange={(event) => updateField("message", event.target.value)}
@@ -187,16 +187,16 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
               required
               maxLength={800}
               placeholder="Share your thoughts about the experience..."
-              className="w-full resize-none rounded-lg border border-[var(--gold)]/35 bg-[#3a0d14] px-3 py-2 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+              className="w-full resize-none rounded-lg border border-[var(--gold)]/35 bg-[var(--popup-input)] px-3 py-2 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
             />
-            <p className="mt-1 text-right text-xs text-[#d5bdb9]">{formData.message.length}/800</p>
+            <p className="mt-1 text-right text-xs text-[var(--popup-muted)]">{formData.message.length}/800</p>
           </label>
 
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-[#8a2c35] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition hover:bg-[#4a1118]"
+              className="rounded-lg border border-[var(--gold)]/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] transition hover:bg-[var(--popup-hover2)]"
             >
               Cancel
             </button>

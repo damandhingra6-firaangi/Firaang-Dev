@@ -27,7 +27,7 @@ export default async function Home() {
       <RedRibbon />
       {/* <Category /> */}
       <ProductGrid products={products} />
-      <SaleBanner />
+      {/* <SaleBanner /> */}
       {/* <CuratedCollection /> */}
       {/* <SeasonShowcase /> */}
       {/* <Testimonials /> */}

@@ -274,7 +274,7 @@ export default function ProductDetailsModal({
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 px-3 py-5 md:px-6" onClick={onClose}>
       <div
-        className="w-full max-w-5xl overflow-hidden rounded-3xl border border-[var(--gold)]/45 bg-gradient-to-b from-[#30070d] to-[#22040a] shadow-[0_30px_70px_rgba(0,0,0,0.6)]"
+        className="w-full max-w-5xl overflow-hidden rounded-3xl border border-[var(--gold)]/45 bg-[image:var(--popup-gradient)] shadow-[0_30px_70px_rgba(0,0,0,0.6)]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between border-b border-[var(--gold)]/25 px-5 py-4 md:px-7 md:py-5">
@@ -283,12 +283,12 @@ export default function ProductDetailsModal({
               <Sparkles className="h-3 w-3" />
               Product Details
             </p>
-            <h3 className="text-2xl leading-tight md:text-3xl">{resolvedProduct?.name ?? product.name}</h3>
+            <h3 className="text-2xl leading-tight text-[var(--popup-footer-text)] md:text-3xl">{resolvedProduct?.name ?? product.name}</h3>
           </div>
           <button
             type="button"
             aria-label="Close product details"
-            className="rounded-full p-2 text-[#eac26a] transition hover:bg-[#461017]"
+            className="rounded-full p-2 text-[var(--gold)] transition hover:bg-[var(--popup-hover2)]"
             onClick={onClose}
           >
             <X className="h-5 w-5" />
@@ -297,7 +297,7 @@ export default function ProductDetailsModal({
 
         <div className="grid max-h-[82vh] gap-6 overflow-y-auto p-5 md:grid-cols-[1.15fr_1fr] md:gap-8 md:p-7">
           <div className="space-y-3">
-            <div className="overflow-hidden rounded-2xl border border-[var(--gold)]/25 bg-[#1f0409]">
+            <div className="overflow-hidden rounded-2xl border border-[var(--gold)]/25 bg-[var(--popup-input-deep)]">
               <SafeImage
                 src={resolvedProduct?.img ?? product.img}
                 alt={resolvedProduct?.name ?? product.name}
@@ -342,7 +342,7 @@ export default function ProductDetailsModal({
           </div>
 
           <div className="flex flex-col">
-            <p className="mb-5 text-base leading-relaxed text-[#f1d9d3]">{product.description}</p>
+            <p className="mb-5 text-base leading-relaxed text-[var(--popup-subtext)]">{product.description}</p>
 
             <div className="mb-6 flex items-end gap-3 border-b border-[var(--gold)]/15 pb-5">
               <p className="text-3xl leading-none">
@@ -356,7 +356,7 @@ export default function ProductDetailsModal({
                 )}
               </p>
               {(resolvedProduct?.oldPrice ?? product.oldPrice) ? (
-                <p className="text-base text-[#d5bdb9] line-through">
+                <p className="text-base text-[var(--popup-muted)] line-through">
                   {formatCurrency(
                     convertAmount(
                       Number.parseFloat((resolvedProduct?.oldPrice ?? product.oldPrice).replace(/[^\d.]/g, "")) ||
@@ -392,8 +392,8 @@ export default function ProductDetailsModal({
                               onClick={() => selectOptionValue(group.name, value)}
                               className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs transition ${
                                 selected
-                                  ? "border-[var(--gold)] bg-[#5a141e] text-white"
-                                  : "border-[var(--gold)]/35 text-[#f2dbd7] hover:border-[var(--gold)]/70"
+                                  ? "border-[var(--gold)] bg-[var(--shop-filter-active)] text-[var(--popup-selected-text)]"
+                                  : "border-[var(--gold)]/35 text-[var(--popup-subtext)] hover:border-[var(--gold)]/70"
                               } ${available ? "" : "cursor-not-allowed opacity-45 hover:border-[var(--gold)]/35"}`}
                               aria-label={`${group.name} ${value}${available ? "" : " unavailable"}`}
                             >
@@ -403,7 +403,7 @@ export default function ProductDetailsModal({
                               />
                               {value}
                               {selected ? <Check className="h-3.5 w-3.5" /> : null}
-                              {!available ? <span className="text-[10px] text-[#b68a8a]">Out</span> : null}
+                              {!available ? <span className="text-[10px] text-[var(--popup-muted)]">Out</span> : null}
                             </button>
                           );
                         })}
@@ -422,13 +422,13 @@ export default function ProductDetailsModal({
                               onClick={() => selectOptionValue(group.name, value)}
                               className={`rounded-full border px-3 py-1.5 text-xs uppercase tracking-[0.08em] transition ${
                                 selected
-                                  ? "border-[var(--gold)] bg-[#5a141e] text-white"
-                                  : "border-[var(--gold)]/30 text-[#f3ddd4] hover:border-[var(--gold)]/65"
+                                  ? "border-[var(--gold)] bg-[var(--shop-filter-active)] text-[var(--popup-selected-text)]"
+                                  : "border-[var(--gold)]/30 text-[var(--popup-subtext)] hover:border-[var(--gold)]/65"
                               } ${available ? "" : "cursor-not-allowed opacity-45 hover:border-[var(--gold)]/30"}`}
                               aria-label={`${group.name} ${value}${available ? "" : " unavailable"}`}
                             >
                               {value}
-                              {!available ? <span className="ml-1 text-[10px] text-[#b68a8a]">(Out)</span> : null}
+                              {!available ? <span className="ml-1 text-[10px] text-[var(--popup-muted)]">(Out)</span> : null}
                             </button>
                           );
                         })}
@@ -438,7 +438,7 @@ export default function ProductDetailsModal({
                 ))}
 
                 {hasSizeOptions ? (
-                  <div className="rounded-2xl border border-[var(--gold)]/20 bg-[#2a070d]">
+                  <div className="rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)]">
                     <button
                       type="button"
                       className="flex w-full items-center justify-between px-4 py-3 text-left"
@@ -463,25 +463,25 @@ export default function ProductDetailsModal({
                               style={{ gridTemplateColumns: `repeat(${effectiveSizeChart.headers.length}, minmax(0, 1fr))` }}
                             >
                               {effectiveSizeChart.headers.map((header) => (
-                                <div key={header} className="rounded-md bg-[#3f0f16] px-2 py-1.5 text-[#f6ddce]">
+                                <div key={header} className="rounded-md bg-[var(--popup-header-cell)] px-2 py-1.5 text-[var(--popup-footer-text)]">
                                   {header}
                                 </div>
                               ))}
 
                               {effectiveSizeChart.rows.flatMap((row, rowIndex) =>
                                 row.map((cell, cellIndex) => (
-                                  <div key={`${rowIndex}-${cellIndex}`} className="rounded-md bg-[#2f0b11] px-2 py-1.5">
+                                  <div key={`${rowIndex}-${cellIndex}`} className="rounded-md bg-[var(--popup-row-cell)] px-2 py-1.5 text-[var(--popup-subtext)]">
                                     {cell}
                                   </div>
                                 ))
                               )}
                             </div>
                             {effectiveSizeChart.note ? (
-                              <p className="mt-2 text-[11px] text-[#d6b9b2]">{effectiveSizeChart.note}</p>
+                              <p className="mt-2 text-[11px] text-[var(--popup-muted)]">{effectiveSizeChart.note}</p>
                             ) : null}
                           </>
                         ) : (
-                          <p className="text-[11px] text-[#d6b9b2]">
+                          <p className="text-[11px] text-[var(--popup-muted)]">
                             Size chart is not available for this product yet. Please contact support for exact measurements.
                           </p>
                         )}
@@ -493,13 +493,13 @@ export default function ProductDetailsModal({
             ) : null}
 
             {selectedSummary ? (
-              <p className="mb-3 rounded-xl border border-[var(--gold)]/25 bg-[#2b070d] px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-[#e9cfb0]">
+              <p className="mb-3 rounded-xl border border-[var(--gold)]/25 bg-[var(--popup-inner)] px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-[var(--popup-footer-text)]">
                 Selected: {selectedSummary}
               </p>
             ) : null}
 
             {activeVariant && !activeVariant.availableForSale ? (
-              <p className="mb-3 text-xs text-[#d8a5a5]">This variant is currently out of stock. Pick another option to continue.</p>
+              <p className="mb-3 text-xs text-[var(--popup-muted)]">This variant is currently out of stock. Pick another option to continue.</p>
             ) : null}
 
             <div className="mt-auto flex flex-col gap-3 sm:flex-row">
@@ -518,7 +518,7 @@ export default function ProductDetailsModal({
               </button>
               <button
                 type="button"
-                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-[var(--gold)] px-5 py-3 text-white transition hover:bg-[#461017]"
+                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-[var(--gold)] px-5 py-3 text-[var(--popup-input-text)] transition hover:bg-[var(--popup-hover)]"
                 onClick={() => {
                   if (resolvedProduct) {
                     onToggleWishlist(resolvedProduct);

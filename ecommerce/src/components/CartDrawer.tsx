@@ -253,7 +253,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
       />
 
       <aside
-        className={`fixed right-0 top-0 z-[95] h-full w-full max-w-md transform border-l border-[var(--gold)]/40 bg-[#2b060b] transition duration-300 ${
+        className={`fixed right-0 top-0 z-[95] h-full w-full max-w-md transform border-l border-[var(--gold)]/40 bg-[var(--popup-bg)] transition duration-300 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -261,7 +261,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[var(--gold)]/40 px-5 py-4">
             <h3 className="text-xl">Your Cart ({cartCount})</h3>
-            <button type="button" onClick={onClose} aria-label="Close cart" className="rounded-full p-2 hover:bg-[#461017]">
+            <button type="button" onClick={onClose} aria-label="Close cart" className="rounded-full p-2 hover:bg-[var(--popup-hover)]">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -271,9 +271,9 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             {cartItems.length === 0 ? (
               !isSignedIn ? (
                 <div className="flex h-full flex-col items-center justify-center text-center">
-                  <ShoppingBag className="mb-4 h-10 w-10 text-[#d5bdb9]" />
-                  <p className="text-[#d5bdb9]">Your cart is empty.</p>
-                  <p className="mt-2 text-xs text-[#c4a9a4]">Have an account? Sign in to load your cart faster.</p>
+                  <ShoppingBag className="mb-4 h-10 w-10 text-[var(--popup-muted)]" />
+                  <p className="text-[var(--popup-muted)]">Your cart is empty.</p>
+                  <p className="mt-2 text-xs text-[var(--popup-muted)]">Have an account? Sign in to load your cart faster.</p>
                   <button
                     type="button"
                     onClick={() => {
@@ -286,7 +286,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   </button>
                 </div>
               ) : (
-                <div className="flex h-full flex-col items-center justify-center text-center text-[#d5bdb9]">
+                <div className="flex h-full flex-col items-center justify-center text-center text-[var(--popup-muted)]">
                   <ShoppingBag className="mb-3 h-8 w-8" />
                   <p>Your cart is empty.</p>
                 </div>
@@ -327,7 +327,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                       </div>
                       <button
                         type="button"
-                        className="rounded-full p-2 text-[#eac26a] transition hover:bg-[#461017]"
+                        className="rounded-full p-2 text-[var(--gold)] transition hover:bg-[var(--popup-hover)]"
                         onClick={() => removeFromCart(item.product.id)}
                         aria-label={`Remove ${item.product.name} from cart`}
                       >
@@ -342,7 +342,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
           {/* Footer */}
           <div className="border-t border-[var(--gold)]/40 px-5 py-4">
-            <div className="mb-4 rounded-xl border border-[var(--gold)]/30 bg-[#3b0d14]/65 p-3">
+            <div className="mb-4 rounded-xl border border-[var(--gold)]/30 bg-[var(--popup-footer-bg)] p-3">
               <p className="mb-2 text-[11px] uppercase tracking-[0.14em] text-[var(--gold)]">Payment Method</p>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -351,7 +351,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   className={`rounded-lg border px-3 py-2 text-xs uppercase tracking-[0.08em] transition ${
                     paymentMethod === "online"
                       ? "border-[var(--gold)] bg-[var(--gold)] text-[#3b0810]"
-                      : "border-[var(--gold)]/35 text-[#f5ddd4] hover:border-[var(--gold)]/65"
+                      : "border-[var(--gold)]/35 text-[var(--popup-footer-inactive)] hover:border-[var(--gold)]/65"
                   }`}
                 >
                   Online
@@ -362,7 +362,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   className={`rounded-lg border px-3 py-2 text-xs uppercase tracking-[0.08em] transition ${
                     paymentMethod === "cod"
                       ? "border-[var(--gold)] bg-[var(--gold)] text-[#3b0810]"
-                      : "border-[var(--gold)]/35 text-[#f5ddd4] hover:border-[var(--gold)]/65"
+                      : "border-[var(--gold)]/35 text-[var(--popup-footer-inactive)] hover:border-[var(--gold)]/65"
                   }`}
                 >
                   Cash on Delivery
@@ -370,7 +370,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               </div>
             </div>
 
-            <div className="mb-3 flex items-center justify-between text-[#f6e4de]">
+            <div className="mb-3 flex items-center justify-between text-[var(--popup-footer-text)]">
               <span>Subtotal</span>
               <span className="text-lg font-semibold">
                 {formatCurrency(convertAmount(subtotal, "INR", displayCurrency), displayCurrency)}

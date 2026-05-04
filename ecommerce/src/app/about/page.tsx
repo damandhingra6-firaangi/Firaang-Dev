@@ -44,10 +44,10 @@ export default function AboutPage() {
 
         <div className="section-shell relative pb-10 md:pb-14">
           <p className="text-xs uppercase tracking-[0.28em] text-[var(--gold)]">About Firaangi</p>
-          <h1 className="mt-3 max-w-3xl text-4xl leading-tight md:text-6xl">
+          <h1 className="mt-3 max-w-3xl text-4xl leading-tight text-[var(--page-fg)] md:text-6xl">
             A modern Indian label with a global fashion lens.
           </h1>
-          <p className="mt-5 max-w-3xl text-sm leading-7 text-[#efd6cd] md:text-base">
+          <p className="mt-5 max-w-3xl text-sm leading-7 text-[var(--popup-subtext)] md:text-base">
             Firaangi was born from a simple idea: style should feel expressive, elevated, and effortless in everyday life.
             We build statement-ready looks for women who want couture-inspired polish with practical comfort.
           </p>
@@ -56,10 +56,10 @@ export default function AboutPage() {
             {milestones.map((item) => (
               <div
                 key={item.label}
-                className="rounded-2xl border border-[var(--gold)]/30 bg-[#4a1118]/70 px-5 py-6 shadow-[0_10px_30px_rgba(0,0,0,0.24)]"
+                className="rounded-2xl border border-[var(--gold)]/40 bg-[var(--popup-card)] px-5 py-6 shadow-[0_10px_30px_rgba(0,0,0,0.24)] backdrop-blur"
               >
                 <p className="text-3xl font-semibold text-[var(--gold)]">{item.value}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[#f2d9c6]">{item.label}</p>
+                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--popup-subtext)]">{item.label}</p>
               </div>
             ))}
           </div>
@@ -71,10 +71,10 @@ export default function AboutPage() {
           {valuePillars.map((pillar) => (
             <article
               key={pillar.title}
-              className="rounded-2xl border border-[#ffffff1a] bg-[#3a0b12]/75 p-6 shadow-[0_12px_32px_rgba(0,0,0,0.28)]"
+              className="rounded-2xl border border-[var(--gold)]/40 bg-[var(--popup-card)] p-6 shadow-[0_12px_32px_rgba(0,0,0,0.28)] backdrop-blur"
             >
-              <h2 className="text-2xl text-[var(--cream)]">{pillar.title}</h2>
-              <p className="mt-3 text-sm leading-7 text-[#e9cfc4]">{pillar.description}</p>
+              <h2 className="text-2xl text-[var(--popup-footer-text)]">{pillar.title}</h2>
+              <p className="mt-3 text-sm leading-7 text-[var(--popup-subtext)]">{pillar.description}</p>
             </article>
           ))}
         </div>

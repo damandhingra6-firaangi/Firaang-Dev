@@ -122,11 +122,11 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative min-h-[68vh] w-full overflow-hidden pt-20 max-[390px]:min-h-[64vh] min-[401px]:min-h-[71vh] md:min-h-[90vh] md:pt-28 lg:mt-24">
+    <section className="hero-section relative min-h-[56vh] w-full overflow-hidden pt-20 max-[390px]:min-h-[52vh] min-[401px]:min-h-[60vh] md:min-h-[90vh] md:pt-28 lg:mt-24">
       <SafeImage
-        src="/Banner1.png"
+        src="/hero.jpg"
         alt={activeSlide.alt}
-        className="absolute left-0 top-0 h-full w-full object-cover object-[62%_top] max-[390px]:object-[66%_top] min-[401px]:object-[58%_top] md:hidden"
+        className="absolute left-0 top-0 h-full w-full object-cover object-[50%_24%] max-[390px]:object-[50%_22%] min-[401px]:object-[50%_26%] md:hidden"
       />
       <SafeImage
         src={activeSlide.image}
@@ -134,15 +134,15 @@ export default function Hero() {
         className="absolute left-0 top-0 hidden h-full w-full object-cover object-top md:block"
       />
 
-      <div className="absolute inset-0 bg-gradient-to-r from-[#30070bcc] via-[#4f0f17c2] to-[#220406de]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_40%,rgba(211,167,54,0.18),transparent_35%)]" />
+      <div className="hero-overlay-primary absolute inset-0 bg-gradient-to-r from-[#30070bcc] via-[#4f0f17c2] to-[#220406de]" />
+      <div className="hero-overlay-glow absolute inset-0 bg-[radial-gradient(circle_at_70%_40%,rgba(211,167,54,0.18),transparent_35%)]" />
 
-      <div className="absolute inset-x-0 bottom-0 top-[194px] z-10 section-shell flex flex-col items-center justify-start pt-8 text-center fade-in-up max-[390px]:top-[158px] max-[390px]:pt-6 min-[401px]:top-[108px] min-[401px]:pt-10 md:inset-0 md:justify-center md:pt-0">
-        <p className="text-xs font-medium uppercase tracking-[0.35em] text-[var(--gold)] md:text-sm">
+      <div className="hero-content absolute inset-x-0 bottom-0 top-[122px] z-10 section-shell flex flex-col items-center justify-start pt-4 text-center fade-in-up max-[390px]:top-[106px] max-[390px]:pt-3 min-[401px]:top-[126px] min-[401px]:pt-5 md:inset-0 md:justify-center md:pt-0">
+        <p className="hero-eyebrow text-xs font-medium uppercase tracking-[0.35em] text-[var(--gold)] md:text-sm">
           {activeSlide.eyebrow}
         </p>
 
-        <h1 className="mt-4 text-4xl font-bold leading-tight drop-shadow-2xl md:text-7xl">
+        <h1 className="hero-title mt-4 text-4xl font-bold leading-tight drop-shadow-2xl md:text-7xl">
           {activeSlide.title[0]} <br />
           {activeSlide.title[1]}
         </h1>
@@ -176,25 +176,25 @@ export default function Hero() {
       {isWaitlistOpen ? (
         <div className="fixed inset-0 z-[120] bg-black/70 px-4 py-8" onClick={() => setIsWaitlistOpen(false)}>
           <div
-            className="mx-auto mt-12 w-full max-w-lg rounded-2xl border border-[var(--gold)]/45 bg-[#2b060b] p-5 shadow-2xl md:mt-24 md:p-6"
+            className="mx-auto mt-12 w-full max-w-lg rounded-2xl border border-[var(--gold)]/45 bg-[var(--popup-bg)] p-5 shadow-2xl md:mt-24 md:p-6"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-[var(--gold)]">Coming Soon</p>
-                <h3 className="mt-1 text-2xl leading-tight">Explore Jewellery</h3>
+                <h3 className="mt-1 text-2xl leading-tight text-[var(--page-fg)]">Explore Jewellery</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsWaitlistOpen(false)}
                 aria-label="Close jewellery waitlist"
-                className="rounded-full p-2 transition hover:bg-[#4a1118]"
+                className="rounded-full p-2 transition hover:bg-[var(--popup-hover2)] text-[var(--page-fg)]"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <p className="mb-5 text-sm text-[#f0d9d0]">
+            <p className="mb-5 text-sm text-[var(--popup-subtext)]">
               Our jewellery line is launching soon. Join the waitlist and get notified first.
             </p>
 
@@ -205,7 +205,7 @@ export default function Hero() {
               </div>
             ) : (
               <form onSubmit={handleWaitlistSubmit} className="space-y-3">
-                <label className="block text-xs uppercase tracking-[0.12em] text-[#f2d7c3]" htmlFor="jewellery-waitlist-email">
+                <label className="block text-xs uppercase tracking-[0.12em] text-[var(--popup-label)]" htmlFor="jewellery-waitlist-email">
                   Email
                 </label>
                 <input
@@ -214,7 +214,7 @@ export default function Hero() {
                   value={waitlistEmail}
                   onChange={(event) => setWaitlistEmail(event.target.value)}
                   placeholder="you@example.com"
-                  className="w-full rounded-lg border border-[var(--gold)]/35 bg-[#3a0d14] px-3 py-2.5 text-sm text-white outline-none transition focus:border-[var(--gold)]"
+                  className="w-full rounded-lg border border-[var(--gold)]/35 bg-[var(--popup-input)] px-3 py-2.5 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)] placeholder:text-[var(--popup-input-ph)]"
                   required
                 />
 

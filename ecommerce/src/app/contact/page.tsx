@@ -55,8 +55,8 @@ export default function ContactPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(211,167,54,0.20),transparent_34%)]" />
         <div className="section-shell relative pb-10 md:pb-14">
           <p className="text-xs uppercase tracking-[0.28em] text-[var(--gold)]">Contact</p>
-          <h1 className="mt-3 max-w-3xl text-4xl leading-tight md:text-6xl">We are here to help you style confidently.</h1>
-          <p className="mt-5 max-w-3xl text-sm leading-7 text-[#efd6cd] md:text-base">
+          <h1 className="mt-3 max-w-3xl text-4xl leading-tight text-[var(--page-fg)] md:text-6xl">We are here to help you style confidently.</h1>
+          <p className="mt-5 max-w-3xl text-sm leading-7 text-[var(--popup-subtext)] md:text-base">
             Whether you need fit guidance, order assistance, or collaboration details, our team is ready to support you.
             Reach out through phone or email and we will get back quickly.
           </p>
@@ -71,7 +71,7 @@ export default function ContactPage() {
             return (
               <article
                 key={card.title}
-                className="group relative overflow-hidden rounded-2xl border border-[#ffffff20] bg-gradient-to-br from-[#4a0d15]/90 via-[#3a0b12]/85 to-[#2d070e]/90 p-6 shadow-[0_16px_38px_rgba(0,0,0,0.32)] transition duration-300 hover:-translate-y-0.5 hover:border-[var(--gold)]/35 hover:shadow-[0_22px_44px_rgba(0,0,0,0.38)]"
+                className="group relative overflow-hidden rounded-2xl border border-[var(--gold)]/40 bg-[var(--popup-card)] p-6 shadow-[0_16px_38px_rgba(0,0,0,0.32)] backdrop-blur transition duration-300 hover:-translate-y-0.5 hover:border-[var(--gold)]/60 hover:shadow-[0_22px_44px_rgba(0,0,0,0.38)]"
               >
                 <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(211,167,54,0.24),rgba(211,167,54,0))] opacity-80" />
 
@@ -79,18 +79,18 @@ export default function ContactPage() {
                   <Icon className="h-5 w-5 transition group-hover:scale-105" />
                 </div>
 
-                <h2 className="mt-4 text-2xl text-[#fff4ef]">{card.title}</h2>
+                <h2 className="mt-4 text-2xl text-[var(--popup-footer-text)]">{card.title}</h2>
                 {card.href ? (
                   <a
                     href={card.href}
-                    className="mt-2 block text-lg font-medium text-[#efc35e] transition hover:text-[#ffd980] hover:underline"
+                    className="mt-2 block text-lg font-medium text-[var(--nav-active)] transition hover:text-[var(--gold)] hover:underline"
                   >
                     {card.value}
                   </a>
                 ) : (
-                  <p className="mt-2 text-lg font-medium text-[#efc35e]">{card.value}</p>
+                  <p className="mt-2 text-lg font-medium text-[var(--nav-active)]">{card.value}</p>
                 )}
-                <p className="mt-1 text-sm text-[#f2d8cf]">{card.subtitle}</p>
+                <p className="mt-1 text-sm text-[var(--popup-subtext)]">{card.subtitle}</p>
               </article>
             );
           })}
@@ -99,10 +99,10 @@ export default function ContactPage() {
 
       <section className="pb-16">
         <div className="section-shell">
-          <div className="relative overflow-hidden rounded-3xl border border-[var(--gold)]/30 bg-gradient-to-br from-[#5b131b] via-[#3a0a11] to-[#30070e] p-7 shadow-[0_24px_52px_rgba(0,0,0,0.34)] md:p-10">
+          <div className="relative overflow-hidden rounded-3xl border border-[var(--gold)]/45 bg-[image:var(--popup-gradient)] p-7 shadow-[0_24px_52px_rgba(0,0,0,0.34)] md:p-10">
             <div className="pointer-events-none absolute -right-12 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(211,167,54,0.28),rgba(211,167,54,0))]" />
-            <h2 className="text-3xl md:text-4xl">Need quicker help?</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-[#f0d8cd] md:text-base">
+            <h2 className="text-3xl text-[var(--page-fg)] md:text-4xl">Need quicker help?</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--popup-subtext)] md:text-base">
               Add your order number in your message so our team can assist faster with delivery status, exchanges, and
               size support.
             </p>
