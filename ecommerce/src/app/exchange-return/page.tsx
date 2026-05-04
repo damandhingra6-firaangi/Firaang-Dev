@@ -44,8 +44,8 @@ export default function ExchangeReturnPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(211,167,54,0.18),transparent_34%)]" />
         <div className="section-shell relative pb-10 md:pb-14">
           <p className="text-xs uppercase tracking-[0.28em] text-[var(--gold)]">Policies</p>
-          <h1 className="mt-3 max-w-3xl text-4xl leading-tight md:text-6xl">Exchange &amp; Return Policy</h1>
-          <p className="mt-5 max-w-2xl text-sm leading-7 text-[#efd6cd] md:text-base">
+          <h1 className="mt-3 max-w-3xl text-4xl leading-tight text-[var(--page-fg)] md:text-6xl">Exchange &amp; Return Policy</h1>
+          <p className="mt-5 max-w-2xl text-sm leading-7 text-[var(--popup-subtext)] md:text-base">
             We want you to love every piece you receive. If something isn't right, here's how we make it easy to resolve.
           </p>
         </div>
@@ -56,11 +56,11 @@ export default function ExchangeReturnPage() {
           {policies.map((policy) => (
             <article
               key={policy.title}
-              className="relative overflow-hidden rounded-2xl border border-[#ffffff20] bg-gradient-to-br from-[#4a0d15]/90 via-[#3a0b12]/85 to-[#2d070e]/90 p-6 shadow-[0_16px_38px_rgba(0,0,0,0.32)]"
+              className="relative overflow-hidden rounded-2xl border border-[var(--gold)]/40 bg-[var(--popup-card)] p-6 shadow-[0_16px_38px_rgba(0,0,0,0.32)] backdrop-blur"
             >
               <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(211,167,54,0.20),rgba(211,167,54,0))] opacity-70" />
-              <h2 className="text-xl text-[#fff4ef]">{policy.title}</h2>
-              <p className="mt-2 text-sm leading-7 text-[#f2d8cf]">{policy.body}</p>
+              <h2 className="text-xl text-[var(--popup-footer-text)]">{policy.title}</h2>
+              <p className="mt-2 text-sm leading-7 text-[var(--popup-subtext)]">{policy.body}</p>
             </article>
           ))}
         </div>
@@ -68,10 +68,10 @@ export default function ExchangeReturnPage() {
 
       <section className="pb-16">
         <div className="section-shell">
-          <div className="relative overflow-hidden rounded-3xl border border-[var(--gold)]/30 bg-gradient-to-br from-[#5b131b] via-[#3a0a11] to-[#30070e] p-7 shadow-[0_24px_52px_rgba(0,0,0,0.34)] md:p-10">
+          <div className="relative overflow-hidden rounded-3xl border border-[var(--gold)]/45 bg-[image:var(--popup-gradient)] p-7 shadow-[0_24px_52px_rgba(0,0,0,0.34)] md:p-10">
             <div className="pointer-events-none absolute -right-12 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(211,167,54,0.24),rgba(211,167,54,0))]" />
-            <h2 className="text-3xl md:text-4xl">Still have questions?</h2>
-            <p className="mt-3 max-w-xl text-sm leading-7 text-[#f0d8cd]">
+            <h2 className="text-3xl text-[var(--page-fg)] md:text-4xl">Still have questions?</h2>
+            <p className="mt-3 max-w-xl text-sm leading-7 text-[var(--popup-subtext)]">
               Our support team is available Monday to Saturday, 11 AM to 8 PM. Include your order ID for faster resolution.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -79,7 +79,7 @@ export default function ExchangeReturnPage() {
                 Email Support
               </a>
               <a href="tel:+918556008254" className="outline-button w-full text-center sm:w-auto">
-                Call Us
+                Call
               </a>
             </div>
           </div>

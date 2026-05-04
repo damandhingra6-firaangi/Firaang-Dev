@@ -536,7 +536,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                 </p>
 
                 {isSignedIn ? (
-                  <div className="rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-4 text-sm text-emerald-50">
+                  <div className="rounded-2xl border border-[var(--success-border)] bg-[var(--success-bg)] p-4 text-sm text-[var(--success-text)]">
                     <p className="font-semibold">You are signed in as {profile.email || profile.phone}</p>
                   </div>
                 ) : (

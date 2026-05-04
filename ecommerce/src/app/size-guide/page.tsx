@@ -25,28 +25,28 @@ export default function SizeGuidePage() {
     <main>
       <Navbar />
 
-      <section className="relative overflow-hidden bg-[var(--primary)] pb-16 pt-[148px] md:pb-20 md:pt-[164px]">
+      <section className="relative overflow-hidden pb-16 pt-[148px] md:pb-20 md:pt-[164px]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(226,175,76,0.16),transparent_38%),radial-gradient(circle_at_82%_20%,rgba(144,24,38,0.42),transparent_36%)]" />
 
         <div className="section-shell relative">
-          <div className="mx-auto max-w-4xl rounded-[30px] border border-[var(--gold)]/25 bg-gradient-to-br from-[#4f1019]/92 via-[#3d0c14]/92 to-[#2c070d]/94 px-6 py-10 text-center shadow-[0_24px_60px_rgba(0,0,0,0.34)] md:px-10 md:py-14">
+          <div className="mx-auto max-w-4xl rounded-[30px] border border-[var(--gold)]/35 bg-[image:var(--popup-gradient)] px-6 py-10 text-center shadow-[0_24px_60px_rgba(0,0,0,0.34)] md:px-10 md:py-14">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--gold)]">Fit Guide</p>
             <h1
-              className="mt-3 text-[42px] font-semibold leading-none text-[#fff3ec] md:text-[64px]"
+              className="mt-3 text-[42px] font-semibold leading-none text-[var(--popup-footer-text)] md:text-[64px]"
               style={{ fontFamily: "var(--font-playfair), serif" }}
             >
               Size Chart
             </h1>
 
             <p
-              className="mx-auto mt-7 max-w-2xl text-[22px] font-semibold leading-[1.35] text-[#f6e1d7] md:text-[30px]"
+              className="mx-auto mt-7 max-w-2xl text-[22px] font-semibold leading-[1.35] text-[var(--popup-footer-text)] md:text-[30px]"
               style={{ fontFamily: "var(--font-poppins), sans-serif" }}
             >
               Find Your Perfect Fit
             </p>
 
             <div
-              className="mx-auto mt-7 max-w-2xl space-y-5 text-[17px] font-medium leading-[1.7] text-[#e8cac2] md:text-[19px]"
+              className="mx-auto mt-7 max-w-2xl space-y-5 text-[17px] font-medium leading-[1.7] text-[var(--popup-subtext)] md:text-[19px]"
               style={{ fontFamily: "var(--font-poppins), sans-serif" }}
             >
               <p>
@@ -62,16 +62,16 @@ export default function SizeGuidePage() {
               <p>Whether you prefer tailored, regular, or relaxed, there is a fit that works for you.</p>
             </div>
 
-            <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-[var(--gold)]/30 bg-[#6a1723]/35 px-5 py-5 text-left md:px-6">
+            <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-[var(--gold)]/30 bg-[var(--popup-inner)] px-5 py-5 text-left md:px-6">
               <p
-                className="text-center text-[24px] font-semibold text-[#fff2e8] md:text-[27px]"
+                className="text-center text-[24px] font-semibold text-[var(--popup-footer-text)] md:text-[27px]"
                 style={{ fontFamily: "var(--font-playfair), serif" }}
               >
                 Size Tips
               </p>
 
               <ul
-                className="mt-3 space-y-2 text-[16px] leading-[1.65] text-[#f1d8cf] md:text-[18px]"
+                className="mt-3 space-y-2 text-[16px] leading-[1.65] text-[var(--popup-subtext)] md:text-[18px]"
                 style={{ fontFamily: "var(--font-poppins), sans-serif" }}
               >
                 <li>- For a clean, true fit: go with your usual size.</li>
@@ -81,7 +81,7 @@ export default function SizeGuidePage() {
             </div>
 
             <p
-              className="mx-auto mt-8 max-w-2xl text-[17px] font-medium leading-[1.75] text-[#ecd1c8] md:text-[19px]"
+              className="mx-auto mt-8 max-w-2xl text-[17px] font-medium leading-[1.75] text-[var(--popup-subtext)] md:text-[19px]"
               style={{ fontFamily: "var(--font-poppins), sans-serif" }}
             >
               Because each piece is prepared with care, choosing the right size helps reduce waste and
@@ -89,16 +89,16 @@ export default function SizeGuidePage() {
             </p>
           </div>
 
-          <div className="mx-auto mt-8 max-w-5xl overflow-hidden rounded-[26px] border border-[var(--gold)]/25 bg-[#330a11]/92 shadow-[0_22px_52px_rgba(0,0,0,0.34)]">
-            <div className="border-b border-[var(--gold)]/20 bg-[#5a131d]/60 px-5 py-4 md:px-8">
+          <div className="mx-auto mt-8 max-w-5xl overflow-hidden rounded-[26px] border border-[var(--gold)]/30 bg-[var(--popup-card)] shadow-[0_22px_52px_rgba(0,0,0,0.34)] backdrop-blur">
+            <div className="border-b border-[var(--gold)]/20 bg-[var(--popup-inner)] px-5 py-4 md:px-8">
               <p
-                className="text-[24px] font-semibold text-[#fff0e7] md:text-[30px]"
+                className="text-[24px] font-semibold text-[var(--popup-footer-text)] md:text-[30px]"
                 style={{ fontFamily: "var(--font-playfair), serif" }}
               >
                 Garment Measurements (Inches)
               </p>
               <p
-                className="mt-1 text-[13px] text-[#dfbfb8] md:text-[14px]"
+                className="mt-1 text-[13px] text-[var(--popup-subtext)] md:text-[14px]"
                 style={{ fontFamily: "var(--font-poppins), sans-serif" }}
               >
                 Garment measured flat. For best accuracy, compare with a similar piece laid flat.
@@ -108,7 +108,7 @@ export default function SizeGuidePage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[680px] border-collapse" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
                 <thead>
-                  <tr className="bg-[#772331]/35 text-[#f9e8e1]">
+                  <tr className="bg-[var(--popup-header-cell)] text-[var(--popup-footer-text)]">
                     {SIZE_HEADERS.map((header) => (
                       <th key={header} className="border-b border-[var(--gold)]/20 px-5 py-3 text-left text-[13px] font-semibold uppercase tracking-[0.12em] md:px-6">
                         {header}
@@ -118,11 +118,11 @@ export default function SizeGuidePage() {
                 </thead>
                 <tbody>
                   {SIZE_ROWS.map((row) => (
-                    <tr key={row[0]} className="odd:bg-[#2c070d]/85 even:bg-[#3b0d15]/85">
+                    <tr key={row[0]} className="odd:bg-[var(--popup-row-cell)] even:bg-[var(--popup-inner)]">
                       {row.map((cell, index) => (
                         <td
                           key={`${row[0]}-${index}`}
-                          className="border-b border-[#ffffff12] px-5 py-3 text-[14px] font-medium text-[#efd2ca] md:px-6 md:text-[15px]"
+                          className="border-b border-[var(--gold)]/15 px-5 py-3 text-[14px] font-medium text-[var(--popup-subtext)] md:px-6 md:text-[15px]"
                         >
                           {cell}
                         </td>
@@ -134,69 +134,69 @@ export default function SizeGuidePage() {
             </div>
           </div>
 
-          <div className="mx-auto mt-8 max-w-5xl rounded-[26px] border border-[var(--gold)]/25 bg-gradient-to-br from-[#4b1019]/92 via-[#390b13]/92 to-[#2a060d]/94 px-5 py-6 shadow-[0_20px_46px_rgba(0,0,0,0.32)] md:px-8 md:py-8">
+          <div className="mx-auto mt-8 max-w-5xl rounded-[26px] border border-[var(--gold)]/30 bg-[image:var(--popup-gradient)] px-5 py-6 shadow-[0_20px_46px_rgba(0,0,0,0.32)] md:px-8 md:py-8">
             <p
-              className="text-center text-[28px] font-semibold text-[#fff2e9] md:text-[36px]"
+              className="text-center text-[28px] font-semibold text-[var(--popup-footer-text)] md:text-[36px]"
               style={{ fontFamily: "var(--font-playfair), serif" }}
             >
               How To Measure
             </p>
             <p
-              className="mx-auto mt-2 max-w-2xl text-center text-[14px] text-[#e5c6be] md:text-[15px]"
+              className="mx-auto mt-2 max-w-2xl text-center text-[14px] text-[var(--popup-subtext)] md:text-[15px]"
               style={{ fontFamily: "var(--font-poppins), sans-serif" }}
             >
               Lay your garment flat on a surface and use a measuring tape. Match these points with the table above.
             </p>
 
             <div className="mt-6 grid gap-4 md:grid-cols-3">
-              <article className="rounded-2xl border border-[var(--gold)]/20 bg-[#6d1b28]/35 p-4">
+              <article className="rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-4">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--gold)] text-[#3a0810]">
                   <MoveHorizontal className="h-4 w-4" />
                 </span>
                 <p
-                  className="mt-3 text-[22px] font-semibold text-[#fff3ea]"
+                  className="mt-3 text-[22px] font-semibold text-[var(--popup-footer-text)]"
                   style={{ fontFamily: "var(--font-playfair), serif" }}
                 >
                   Bust / Chest
                 </p>
                 <p
-                  className="mt-1 text-[14px] leading-[1.6] text-[#ecd1c8]"
+                  className="mt-1 text-[14px] leading-[1.6] text-[var(--popup-subtext)]"
                   style={{ fontFamily: "var(--font-poppins), sans-serif" }}
                 >
                   Measure straight across from underarm to underarm. Double this number for full body circumference.
                 </p>
               </article>
 
-              <article className="rounded-2xl border border-[var(--gold)]/20 bg-[#6d1b28]/35 p-4">
+              <article className="rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-4">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--gold)] text-[#3a0810]">
                   <ArrowDownUp className="h-4 w-4" />
                 </span>
                 <p
-                  className="mt-3 text-[22px] font-semibold text-[#fff3ea]"
+                  className="mt-3 text-[22px] font-semibold text-[var(--popup-footer-text)]"
                   style={{ fontFamily: "var(--font-playfair), serif" }}
                 >
                   Length
                 </p>
                 <p
-                  className="mt-1 text-[14px] leading-[1.6] text-[#ecd1c8]"
+                  className="mt-1 text-[14px] leading-[1.6] text-[var(--popup-subtext)]"
                   style={{ fontFamily: "var(--font-poppins), sans-serif" }}
                 >
                   Start at the highest shoulder point near the collar and measure down to the bottom hem.
                 </p>
               </article>
 
-              <article className="rounded-2xl border border-[var(--gold)]/20 bg-[#6d1b28]/35 p-4">
+              <article className="rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-4">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--gold)] text-[#3a0810]">
                   <Ruler className="h-4 w-4" />
                 </span>
                 <p
-                  className="mt-3 text-[22px] font-semibold text-[#fff3ea]"
+                  className="mt-3 text-[22px] font-semibold text-[var(--popup-footer-text)]"
                   style={{ fontFamily: "var(--font-playfair), serif" }}
                 >
                   Across Shoulder
                 </p>
                 <p
-                  className="mt-1 text-[14px] leading-[1.6] text-[#ecd1c8]"
+                  className="mt-1 text-[14px] leading-[1.6] text-[var(--popup-subtext)]"
                   style={{ fontFamily: "var(--font-poppins), sans-serif" }}
                 >
                   Measure from one shoulder seam to the other across the upper back panel of the garment.

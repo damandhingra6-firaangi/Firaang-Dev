@@ -6,31 +6,31 @@ import FeedbackPill from "@/components/FeedbackPill";
 
 export const metadata: Metadata = {
   title: "About | Firaangi",
-  description: "Discover the story, values, and design philosophy behind Firaangi.",
+  description: "Firaangi is a modern Indian label creating bold, expressive designs for everyday wear — blending global inspiration with comfort and style.",
 };
 
 const valuePillars = [
   {
     title: "Global Inspiration",
     description:
-      "Each collection blends silhouettes and details inspired by streets, art, and cultures from around the world.",
+      "Inspired by global streets, art, and culture—our designs bring a fresh, modern perspective to everyday style.",
   },
   {
     title: "Crafted Quality",
     description:
-      "From fit to finish, we obsess over comfort, tailoring, and premium materials that feel as good as they look.",
+      "Designed with comfort in mind, using quality fabrics and fits that feel as good as they look.",
   },
   {
     title: "Limited-Edit Mindset",
     description:
-      "We design with intention and release in curated drops so every piece feels special and stays timeless.",
+      "We release thoughtfully designed pieces in limited edits — so every drop feels fresh, relevant, and unique.",
   },
 ];
 
 const milestones = [
   { label: "Curated Collections", value: "25+" },
-  { label: "Happy Customers", value: "10k+" },
-  { label: "Cities Served", value: "120+" },
+  { label: "Community", value: "Growing" },
+  { label: "Delivery", value: "Pan India" },
 ];
 
 export default function AboutPage() {
@@ -48,8 +48,7 @@ export default function AboutPage() {
             A modern Indian label with a global fashion lens.
           </h1>
           <p className="mt-5 max-w-3xl text-sm leading-7 text-[var(--popup-subtext)] md:text-base">
-            Firaangi was born from a simple idea: style should feel expressive, elevated, and effortless in everyday life.
-            We build statement-ready looks for women who want couture-inspired polish with practical comfort.
+            Firaangi brings bold, expressive designs to everyday wear — crafted for comfort, styled for everyone.
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
@@ -58,7 +57,7 @@ export default function AboutPage() {
                 key={item.label}
                 className="rounded-2xl border border-[var(--gold)]/40 bg-[var(--popup-card)] px-5 py-6 shadow-[0_10px_30px_rgba(0,0,0,0.24)] backdrop-blur"
               >
-                <p className="text-3xl font-semibold text-[var(--gold)]">{item.value}</p>
+                <p className="text-2xl md:text-3xl font-semibold text-[var(--gold)] tracking-wide">{item.value}</p>
                 <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--popup-subtext)]">{item.label}</p>
               </div>
             ))}

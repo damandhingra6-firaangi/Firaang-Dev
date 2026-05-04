@@ -67,6 +67,9 @@
   --popup-selected-text: #ffffff;
   --popup-header-cell: #3f0f16;
   --popup-row-cell: #2f0b11;
+  --success-bg: rgba(16, 185, 129, 0.18);
+  --success-border: rgba(52, 211, 153, 0.4);
+  --success-text: #d1fae5;
   --popup-footer-bg: rgba(59,13,20,0.65);
   --popup-footer-text: #f6e4de;
   --popup-footer-inactive: #f5ddd4;
@@ -153,6 +156,9 @@
   --popup-selected-text: #fff8f4;
   --popup-header-cell: #f4e4dc;
   --popup-row-cell: #f9ede8;
+  --success-bg: #dff4ea;
+  --success-border: #9fd3b8;
+  --success-text: #205945;
   --popup-footer-bg: rgba(244,228,220,0.65);
   --popup-footer-text: #5d2a36;
   --popup-footer-inactive: #7a4550;

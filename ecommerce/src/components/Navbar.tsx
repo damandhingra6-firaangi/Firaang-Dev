@@ -422,14 +422,14 @@ export default function Navbar() {
       </div>
 
       {isMobileMenuOpen ? (
-        <div className="mobile-drawer-backdrop fixed inset-0 top-[74px] z-[90] bg-[rgba(14,2,5,0.68)] backdrop-blur-[2px] md:hidden" onClick={closeMobileMenu}>
+        <div className="mobile-drawer-backdrop fixed inset-0 top-[74px] z-[90] bg-black/45 backdrop-blur-[2px] md:hidden" onClick={closeMobileMenu}>
           <div
-            className="mobile-drawer-panel h-full w-[88vw] max-w-[360px] overflow-y-auto border-r border-[var(--gold)]/20 bg-gradient-to-b from-[#4f0d17] via-[#3a0710] to-[#25040a] px-4 py-5 shadow-[0_30px_60px_rgba(0,0,0,0.5)]"
+            className="mobile-drawer-panel h-full w-[88vw] max-w-[360px] overflow-y-auto border-r border-[var(--gold)]/25 bg-[var(--menu-bg)] px-4 py-5 shadow-[0_30px_60px_rgba(0,0,0,0.5)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="mb-4 rounded-2xl border border-[var(--gold)]/15 bg-[#631723]/30 px-4 py-4">
+            <div className="mb-4 rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-card)] px-4 py-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-[var(--gold)]">Navigate Firaangi</p>
-              <p className="mt-2 text-[22px] font-semibold leading-[1.1] text-[#fff1e8]" style={{ fontFamily: "var(--font-playfair), serif" }}>
+              <p className="mt-2 text-[22px] font-semibold leading-[1.1] text-[var(--popup-footer-text)]" style={{ fontFamily: "var(--font-playfair), serif" }}>
                 Explore Categories, collections, and signature edits.
               </p>
             </div>
@@ -438,7 +438,7 @@ export default function Navbar() {
               <Link
                 href="/"
                 onClick={closeMobileMenu}
-                className={`block rounded-xl px-3 py-3 text-sm font-medium tracking-[0.14em] ${pathname === "/" ? "bg-[var(--gold)]/12 text-[var(--gold)]" : "text-[#f2d8cf]"}`}
+                className={`block rounded-xl px-3 py-3 text-sm font-medium tracking-[0.14em] ${pathname === "/" ? "bg-[var(--gold)]/12 text-[var(--gold)]" : "text-[var(--menu-text)]"}`}
               >
                 HOME
               </Link>
@@ -449,20 +449,20 @@ export default function Navbar() {
                   setIsMobileCategoriesOpen((prev) => !prev);
                   setIsMobileCollectionsOpen(false);
                 }}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium tracking-[0.14em] text-[#f2d8cf]"
+                className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium tracking-[0.14em] text-[var(--menu-text)]"
               >
                 <span>CATEGORIES</span>
                 <ChevronDown className={`h-4 w-4 transition ${isMobileCategoriesOpen ? "rotate-180" : ""}`} />
               </button>
 
               {isMobileCategoriesOpen ? (
-                <div className="rounded-2xl border border-[var(--gold)]/20 bg-[#2d070e] p-2">
+                <div className="rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-2">
                   {categories.map((category) => (
                     <Link
                       key={category.label}
                       href={buildShopFilterHref(category.slug)}
                       onClick={closeMobileMenu}
-                      className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm text-[#f1d7ce] transition hover:bg-[var(--gold)]/10 hover:text-[var(--gold)]"
+                      className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm text-[var(--popup-footer-text)] transition hover:bg-[var(--gold)]/10 hover:text-[var(--gold)]"
                     >
                       <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-[var(--gold)]/40 bg-[var(--gold)]/10 px-1 text-[10px] font-semibold text-[var(--gold)]">
                         {category.icon}
@@ -479,16 +479,16 @@ export default function Navbar() {
                   setIsMobileCollectionsOpen((prev) => !prev);
                   setIsMobileCategoriesOpen(false);
                 }}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium tracking-[0.14em] text-[#f2d8cf]"
+                className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium tracking-[0.14em] text-[var(--menu-text)]"
               >
                 <span>COLLECTIONS</span>
                 <ChevronDown className={`h-4 w-4 transition ${isMobileCollectionsOpen ? "rotate-180" : ""}`} />
               </button>
 
               {isMobileCollectionsOpen ? (
-                <div className="space-y-3 rounded-2xl border border-[var(--gold)]/20 bg-[#2d070e] p-3">
+                <div className="space-y-3 rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-3">
                   {mobileCollectionGroups.map((group) => (
-                    <div key={group.title} className="rounded-xl border border-[#ffffff10] bg-[#3b0911]/55 p-2.5">
+                    <div key={group.title} className="rounded-xl border border-[var(--gold)]/15 bg-[var(--popup-card)] p-2.5">
                       <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--gold)]">
                         {group.title}
                       </p>
@@ -498,7 +498,7 @@ export default function Navbar() {
                             key={col.label}
                             href={buildShopFilterHref(col.categorySlug, "subCategorySlug" in col ? col.subCategorySlug : undefined)}
                             onClick={closeMobileMenu}
-                            className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm text-[#f1d7ce] transition hover:bg-[var(--gold)]/10 hover:text-[var(--gold)]"
+                            className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm text-[var(--popup-footer-text)] transition hover:bg-[var(--gold)]/10 hover:text-[var(--gold)]"
                           >
                             <span>{col.label}</span>
                             {"tag" in col && col.tag ? (
@@ -527,7 +527,7 @@ export default function Navbar() {
                   key={item.label}
                   href={item.href}
                   onClick={closeMobileMenu}
-                  className={`block rounded-xl px-3 py-3 text-sm font-medium tracking-[0.14em] ${isNavItemActive(item.href) ? "bg-[var(--gold)]/12 text-[var(--gold)]" : "text-[#f2d8cf]"}`}
+                  className={`block rounded-xl px-3 py-3 text-sm font-medium tracking-[0.14em] ${isNavItemActive(item.href) ? "bg-[var(--gold)]/12 text-[var(--gold)]" : "text-[var(--menu-text)]"}`}
                 >
                   {item.label}
                 </Link>

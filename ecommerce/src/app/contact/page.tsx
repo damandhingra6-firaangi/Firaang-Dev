@@ -25,7 +25,7 @@ const contactCards: ReadonlyArray<ContactCard> = [
     icon: MapPin,
   },
   {
-    title: "Call Us",
+    title: "Call",
     value: "+91 85560 08254",
     subtitle: "Mon to Sat, 11:00 AM to 8:00 PM",
     icon: Phone,
