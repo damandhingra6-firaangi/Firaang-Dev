@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
-import { Check, ChevronDown, Heart, ShoppingBag, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, Heart, Minus, Plus, ShoppingBag, Sparkles, X } from "lucide-react";
 import { getConfiguredSizeChart } from "@/lib/size-charts";
 import SafeImage from "@/components/SafeImage";
 import { useUiStore } from "@/store/useUiStore";
@@ -33,6 +33,20 @@ function toTitleCase(value: string) {
     .join(" ");
 }
 
+function normalizeSizeLabel(value: string) {
+  const normalized = value.trim().toUpperCase().replace(/\s+/g, "");
+
+  if (normalized === "2XL") {
+    return "XXL";
+  }
+
+  if (normalized === "3XL") {
+    return "XXXL";
+  }
+
+  return normalized;
+}
+
 function getSwatchColor(value: string) {
   const normalized = value.trim().toLowerCase();
 
@@ -60,6 +74,87 @@ function getSwatchColor(value: string) {
   return preset[normalized] ?? "#8c8c8c";
 }
 
+const DESCRIPTION_SECTION_LABELS = [
+  "Product Story",
+  "Fabric & Feel",
+  "Design Essence",
+  "Fit & Finish",
+  "Care Instructions",
+  "Wash Care",
+  "Style Tip",
+  "Occasion",
+  "Sanskrit Mantra",
+] as const;
+
+const DESCRIPTION_SECTION_SET = new Set(
+  DESCRIPTION_SECTION_LABELS.map((label) => label.toLowerCase())
+);
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function formatDescriptionBlocks(description: string) {
+  let normalized = description.replace(/\r\n/g, "\n").trim();
+
+  if (!normalized) {
+    return [] as Array<{ label?: string; text: string }>;
+  }
+
+  normalized = normalized
+    .replace(/\s+/g, " ")
+    .replace(/([.!?])([A-Z])/g, "$1 $2")
+    .replace(/([a-z])([A-Z][a-z])/g, "$1 $2");
+
+  for (const label of DESCRIPTION_SECTION_LABELS) {
+    const matcher = new RegExp(`\\s*${escapeRegExp(label)}\\s*:?\\s*`, "gi");
+    normalized = normalized.replace(matcher, `\n${label}: `);
+  }
+
+  return normalized
+    .split(/\n+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .map((segment) => {
+      const headingMatch = segment.match(/^([^:]{3,30}):\s*(.+)$/);
+
+      if (!headingMatch) {
+        return { text: segment };
+      }
+
+      const label = headingMatch[1].trim();
+      const text = headingMatch[2].trim();
+
+      if (!DESCRIPTION_SECTION_SET.has(label.toLowerCase()) || !text) {
+        return { text: segment };
+      }
+
+      return { label, text };
+    });
+}
+
+function getTouchDistance(
+  touchA: { clientX: number; clientY: number },
+  touchB: { clientX: number; clientY: number },
+) {
+  return Math.hypot(touchA.clientX - touchB.clientX, touchA.clientY - touchB.clientY);
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function parseZoomOrigin(origin: string) {
+  const [xPart = "50%", yPart = "50%"] = origin.split(" ");
+  const x = Number.parseFloat(xPart);
+  const y = Number.parseFloat(yPart);
+
+  return {
+    x: Number.isFinite(x) ? x : 50,
+    y: Number.isFinite(y) ? y : 50,
+  };
+}
+
 export default function ProductDetailsModal({
   product,
   isOpen,
@@ -72,6 +167,13 @@ export default function ProductDetailsModal({
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
+  const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const panStartRef = useRef<{ clientX: number; clientY: number; originX: number; originY: number } | null>(null);
+  const didPanRef = useRef(false);
+  const [isPanning, setIsPanning] = useState(false);
 
   const variants = product?.variants ?? [];
 
@@ -104,15 +206,21 @@ export default function ProductDetailsModal({
       const configured = getConfiguredSizeChart(product);
 
       if (configured) {
-        const values = new Set((sizeOptionGroup?.values ?? []).map((value) => value.toUpperCase()));
+        const values = new Set((sizeOptionGroup?.values ?? []).map((value) => normalizeSizeLabel(value)));
         const rows =
           values.size > 0
-            ? configured.rows.filter((row) => values.has(row[0].toUpperCase()))
+            ? configured.rows.filter((row) => values.has(normalizeSizeLabel(row[0])))
             : configured.rows;
+
+        const fallbackNotePrefix = "Using standard size guide for this product.";
+        const note = configured.note
+          ? `${fallbackNotePrefix} ${configured.note}`
+          : fallbackNotePrefix;
 
         return {
           ...configured,
           rows,
+          note,
         };
       }
     }
@@ -136,6 +244,51 @@ export default function ProductDetailsModal({
     .map(([name, value]) => `${toTitleCase(name)}: ${value}`)
     .join(" • ");
 
+  const descriptionBlocks = useMemo(() => {
+    return formatDescriptionBlocks(product?.description ?? "");
+  }, [product?.description]);
+
+  const canZoomOut = zoomLevel > 1;
+  const canZoomIn = zoomLevel < 2.6;
+
+  const updateZoom = (nextValue: number) => {
+    const clampedValue = Math.max(1, Math.min(2.6, Number(nextValue.toFixed(2))));
+    setZoomLevel(clampedValue);
+
+    if (clampedValue === 1) {
+      setZoomOrigin("50% 50%");
+      setIsPanning(false);
+      panStartRef.current = null;
+      didPanRef.current = false;
+    }
+  };
+
+  const updateZoomOriginFromClientPoint = (
+    eventTarget: EventTarget & HTMLElement,
+    clientX: number,
+    clientY: number,
+  ) => {
+    const rect = eventTarget.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * 100;
+    const y = ((clientY - rect.top) / rect.height) * 100;
+
+    setZoomOrigin(`${x}% ${y}%`);
+  };
+
+  const panZoomOriginFromDelta = (
+    eventTarget: EventTarget & HTMLElement,
+    deltaX: number,
+    deltaY: number,
+    originX: number,
+    originY: number,
+  ) => {
+    const rect = eventTarget.getBoundingClientRect();
+    const nextX = clamp(originX - (deltaX / rect.width) * 100, 0, 100);
+    const nextY = clamp(originY - (deltaY / rect.height) * 100, 0, 100);
+
+    setZoomOrigin(`${nextX}% ${nextY}%`);
+  };
+
   useEffect(() => {
     if (!isOpen || !product) {
       return;
@@ -146,13 +299,30 @@ export default function ProductDetailsModal({
     setSelectedOptions(
       Object.fromEntries((initialVariant?.options ?? []).map((option) => [option.name, option.value]))
     );
+    setSelectedImage(null);
     setIsSizeGuideOpen(false);
+    setZoomLevel(1);
+    setZoomOrigin("50% 50%");
+    pinchStartRef.current = null;
+    panStartRef.current = null;
+    didPanRef.current = false;
+    setIsPanning(false);
   }, [isOpen, product, variants]);
 
   const activeVariant =
     variants.find((variant) => variant.id === selectedVariantId) ??
     variants[0] ??
     null;
+
+  useEffect(() => {
+    setSelectedImage(null);
+    setZoomLevel(1);
+    setZoomOrigin("50% 50%");
+    pinchStartRef.current = null;
+    panStartRef.current = null;
+    didPanRef.current = false;
+    setIsPanning(false);
+  }, [selectedVariantId]);
 
   const resolvedProduct = useMemo(() => {
     if (!product) {
@@ -187,28 +357,44 @@ export default function ProductDetailsModal({
     }
 
     const source = variants.length > 0 ? variants : [];
-    const uniqueImages = new Map<string, { id: string; img: string; label: string }>();
+    const uniqueImages = new Map<string, { id: string; img: string; label: string; variantId: string | null }>();
 
     for (const variant of source) {
       if (!uniqueImages.has(variant.img)) {
         uniqueImages.set(variant.img, {
-          id: variant.id,
+          id: `variant-${variant.id}`,
           img: variant.img,
           label: variant.name,
+          variantId: variant.id,
+        });
+      }
+    }
+
+    const galleryImages = product.galleryImages ?? [];
+    for (const image of galleryImages) {
+      if (!uniqueImages.has(image)) {
+        uniqueImages.set(image, {
+          id: `gallery-${image}`,
+          img: image,
+          label: product.name,
+          variantId: null,
         });
       }
     }
 
     if (!uniqueImages.has(product.img)) {
       uniqueImages.set(product.img, {
-        id: product.id,
+        id: `product-${product.id}`,
         img: product.img,
         label: product.name,
+        variantId: null,
       });
     }
 
     return Array.from(uniqueImages.values()).slice(0, 6);
   }, [product, variants]);
+
+  const activeImage = selectedImage ?? resolvedProduct?.img ?? product?.img ?? "";
 
   const selectOptionValue = (optionName: string, optionValue: string) => {
     setSelectedOptions((current) => {
@@ -297,27 +483,239 @@ export default function ProductDetailsModal({
 
         <div className="grid max-h-[82vh] gap-6 overflow-y-auto p-5 md:grid-cols-[1.15fr_1fr] md:gap-8 md:p-7">
           <div className="space-y-3">
-            <div className="overflow-hidden rounded-2xl border border-[var(--gold)]/25 bg-[var(--popup-input-deep)]">
+            <div className="group relative overflow-hidden rounded-2xl border border-[var(--gold)]/25 bg-[var(--popup-input-deep)]">
+              <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-full border border-[var(--gold)]/40 bg-black/35 px-1.5 py-1 backdrop-blur-sm">
+                <button
+                  type="button"
+                  aria-label="Zoom out"
+                  disabled={!canZoomOut}
+                  className="rounded-full p-1 text-[var(--gold)] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => updateZoom(zoomLevel - 0.3)}
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Reset zoom"
+                  disabled={zoomLevel === 1}
+                  className="min-w-12 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-[var(--popup-footer-text)] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => updateZoom(1)}
+                >
+                  {Math.round(zoomLevel * 100)}%
+                </button>
+                <button
+                  type="button"
+                  aria-label="Zoom in"
+                  disabled={!canZoomIn}
+                  className="rounded-full p-1 text-[var(--gold)] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => updateZoom(zoomLevel + 0.3)}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Toggle image zoom"
+                className={`block w-full touch-none ${zoomLevel > 1 ? (isPanning ? "cursor-grabbing" : "cursor-grab") : "cursor-zoom-in"}`}
+                onClick={() => {
+                  if (didPanRef.current) {
+                    didPanRef.current = false;
+                    return;
+                  }
+
+                  updateZoom(zoomLevel > 1 ? 1 : 1.8);
+                }}
+                onMouseDown={(event) => {
+                  if (zoomLevel === 1) {
+                    return;
+                  }
+
+                  event.preventDefault();
+                  const { x, y } = parseZoomOrigin(zoomOrigin);
+                  didPanRef.current = false;
+                  setIsPanning(true);
+                  panStartRef.current = {
+                    clientX: event.clientX,
+                    clientY: event.clientY,
+                    originX: x,
+                    originY: y,
+                  };
+                }}
+                onMouseMove={(event) => {
+                  if (panStartRef.current && zoomLevel > 1 && event.buttons === 1) {
+                    event.preventDefault();
+
+                    const deltaX = event.clientX - panStartRef.current.clientX;
+                    const deltaY = event.clientY - panStartRef.current.clientY;
+
+                    if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+                      didPanRef.current = true;
+                    }
+
+                    panZoomOriginFromDelta(
+                      event.currentTarget,
+                      deltaX,
+                      deltaY,
+                      panStartRef.current.originX,
+                      panStartRef.current.originY,
+                    );
+                    return;
+                  }
+
+                  if (zoomLevel === 1) {
+                    return;
+                  }
+
+                  updateZoomOriginFromClientPoint(event.currentTarget, event.clientX, event.clientY);
+                }}
+                onMouseUp={() => {
+                  panStartRef.current = null;
+                  setIsPanning(false);
+                }}
+                onWheel={(event) => {
+                  event.preventDefault();
+
+                  const wheelDirection = Math.sign(event.deltaY);
+                  const zoomStep = wheelDirection > 0 ? -0.14 : 0.14;
+
+                  updateZoomOriginFromClientPoint(event.currentTarget, event.clientX, event.clientY);
+                  updateZoom(zoomLevel + zoomStep);
+                }}
+                onTouchStart={(event) => {
+                  if (event.touches.length === 2) {
+                    const [touchA, touchB] = [event.touches[0], event.touches[1]];
+                    panStartRef.current = null;
+                    setIsPanning(false);
+                    pinchStartRef.current = {
+                      distance: getTouchDistance(touchA, touchB),
+                      zoom: zoomLevel,
+                    };
+                    return;
+                  }
+
+                  if (event.touches.length === 1 && zoomLevel > 1) {
+                    const touch = event.touches[0];
+                    const { x, y } = parseZoomOrigin(zoomOrigin);
+
+                    didPanRef.current = false;
+                    setIsPanning(true);
+                    panStartRef.current = {
+                      clientX: touch.clientX,
+                      clientY: touch.clientY,
+                      originX: x,
+                      originY: y,
+                    };
+                  }
+                }}
+                onTouchMove={(event) => {
+                  if (event.touches.length === 2 && pinchStartRef.current) {
+                    event.preventDefault();
+
+                    const [touchA, touchB] = [event.touches[0], event.touches[1]];
+                    const currentDistance = getTouchDistance(touchA, touchB);
+                    const { distance: initialDistance, zoom: initialZoom } = pinchStartRef.current;
+
+                    if (initialDistance <= 0) {
+                      return;
+                    }
+
+                    const midpointX = (touchA.clientX + touchB.clientX) / 2;
+                    const midpointY = (touchA.clientY + touchB.clientY) / 2;
+
+                    updateZoomOriginFromClientPoint(event.currentTarget, midpointX, midpointY);
+                    updateZoom(initialZoom * (currentDistance / initialDistance));
+                    return;
+                  }
+
+                  if (event.touches.length === 1 && panStartRef.current && zoomLevel > 1) {
+                    event.preventDefault();
+
+                    const touch = event.touches[0];
+                    const deltaX = touch.clientX - panStartRef.current.clientX;
+                    const deltaY = touch.clientY - panStartRef.current.clientY;
+
+                    if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+                      didPanRef.current = true;
+                    }
+
+                    panZoomOriginFromDelta(
+                      event.currentTarget,
+                      deltaX,
+                      deltaY,
+                      panStartRef.current.originX,
+                      panStartRef.current.originY,
+                    );
+                  }
+                }}
+                onTouchEnd={() => {
+                  pinchStartRef.current = null;
+                  panStartRef.current = null;
+                  setIsPanning(false);
+                }}
+                onTouchCancel={() => {
+                  pinchStartRef.current = null;
+                  panStartRef.current = null;
+                  setIsPanning(false);
+                }}
+                onMouseLeave={() => {
+                  panStartRef.current = null;
+                  setIsPanning(false);
+
+                  if (zoomLevel === 1) {
+                    setZoomOrigin("50% 50%");
+                  }
+                }}
+              >
               <SafeImage
-                src={resolvedProduct?.img ?? product.img}
+                src={activeImage}
                 alt={resolvedProduct?.name ?? product.name}
-                className="h-[320px] w-full object-cover sm:h-[420px] md:h-[500px]"
+                className="h-[320px] w-full select-none object-cover transition-transform duration-200 ease-out sm:h-[420px] md:h-[500px]"
+                style={{
+                  transform: `scale(${zoomLevel})`,
+                  transformOrigin: zoomOrigin,
+                }}
               />
+              </button>
+
+              {zoomLevel > 1 ? (
+                <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-full border border-[var(--gold)]/35 bg-black/45 px-3 py-1 text-[10px] font-medium tracking-[0.06em] text-[var(--popup-footer-text)] backdrop-blur-sm sm:text-[11px]">
+                  Drag to pan • Pinch or wheel to zoom
+                </div>
+              ) : null}
             </div>
 
             {previewImages.length > 1 ? (
               <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
                 {previewImages.map((preview) => {
-                  const isActive = activeVariant?.id === preview.id || (!activeVariant && product.id === preview.id);
+                  const isActive = selectedImage
+                    ? selectedImage === preview.img
+                    : preview.variantId
+                      ? activeVariant?.id === preview.variantId
+                      : activeImage === preview.img;
 
                   return (
                     <button
                       key={preview.id}
                       type="button"
                       onClick={() => {
-                        setSelectedVariantId(preview.id);
+                        if (preview.variantId) {
+                          setSelectedVariantId(preview.variantId);
+                          setSelectedImage(null);
+                        } else {
+                          setSelectedImage(preview.img);
+                        }
 
-                        const matchingVariant = variants.find((variant) => variant.id === preview.id);
+                        setZoomLevel(1);
+                        setZoomOrigin("50% 50%");
+                        pinchStartRef.current = null;
+                        panStartRef.current = null;
+                        didPanRef.current = false;
+                        setIsPanning(false);
+
+                        const matchingVariant = preview.variantId
+                          ? variants.find((variant) => variant.id === preview.variantId)
+                          : null;
                         if (matchingVariant) {
                           setSelectedOptions(
                             Object.fromEntries(
@@ -342,7 +740,14 @@ export default function ProductDetailsModal({
           </div>
 
           <div className="flex flex-col">
-            <p className="mb-5 text-base leading-relaxed text-[var(--popup-subtext)]">{product.description}</p>
+            <div className="mb-5 max-h-56 space-y-3 overflow-y-auto pr-2 text-[15px] leading-7 text-[var(--popup-subtext)] md:max-h-72">
+              {descriptionBlocks.map((block, index) => (
+                <p key={`${block.label ?? "text"}-${index}`} className="text-pretty">
+                  {block.label ? <span className="font-semibold text-[var(--popup-footer-text)]">{block.label}: </span> : null}
+                  {block.text}
+                </p>
+              ))}
+            </div>
 
             <div className="mb-6 flex items-end gap-3 border-b border-[var(--gold)]/15 pb-5">
               <p className="text-3xl leading-none">

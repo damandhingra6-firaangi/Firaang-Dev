@@ -1,4 +1,4 @@
-import { GridProduct } from "@/lib/catalog";
+import { GridProduct, ProductSizeChart } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { deriveProductTaxonomy } from "@/lib/product-taxonomy";
 
@@ -21,6 +21,12 @@ type ShopifyProductsResponse = {
           tags: string[];
           description: string;
           featuredImage: { url: string; altText: string | null } | null;
+          images?: {
+            nodes?: Array<{
+              url: string;
+              altText: string | null;
+            }>;
+          };
           priceRange: {
             minVariantPrice: MoneyV2;
           };
@@ -79,6 +85,12 @@ const productsQuery = `#graphql
           featuredImage {
             url
             altText
+          }
+          images(first: 20) {
+            nodes {
+              url
+              altText
+            }
           }
           priceRange {
             minVariantPrice {
@@ -231,116 +243,217 @@ function getCanonicalHeaderLabel(input: string) {
   return SIZE_CHART_HEADER_ALIASES[normalized] ?? prettifyHeaderLabel(input);
 }
 
+function isCellValue(value: unknown): value is string | number {
+  return typeof value === "string" || typeof value === "number";
+}
+
+function tryBuildChartFromObjectRows(
+  objectRows: Array<Record<string, string | number>>,
+  headersOverride?: string[],
+  note?: string,
+): ProductSizeChart | undefined {
+  if (objectRows.length === 0) {
+    return undefined;
+  }
+
+  const dataKeys = Array.from(new Set(objectRows.flatMap((row) => Object.keys(row))));
+  const headerKeys = headersOverride && headersOverride.length > 0 ? headersOverride : dataKeys;
+
+  if (headerKeys.length === 0) {
+    return undefined;
+  }
+
+  const canonicalHeaderOrder: string[] = [];
+  for (const key of headerKeys) {
+    const canonical = getCanonicalHeaderLabel(key);
+
+    if (!canonicalHeaderOrder.includes(canonical)) {
+      canonicalHeaderOrder.push(canonical);
+    }
+  }
+
+  const canonicalToSourceKeys = new Map<string, string[]>();
+  for (const key of dataKeys) {
+    const canonical = getCanonicalHeaderLabel(key);
+    const existing = canonicalToSourceKeys.get(canonical) ?? [];
+
+    if (!existing.includes(key)) {
+      existing.push(key);
+      canonicalToSourceKeys.set(canonical, existing);
+    }
+  }
+
+  const rows = objectRows.map((row) =>
+    canonicalHeaderOrder.map((canonicalHeader) => {
+      const sourceKeys = canonicalToSourceKeys.get(canonicalHeader) ?? [canonicalHeader];
+      const rawValue = sourceKeys
+        .map((sourceKey) => {
+          const normalizedKey = normalizeHeaderKey(sourceKey);
+
+          return row[sourceKey] ?? row[sourceKey.toLowerCase()] ?? row[normalizedKey];
+        })
+        .find((value) => value !== undefined && value !== null);
+
+      return rawValue === undefined || rawValue === null ? "-" : String(rawValue);
+    })
+  );
+
+  return {
+    headers: canonicalHeaderOrder,
+    rows,
+    note,
+  };
+}
+
+function tryBuildChartFromSizeKeyedObject(
+  sizeKeyedObject: Record<string, unknown>,
+  note?: string,
+): ProductSizeChart | undefined {
+  const rows = Object.entries(sizeKeyedObject)
+    .filter(([size, value]) => {
+      return (
+        size.trim().length > 0 &&
+        typeof value === "object" &&
+        value !== null &&
+        !Array.isArray(value)
+      );
+    })
+    .map(([size, value]) => ({ Size: size, ...(value as Record<string, unknown>) }));
+
+  if (rows.length === 0) {
+    return undefined;
+  }
+
+  const normalizedRows = rows.map((row) =>
+    Object.fromEntries(
+      Object.entries(row)
+        .filter(([, cell]) => isCellValue(cell))
+        .map(([key, cell]) => [key, cell as string | number])
+    )
+  );
+
+  if (normalizedRows.some((row) => Object.keys(row).length === 0)) {
+    return undefined;
+  }
+
+  return tryBuildChartFromObjectRows(normalizedRows, undefined, note);
+}
+
+function parseSizeChartContent(parsed: unknown): ProductSizeChart | undefined {
+  if (!parsed) {
+    return undefined;
+  }
+
+  if (typeof parsed === "string") {
+    try {
+      return parseSizeChartContent(JSON.parse(parsed));
+    } catch {
+      return undefined;
+    }
+  }
+
+  if (Array.isArray(parsed)) {
+    if (parsed.length === 0) {
+      return undefined;
+    }
+
+    if (parsed.every((row) => Array.isArray(row) && row.every((cell) => isCellValue(cell)))) {
+      const width = Math.max(...parsed.map((row) => (Array.isArray(row) ? row.length : 0)));
+
+      if (width === 0) {
+        return undefined;
+      }
+
+      const headers = Array.from({ length: width }, (_, index) => (index === 0 ? "Size" : `Column ${index + 1}`));
+      const rows = parsed.map((row) =>
+        headers.map((_, index) => {
+          const cell = (row as Array<string | number>)[index];
+          return cell === undefined || cell === null ? "-" : String(cell);
+        })
+      );
+
+      return { headers, rows };
+    }
+
+    if (
+      parsed.every(
+        (row) =>
+          typeof row === "object" &&
+          row !== null &&
+          !Array.isArray(row) &&
+          Object.values(row as Record<string, unknown>).every((cell) => isCellValue(cell))
+      )
+    ) {
+      return tryBuildChartFromObjectRows(parsed as Array<Record<string, string | number>>);
+    }
+
+    return undefined;
+  }
+
+  if (typeof parsed !== "object") {
+    return undefined;
+  }
+
+  const objectValue = parsed as Record<string, unknown>;
+  const note = typeof objectValue.note === "string" ? objectValue.note : undefined;
+
+  if (Array.isArray(objectValue.headers) && Array.isArray(objectValue.rows)) {
+    const headers = (objectValue.headers as unknown[]).filter((item): item is string => typeof item === "string");
+    const rows = (objectValue.rows as unknown[])
+      .filter((row): row is unknown[] => Array.isArray(row))
+      .map((row) => row.map((cell) => (isCellValue(cell) ? String(cell) : "-")));
+
+    if (headers.length > 0 && rows.length > 0) {
+      return { headers, rows, note };
+    }
+  }
+
+  if (Array.isArray(objectValue.rows)) {
+    if (
+      objectValue.rows.every(
+        (row) =>
+          typeof row === "object" &&
+          row !== null &&
+          !Array.isArray(row) &&
+          Object.values(row as Record<string, unknown>).every((cell) => isCellValue(cell))
+      )
+    ) {
+      return tryBuildChartFromObjectRows(
+        objectValue.rows as Array<Record<string, string | number>>,
+        Array.isArray(objectValue.headers)
+          ? (objectValue.headers as unknown[]).filter((item): item is string => typeof item === "string")
+          : undefined,
+        note,
+      );
+    }
+  }
+
+  const nestedKeys = ["data", "chart", "sizeChart", "size_chart", "table", "measurements"];
+  for (const key of nestedKeys) {
+    if (key in objectValue) {
+      const nested = parseSizeChartContent(objectValue[key]);
+      if (nested) {
+        return {
+          ...nested,
+          note: nested.note ?? note,
+        };
+      }
+    }
+  }
+
+  return tryBuildChartFromSizeKeyedObject(objectValue, note);
+}
+
 function parseSizeChart(value: string | null | undefined) {
   if (!value) {
     return undefined;
   }
 
   try {
-    const parsed = JSON.parse(value) as unknown;
-
-    if (typeof parsed !== "object" || parsed === null || !("rows" in parsed)) {
-      return undefined;
-    }
-
-    const maybeHeaders = (parsed as { headers?: unknown }).headers;
-    const maybeRows = (parsed as { rows?: unknown }).rows;
-    const maybeNote = (parsed as { note?: unknown }).note;
-
-    // Format A: { headers: string[], rows: string[][] }
-    if (
-      Array.isArray(maybeHeaders) &&
-      maybeHeaders.every((item) => typeof item === "string") &&
-      Array.isArray(maybeRows) &&
-      maybeRows.every(
-        (row) => Array.isArray(row) && row.every((item) => typeof item === "string")
-      )
-    ) {
-      return {
-        headers: maybeHeaders,
-        rows: maybeRows,
-        note: typeof maybeNote === "string" ? maybeNote : undefined,
-      };
-    }
-
-    // Format B: { headers?: string[], rows: Array<Record<string, string | number>> }
-    if (
-      Array.isArray(maybeRows) &&
-      maybeRows.length > 0 &&
-      maybeRows.every(
-        (row) =>
-          typeof row === "object" &&
-          row !== null &&
-          !Array.isArray(row) &&
-          Object.values(row as Record<string, unknown>).every(
-            (cell) => typeof cell === "string" || typeof cell === "number"
-          )
-      )
-    ) {
-      const objectRows = maybeRows as Array<Record<string, string | number>>;
-
-      const dataKeys = Array.from(
-        new Set(objectRows.flatMap((row) => Object.keys(row)))
-      );
-
-      const headerKeys =
-        Array.isArray(maybeHeaders) && maybeHeaders.every((item) => typeof item === "string")
-          ? maybeHeaders
-          : dataKeys;
-
-      const canonicalHeaderOrder: string[] = [];
-      for (const key of headerKeys) {
-        const canonical = getCanonicalHeaderLabel(key);
-
-        if (!canonicalHeaderOrder.includes(canonical)) {
-          canonicalHeaderOrder.push(canonical);
-        }
-      }
-
-      const canonicalToSourceKeys = new Map<string, string[]>();
-      for (const key of dataKeys) {
-        const canonical = getCanonicalHeaderLabel(key);
-        const existing = canonicalToSourceKeys.get(canonical) ?? [];
-
-        if (!existing.includes(key)) {
-          existing.push(key);
-          canonicalToSourceKeys.set(canonical, existing);
-        }
-      }
-
-      const headers = canonicalHeaderOrder;
-
-      const rows = objectRows.map((row) =>
-        canonicalHeaderOrder.map((canonicalHeader) => {
-          const sourceKeys = canonicalToSourceKeys.get(canonicalHeader) ?? [canonicalHeader];
-          const rawValue = sourceKeys
-            .map((sourceKey) => {
-              const normalizedKey = normalizeHeaderKey(sourceKey);
-
-              return (
-                row[sourceKey] ??
-                row[sourceKey.toLowerCase()] ??
-                row[normalizedKey]
-              );
-            })
-            .find((value) => value !== undefined && value !== null);
-
-          const value = rawValue;
-          return value === undefined || value === null ? "-" : String(value);
-        })
-      );
-
-      return {
-        headers,
-        rows,
-        note: typeof maybeNote === "string" ? maybeNote : undefined,
-      };
-    }
+    return parseSizeChartContent(JSON.parse(value));
   } catch {
     return undefined;
   }
-
-  return undefined;
 }
 
 export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> {
@@ -376,6 +489,15 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
 
     return productEdges.map(({ node }) => {
       const imageUrl = node.featuredImage?.url ?? "/cat1.jpg";
+      const allProductImages = Array.from(
+        new Set(
+          [
+            imageUrl,
+            ...(node.images?.nodes ?? []).map((image) => image.url),
+            ...((node.variants?.edges ?? []).map(({ node: variantNode }) => variantNode.image?.url).filter(Boolean) as string[]),
+          ].filter(Boolean)
+        )
+      );
       const sizeChart = parseSizeChart(node.sizeChartJson?.value) ?? parseSizeChart(node.sizeChart?.value);
       const taxonomy = deriveProductTaxonomy({
         title: node.title,
@@ -414,6 +536,7 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
           "INR",
         ),
         img: imageUrl,
+        galleryImages: allProductImages,
         description:
           node.description?.trim() ||
           "Discover premium craftsmanship and modern elegance in this signature piece.",

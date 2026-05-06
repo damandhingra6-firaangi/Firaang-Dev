@@ -15,6 +15,40 @@ function createEmptyRows(sizeLabels: string[], columns: number) {
 
 const PRODUCT_SIZE_CHART_RULES: SizeChartRule[] = [
   {
+    key: "tshirt-default",
+    handle: "t-shirt",
+    titleIncludes: "t-shirt",
+    chart: {
+      headers: ["Size", "Chest", "Length", "Shoulder", "To Fit Chest"],
+      rows: [
+        ["XS", "38", "26", "16", "34-36"],
+        ["S", "40", "27", "17", "36-38"],
+        ["M", "42", "28", "18", "38-40"],
+        ["L", "44", "29", "19", "40-42"],
+        ["XL", "46", "30", "20", "42-44"],
+        ["XXL", "48", "31", "21", "44-46"],
+      ],
+      note: "Approximate garment measurements in inches. Slight variation may occur (+/- 0.5 in).",
+    },
+  },
+  {
+    key: "tee-default",
+    handle: "tee",
+    titleIncludes: "tee",
+    chart: {
+      headers: ["Size", "Chest", "Length", "Shoulder", "To Fit Chest"],
+      rows: [
+        ["XS", "38", "26", "16", "34-36"],
+        ["S", "40", "27", "17", "36-38"],
+        ["M", "42", "28", "18", "38-40"],
+        ["L", "44", "29", "19", "40-42"],
+        ["XL", "46", "30", "20", "42-44"],
+        ["XXL", "48", "31", "21", "44-46"],
+      ],
+      note: "Approximate garment measurements in inches. Slight variation may occur (+/- 0.5 in).",
+    },
+  },
+  {
     key: "baby-tee-default",
     handle: "baby-tee",
     titleIncludes: "baby tee",
@@ -74,7 +108,13 @@ const PRODUCT_SIZE_CHART_RULES: SizeChartRule[] = [
 ];
 
 function normalize(value: string | undefined) {
-  return (value ?? "").trim().toLowerCase();
+  return (value ?? "")
+    .normalize("NFKC")
+    .replace(/[‐‑‒–—−]/g, "-")
+    .replace(/[_]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 export function getConfiguredSizeChart(product: Pick<GridProduct, "name" | "handle">): ProductSizeChart | null {
@@ -85,7 +125,7 @@ export function getConfiguredSizeChart(product: Pick<GridProduct, "name" | "hand
     const ruleHandle = normalize(rule.handle);
     const ruleTitleIncludes = normalize(rule.titleIncludes);
 
-    if (ruleHandle && handle && handle === ruleHandle) {
+    if (ruleHandle && handle && handle.includes(ruleHandle)) {
       return true;
     }
 

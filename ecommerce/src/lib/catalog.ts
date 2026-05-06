@@ -40,6 +40,7 @@ export type GridProduct = {
   currencyCode: string;
   oldPrice: string;
   img: string;
+  galleryImages?: string[];
   description: string;
   optionGroups?: ProductOptionGroup[];
   sizeChart?: ProductSizeChart;
