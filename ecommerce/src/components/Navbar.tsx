@@ -86,6 +86,7 @@ export default function Navbar() {
 
   const collections = [
     { label: "Devotional", categorySlug: "t-shirts", subCategorySlug: "devotional", tag: "NEW" },
+    { label: "Mandala Magic", categorySlug: "t-shirts", subCategorySlug: "mandala-magic" },
     { label: "Animal", categorySlug: "t-shirts", subCategorySlug: "animal" },
     { label: "Games & Sports", categorySlug: "t-shirts", subCategorySlug: "games-sports" },
     { label: "Anime Art", categorySlug: "t-shirts", subCategorySlug: "anime-art" },
@@ -100,7 +101,7 @@ export default function Navbar() {
   const mobileCollectionGroups = [
     {
       title: "Spiritual & Culture",
-      items: collections.filter((item) => ["Devotional", "Motivation"].includes(item.label)),
+      items: collections.filter((item) => ["Devotional", "Mandala Magic", "Motivation"].includes(item.label)),
     },
     {
       title: "Wild & Playful",

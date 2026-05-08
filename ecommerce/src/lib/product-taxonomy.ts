@@ -43,6 +43,7 @@ const CATEGORY_RULES: CategoryRule[] = [
 
 const SUB_CATEGORY_RULES_BY_CATEGORY: Record<string, SubCategoryRule[]> = {
   "T-Shirts": [
+    { name: "Mandala Magic", match: [/mandala/i, /mandala\s*magic/i, /mandalamagic/i] },
     { name: "Devotional", match: [/shiv/i, /shiva/i, /mahadev/i, /hanuman/i, /krishna/i, /ram/i, /om/i, /devotional/i, /spiritual/i, /bhakti/i, /ganesh/i] },
     { name: "Animal", match: [/animal/i, /cat/i, /dog/i, /tiger/i, /lion/i, /wolf/i, /eagle/i, /panther/i, /bear/i] },
     { name: "Games & Sports", match: [/game/i, /gaming/i, /esports/i, /football/i, /cricket/i, /tennis/i, /basketball/i, /sport/i] },
