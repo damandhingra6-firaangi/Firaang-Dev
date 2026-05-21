@@ -2,7 +2,7 @@
 
 // components/Navbar.tsx
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Heart, ShoppingBag, User, ChevronDown, Menu, X, Moon, Sun } from "lucide-react";
 import AccountModal from "@/components/AccountModal";
@@ -18,6 +18,7 @@ import { useTheme } from "@/hooks/useTheme";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { theme, toggleTheme, mounted } = useTheme();
   const [isAccountSheetOpen, setIsAccountSheetOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
@@ -84,6 +85,20 @@ export default function Navbar() {
     return `/shop?${params.toString()}`;
   };
 
+  const buildAudienceHref = (audience: "boys" | "girls" | "unisex") => {
+    const params = new URLSearchParams();
+    params.set("audience", audience);
+    return `/shop?${params.toString()}`;
+  };
+
+  const audienceQuickLinks = [
+    { label: "Boys", slug: "boys" },
+    { label: "Girls", slug: "girls" },
+    { label: "Unisex", slug: "unisex" },
+  ] as const;
+
+  const activeAudience = (searchParams.get("audience") ?? "").trim().toLowerCase();
+
   const collections = [
     { label: "Devotional", categorySlug: "t-shirts", subCategorySlug: "devotional", tag: "NEW" },
     { label: "Mandala Magic", categorySlug: "t-shirts", subCategorySlug: "mandala-magic" },
@@ -128,6 +143,13 @@ export default function Navbar() {
 
     return pathname.startsWith(href);
   };
+
+  const desktopNavBaseClass =
+    "relative inline-flex items-center py-1 text-[var(--nav-text)] transition-colors duration-200 hover:text-[var(--nav-active)] after:absolute after:-bottom-1 after:left-0 after:h-px after:w-full after:origin-center after:scale-x-0 after:bg-[var(--gold)] after:transition-transform after:duration-300 hover:after:scale-x-100";
+
+  const desktopNavActiveClass = "text-[var(--nav-active)] after:scale-x-100";
+  const desktopIconButtonClass =
+    "relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--nav-text)] transition-colors hover:text-[var(--gold)]";
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -203,19 +225,20 @@ export default function Navbar() {
         <span className="hidden md:inline">Free Shipping on Orders Above ₹700 | New Festive Edit Live</span>
       </div>
 
-      <div className="flex items-center justify-between border-y border-[color:var(--nav-border)]/60 bg-[var(--nav-bg)] px-4 py-3 text-[var(--nav-text)] md:px-10 md:py-4">
-        <Link href="/">
+      <div className="border-y border-[color:var(--nav-border)]/60 bg-[var(--nav-bg)] text-[var(--nav-text)]">
+        <div className="mx-auto flex max-w-[1380px] items-center justify-between px-4 py-3 md:px-6 md:py-4 lg:px-8 xl:px-10">
+        <Link href="/" className="shrink-0 xl:mr-6">
           <SafeImage
             src="/Firaangi Logo Design.svg"
             alt="Firaangi Logo"
-            className="h-[40px] w-auto md:h-[50px]"
+            className="h-[36px] w-auto md:h-[46px]"
           />
         </Link>
 
-        <nav className="hidden gap-8 text-base font-normal tracking-[0.12em] md:flex" style={{ fontSize: "16px" }}>
+        <nav className="hidden flex-1 items-center justify-center gap-5 text-[14px] font-normal tracking-[0.08em] lg:gap-6 xl:gap-7 xl:text-[15px] md:flex">
           <Link
             href="/"
-            className={isNavItemActive("/") ? "text-[var(--nav-active)]" : "transition hover:text-[var(--nav-active)]"}
+            className={`${desktopNavBaseClass} ${isNavItemActive("/") ? desktopNavActiveClass : ""}`}
           >
             HOME
           </Link>
@@ -228,8 +251,8 @@ export default function Navbar() {
                 setIsCategoriesOpen((prev) => !prev);
                 setIsCollectionsOpen(false);
               }}
-              className={`inline-flex items-center gap-1 transition hover:text-[var(--nav-active)] ${
-                pathname.startsWith("/shop") ? "text-[var(--nav-active)]" : ""
+              className={`${desktopNavBaseClass} gap-1 ${
+                pathname.startsWith("/shop") ? desktopNavActiveClass : ""
               }`}
             >
               CATEGORIES
@@ -265,8 +288,8 @@ export default function Navbar() {
                 setIsCollectionsOpen((prev) => !prev);
                 setIsCategoriesOpen(false);
               }}
-              className={`inline-flex items-center gap-1 transition hover:text-[var(--nav-active)] ${
-                pathname.startsWith("/shop") ? "text-[var(--nav-active)]" : ""
+              className={`${desktopNavBaseClass} gap-1 ${
+                pathname.startsWith("/shop") ? desktopNavActiveClass : ""
               }`}
             >
               COLLECTIONS
@@ -315,14 +338,14 @@ export default function Navbar() {
             <Link
               key={item.label}
               href={item.href}
-              className={isNavItemActive(item.href) ? "text-[var(--nav-active)]" : "transition hover:text-[var(--nav-active)]"}
+              className={`${desktopNavBaseClass} ${isNavItemActive(item.href) ? desktopNavActiveClass : ""}`}
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-2.5 md:gap-5" ref={userMenuRef}>
+        <div className="flex shrink-0 items-center gap-2.5 md:gap-3.5" ref={userMenuRef}>
           <button
             type="button"
             aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -331,9 +354,10 @@ export default function Navbar() {
           >
             {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
+          <span className="hidden h-6 w-px bg-[var(--gold)]/25 md:block" aria-hidden="true" />
           {pathname.startsWith("/shop") ? (
-            <button type="button" aria-label="Open wishlist" className="relative" onClick={openWishlist}>
-              <Heart className="h-5 w-5 cursor-pointer hover:text-[var(--gold)]" />
+            <button type="button" aria-label="Open wishlist" className={desktopIconButtonClass} onClick={openWishlist}>
+              <Heart className="h-5 w-5" />
               {wishlistCount > 0 ? (
                 <span className="absolute -right-2 -top-2 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[10px] font-semibold text-[#30070e]">
                   {wishlistCount}
@@ -341,8 +365,8 @@ export default function Navbar() {
               ) : null}
             </button>
           ) : null}
-          <button type="button" aria-label="Open cart" className="relative" onClick={openCart}>
-            <ShoppingBag className="h-5 w-5 cursor-pointer hover:text-[var(--gold)]" />
+          <button type="button" aria-label="Open cart" className={desktopIconButtonClass} onClick={openCart}>
+            <ShoppingBag className="h-5 w-5" />
             {cartCount > 0 ? (
               <span className="absolute -right-2 -top-2 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[10px] font-semibold text-[#30070e]">
                 {cartCount}
@@ -355,12 +379,12 @@ export default function Navbar() {
               type="button"
               aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
               onClick={toggleTheme}
-              className="transition-colors duration-200 hover:text-[var(--gold)]"
+              className={desktopIconButtonClass}
             >
               {theme === "dark" ? (
-                <Sun className="h-5 w-5 cursor-pointer" />
+                <Sun className="h-5 w-5" />
               ) : (
-                <Moon className="h-5 w-5 cursor-pointer" />
+                <Moon className="h-5 w-5" />
               )}
             </button>
           )}
@@ -374,8 +398,8 @@ export default function Navbar() {
             <User className="h-5 w-5 cursor-pointer hover:text-[var(--gold)]" />
           </button>
 
-          <button type="button" aria-label="User menu" className="relative hidden md:block" onClick={toggleUserMenu}>
-            <User className="h-5 w-5 cursor-pointer hover:text-[var(--gold)]" />
+          <button type="button" aria-label="User menu" className={`${desktopIconButtonClass} hidden md:inline-flex`} onClick={toggleUserMenu}>
+            <User className="h-5 w-5" />
           </button>
 
           {isUserMenuOpen ? (
@@ -416,9 +440,34 @@ export default function Navbar() {
             </div>
           ) : null}
 
-          <Link href="/shop" className="gold-button hidden md:block">
+          <Link href="/shop" className="gold-button hidden h-11 items-center whitespace-nowrap px-6 md:inline-flex">
             SHOP NOW
           </Link>
+        </div>
+        </div>
+
+        <div className="hidden border-t border-[var(--nav-border)]/45 lg:block">
+          <div className="mx-auto flex max-w-[1380px] justify-center px-4 py-2 md:px-6 lg:px-8 xl:px-10">
+            <div className="flex items-center rounded-full border border-[var(--gold)]/35 bg-[var(--gold)]/[0.04] p-1">
+              {audienceQuickLinks.map((item) => {
+                const isActive = pathname.startsWith("/shop") && activeAudience === item.slug;
+
+                return (
+                  <Link
+                    key={item.slug}
+                    href={buildAudienceHref(item.slug)}
+                    className={`rounded-full px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
+                      isActive
+                        ? "bg-[var(--gold)] text-[#3b0810]"
+                        : "text-[var(--nav-text)] hover:bg-[var(--gold)]/20 hover:text-[var(--gold)]"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -537,6 +586,30 @@ export default function Navbar() {
               <Link href="/shop" onClick={closeMobileMenu} className="gold-button mt-2 block text-center">
                 SHOP NOW
               </Link>
+
+              <div className="mt-3 rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-3">
+                <p className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--gold)]">Shop By Audience</p>
+                <div className="flex flex-wrap gap-2">
+                  {audienceQuickLinks.map((item) => {
+                    const isActive = pathname.startsWith("/shop") && activeAudience === item.slug;
+
+                    return (
+                      <Link
+                        key={item.slug}
+                        href={buildAudienceHref(item.slug)}
+                        onClick={closeMobileMenu}
+                        className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] ${
+                          isActive
+                            ? "border-[var(--gold)] bg-[var(--gold)] text-[#3b0810]"
+                            : "border-[var(--gold)]/35 text-[var(--menu-text)]"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>

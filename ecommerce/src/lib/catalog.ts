@@ -34,6 +34,8 @@ export type GridProduct = {
   categorySlug?: string;
   subCategory?: string;
   subCategorySlug?: string;
+  audience?: string;
+  audienceSlug?: string;
   name: string;
   price: string;
   priceAmount: number;

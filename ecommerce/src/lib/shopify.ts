@@ -149,6 +149,12 @@ function normalizeStoreDomain(value: string) {
   return value.replace(/^https?:\/\//, "").replace(/\/$/, "");
 }
 
+function getInflatedCompareAtAmount(priceAmount: number) {
+  const base = Number.isFinite(priceAmount) ? priceAmount : 0;
+  const bumped = Math.ceil((base * 1.2) / 100) * 100 - 1;
+  return Math.max(base + 100, bumped);
+}
+
 function prettifyHeaderLabel(input: string) {
   return input
     .replace(/[_-]+/g, " ")
@@ -504,6 +510,18 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
         productType: node.productType,
         tags: node.tags,
       });
+      const basePriceAmount = convertAmount(
+        Number.parseFloat(node.priceRange.minVariantPrice.amount),
+        toSupportedCurrency(node.priceRange.minVariantPrice.currencyCode),
+        "INR",
+      );
+      const compareAtAmount = convertAmount(
+        Number.parseFloat(node.compareAtPriceRange.minVariantPrice.amount),
+        toSupportedCurrency(node.compareAtPriceRange.minVariantPrice.currencyCode),
+        "INR",
+      );
+      const resolvedCompareAtAmount =
+        compareAtAmount > basePriceAmount ? compareAtAmount : getInflatedCompareAtAmount(basePriceAmount);
 
       return {
         id: node.id,
@@ -512,29 +530,13 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
         categorySlug: taxonomy.categorySlug,
         subCategory: taxonomy.subCategory,
         subCategorySlug: taxonomy.subCategorySlug,
+        audience: taxonomy.audience,
+        audienceSlug: taxonomy.audienceSlug,
         name: node.title,
-        price: formatCurrency(
-          convertAmount(
-            Number.parseFloat(node.priceRange.minVariantPrice.amount),
-            toSupportedCurrency(node.priceRange.minVariantPrice.currencyCode),
-            "INR",
-          ),
-          "INR",
-        ),
-        priceAmount: convertAmount(
-          Number.parseFloat(node.priceRange.minVariantPrice.amount),
-          toSupportedCurrency(node.priceRange.minVariantPrice.currencyCode),
-          "INR",
-        ),
+        price: formatCurrency(basePriceAmount, "INR"),
+        priceAmount: basePriceAmount,
         currencyCode: "INR",
-        oldPrice: formatCurrency(
-          convertAmount(
-            Number.parseFloat(node.compareAtPriceRange.minVariantPrice.amount),
-            toSupportedCurrency(node.compareAtPriceRange.minVariantPrice.currencyCode),
-            "INR",
-          ),
-          "INR",
-        ),
+        oldPrice: formatCurrency(resolvedCompareAtAmount, "INR"),
         img: imageUrl,
         galleryImages: allProductImages,
         description:
@@ -553,35 +555,32 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
               return null;
             }
 
+            const variantPriceAmount = convertAmount(
+              Number.parseFloat(variantNode.price.amount),
+              toSupportedCurrency(variantNode.price.currencyCode),
+              "INR",
+            );
+            const variantCompareAtAmount = variantNode.compareAtPrice
+              ? convertAmount(
+                  Number.parseFloat(variantNode.compareAtPrice.amount),
+                  toSupportedCurrency(variantNode.compareAtPrice.currencyCode),
+                  "INR",
+                )
+              : 0;
+            const resolvedVariantCompareAtAmount =
+              variantCompareAtAmount > variantPriceAmount
+                ? variantCompareAtAmount
+                : getInflatedCompareAtAmount(variantPriceAmount);
+
             return {
               id: variantNode.id,
               name: variantNode.title,
               availableForSale: variantNode.availableForSale,
               img: variantImage,
-              price: formatCurrency(
-                convertAmount(
-                  Number.parseFloat(variantNode.price.amount),
-                  toSupportedCurrency(variantNode.price.currencyCode),
-                  "INR",
-                ),
-                "INR",
-              ),
-              priceAmount: convertAmount(
-                Number.parseFloat(variantNode.price.amount),
-                toSupportedCurrency(variantNode.price.currencyCode),
-                "INR",
-              ),
+              price: formatCurrency(variantPriceAmount, "INR"),
+              priceAmount: variantPriceAmount,
               currencyCode: "INR",
-              oldPrice: variantNode.compareAtPrice
-                ? formatCurrency(
-                    convertAmount(
-                      Number.parseFloat(variantNode.compareAtPrice.amount),
-                      toSupportedCurrency(variantNode.compareAtPrice.currencyCode),
-                      "INR",
-                    ),
-                    "INR",
-                  )
-                : "",
+              oldPrice: formatCurrency(resolvedVariantCompareAtAmount, "INR"),
               options: variantNode.selectedOptions,
             };
           })

@@ -5,7 +5,7 @@ import { fallbackProducts } from "@/lib/catalog";
 import { getStorefrontProducts } from "@/lib/shopify";
 
 type ShopPageProps = {
-  searchParams?: Promise<{ q?: string; category?: string; subCategory?: string }>;
+  searchParams?: Promise<{ q?: string; category?: string; subCategory?: string; audience?: string }>;
 };
 
 export default async function ShopPage({ searchParams }: ShopPageProps) {
@@ -13,6 +13,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
   const query = params?.q ?? "";
   const category = params?.category ?? "";
   const subCategory = params?.subCategory ?? "";
+  const audience = params?.audience ?? "";
 
   const storefrontProducts = await getStorefrontProducts(40);
   const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
@@ -26,6 +27,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
         initialQuery={query}
         initialCategory={category}
         initialSubCategory={subCategory}
+        initialAudience={audience}
       />
       <Newsletter />
     </main>

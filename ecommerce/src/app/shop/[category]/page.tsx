@@ -7,7 +7,7 @@ import { buildCategoryTree, slugify } from "@/lib/product-taxonomy";
 
 type CategoryPageProps = {
   params: Promise<{ category: string }>;
-  searchParams?: Promise<{ q?: string; subCategory?: string }>;
+  searchParams?: Promise<{ q?: string; subCategory?: string; audience?: string }>;
 };
 
 // Helper function to normalize slugs for comparison
@@ -23,6 +23,7 @@ export default async function CategoryPage({
   const searchParamsResolved = searchParams ? await searchParams : undefined;
   const query = searchParamsResolved?.q ?? "";
   const subCategory = searchParamsResolved?.subCategory ?? "";
+  const audience = searchParamsResolved?.audience ?? "";
 
   // Fetch products
   const storefrontProducts = await getStorefrontProducts(40);
@@ -50,6 +51,7 @@ export default async function CategoryPage({
         initialQuery={query}
         initialCategory={categoryNode.name}
         initialSubCategory={subCategory}
+        initialAudience={audience}
       />
     </main>
   );

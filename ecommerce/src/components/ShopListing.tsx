@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Heart, ShoppingBag } from "lucide-react";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
-import { buildCategoryTree, slugify } from "@/lib/product-taxonomy";
+import { buildCategoryTree, matchesAudienceFilter, slugify } from "@/lib/product-taxonomy";
 import ProductDetailsModal from "@/components/ProductDetailsModal";
 import SafeImage from "@/components/SafeImage";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
@@ -16,6 +16,7 @@ type ShopListingProps = {
   initialQuery?: string;
   initialCategory?: string;
   initialSubCategory?: string;
+  initialAudience?: string;
 };
 
 export default function ShopListing({
@@ -23,10 +24,12 @@ export default function ShopListing({
   initialQuery = "",
   initialCategory = "",
   initialSubCategory = "",
+  initialAudience = "",
 }: ShopListingProps) {
   const [query, setQuery] = useState(initialQuery);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedSubCategory, setSelectedSubCategory] = useState(initialSubCategory);
+  const [selectedAudience, setSelectedAudience] = useState(initialAudience);
   const [selectedProduct, setSelectedProduct] = useState<GridProduct | null>(null);
   const wishlist = useShopStore((state) => state.wishlist);
   const toggleWishlist = useShopStore((state) => state.toggleWishlist);
@@ -38,6 +41,60 @@ export default function ShopListing({
 
   const wishlistIds = getWishlistIds(wishlist);
   const categoryTree = useMemo(() => buildCategoryTree(products), [products]);
+  const availableAudiences = useMemo(() => {
+    const priority = ["boys", "girls", "unisex"] as const;
+    const defaultLabels: Record<(typeof priority)[number], string> = {
+      boys: "Boys",
+      girls: "Girls",
+      unisex: "Unisex",
+    };
+    const bySlug = new Map<string, string>();
+
+    for (const slug of priority) {
+      bySlug.set(slug, defaultLabels[slug]);
+    }
+
+    for (const product of products) {
+      const audience = product.audience?.trim();
+
+      if (audience) {
+        bySlug.set(audience.toLowerCase(), audience);
+      }
+    }
+
+    if (selectedAudience.trim()) {
+      const selectedSlug = selectedAudience.trim().toLowerCase();
+      const selectedLabel = selectedAudience
+        .trim()
+        .split("-")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+
+      if (!bySlug.has(selectedSlug)) {
+        bySlug.set(selectedSlug, selectedLabel);
+      }
+    }
+
+    return Array.from(bySlug.entries())
+      .sort(([aSlug, aLabel], [bSlug, bLabel]) => {
+        const aIndex = priority.indexOf(aSlug as (typeof priority)[number]);
+        const bIndex = priority.indexOf(bSlug as (typeof priority)[number]);
+
+        if (aIndex !== -1 || bIndex !== -1) {
+          return (aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex) - (bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex);
+        }
+
+        return aLabel.localeCompare(bLabel);
+      })
+      .map(([, label]) => label);
+  }, [products, selectedAudience]);
+
+  useEffect(() => {
+    setQuery((prev) => (prev === initialQuery ? prev : initialQuery));
+    setSelectedCategory((prev) => (prev === initialCategory ? prev : initialCategory));
+    setSelectedSubCategory((prev) => (prev === initialSubCategory ? prev : initialSubCategory));
+    setSelectedAudience((prev) => (prev === initialAudience ? prev : initialAudience));
+  }, [initialAudience, initialCategory, initialQuery, initialSubCategory]);
 
   const selectedCategoryNode = useMemo(() => {
     if (!selectedCategory) {
@@ -85,6 +142,9 @@ export default function ShopListing({
       if (query.trim()) {
         params.set("q", query.trim());
       }
+      if (selectedAudience) {
+        params.set("audience", selectedAudience);
+      }
 
       const queryString = params.toString();
       const seoUrl = `/shop/${categorySlug}/${subCategorySlug}${queryString ? `?${queryString}` : ""}`;
@@ -105,16 +165,21 @@ export default function ShopListing({
         params.set("subCategory", selectedSubCategory);
       }
 
+      if (selectedAudience) {
+        params.set("audience", selectedAudience);
+      }
+
       const queryString = params.toString();
       const nextUrl = queryString ? `${pathname}?${queryString}` : pathname;
       router.replace(nextUrl, { scroll: false });
     }
-  }, [pathname, query, router, selectedCategory, selectedSubCategory]);
+  }, [pathname, query, router, selectedAudience, selectedCategory, selectedSubCategory]);
 
   const filteredProducts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     const normalizedCategory = selectedCategory.trim().toLowerCase();
     const normalizedSubCategory = selectedSubCategory.trim().toLowerCase();
+    const normalizedAudience = selectedAudience.trim().toLowerCase();
 
     return products.filter((product) => {
       const categoryMatch =
@@ -132,13 +197,17 @@ export default function ShopListing({
         product.name.toLowerCase().includes(normalized) ||
         product.description.toLowerCase().includes(normalized);
 
+      const audienceMatch =
+        matchesAudienceFilter(product.audienceSlug ?? product.audience, normalizedAudience);
+
       return (
         categoryMatch &&
         subCategoryMatch &&
+        audienceMatch &&
         searchMatch
       );
     });
-  }, [products, query, selectedCategory, selectedSubCategory]);
+  }, [products, query, selectedAudience, selectedCategory, selectedSubCategory]);
 
   const handleOpenDetails = (product: GridProduct) => {
     setSelectedProduct(product);
@@ -243,6 +312,43 @@ export default function ShopListing({
                   }`}
                 >
                   {subCategory.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {availableAudiences.length > 0 ? (
+        <div className="mb-8">
+          <p className="mb-2 text-xs uppercase tracking-[0.16em] text-[var(--gold)]">Audience</p>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            <button
+              type="button"
+              onClick={() => setSelectedAudience("")}
+              className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.08em] transition ${
+                !selectedAudience
+                  ? "border-[var(--gold)] bg-[var(--shop-filter-active)] text-white"
+                  : "border-[var(--gold)]/35 text-[var(--shop-filter-text)] hover:border-[var(--gold)]/70"
+              }`}
+            >
+              All
+            </button>
+            {availableAudiences.map((audience) => {
+              const isSelected = audience.toLowerCase() === selectedAudience.toLowerCase();
+
+              return (
+                <button
+                  key={audience}
+                  type="button"
+                  onClick={() => setSelectedAudience(audience)}
+                  className={`whitespace-nowrap rounded-full border px-4 py-2 text-xs uppercase tracking-[0.08em] transition ${
+                    isSelected
+                      ? "border-[var(--gold)] bg-[var(--shop-filter-active)] text-white"
+                      : "border-[var(--gold)]/35 text-[var(--shop-filter-text)] hover:border-[var(--gold)]/70"
+                  }`}
+                >
+                  {audience}
                 </button>
               );
             })}

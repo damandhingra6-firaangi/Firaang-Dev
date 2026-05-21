@@ -5,6 +5,8 @@ type TaxonomyResult = {
   categorySlug: string;
   subCategory: string;
   subCategorySlug: string;
+  audience: string;
+  audienceSlug: string;
 };
 
 type CategoryRule = {
@@ -18,11 +20,65 @@ type SubCategoryRule = {
   match: RegExp[];
 };
 
+type CategoryTagOverride = {
+  category: string;
+  subCategoryFallback: string;
+  match: RegExp[];
+};
+
+const CATEGORY_TAG_OVERRIDES: CategoryTagOverride[] = [
+  {
+    category: "Half-Shirts",
+    subCategoryFallback: "All Half-Shirts",
+    match: [/\bhalf[-_\s]?shirts?\b/i, /\bcategory\s*[:=]\s*half[-_\s]?shirts?\b/i],
+  },
+  {
+    category: "T-Shirts",
+    subCategoryFallback: "Classic T-Shirts",
+    match: [/\bt[-_\s]?shirts?\b/i, /\bcategory\s*[:=]\s*t[-_\s]?shirts?\b/i],
+  },
+  {
+    category: "Hoodies",
+    subCategoryFallback: "All Hoodies",
+    match: [/\bhoodies?\b/i, /\bcategory\s*[:=]\s*hoodies?\b/i],
+  },
+  {
+    category: "Sweatshirts",
+    subCategoryFallback: "All Sweatshirts",
+    match: [/\bsweat[-_\s]?shirts?\b/i, /\bcategory\s*[:=]\s*sweat[-_\s]?shirts?\b/i],
+  },
+  {
+    category: "Caps",
+    subCategoryFallback: "All Caps",
+    match: [/\bcaps?\b/i, /\bcategory\s*[:=]\s*caps?\b/i],
+  },
+];
+
 const CATEGORY_RULES: CategoryRule[] = [
+  {
+    category: "Half-Shirts",
+    subCategoryFallback: "All Half-Shirts",
+    match: [/half[-\s]?shirt/i, /short[-\s]?sleeve[-\s]?shirt/i, /half[-\s]?sleeve/i],
+  },
+  {
+    category: "Hoodies",
+    subCategoryFallback: "All Hoodies",
+    match: [/hoodie/i],
+  },
+  {
+    category: "Sweatshirts",
+    subCategoryFallback: "All Sweatshirts",
+    match: [/sweat[-\s]?shirt/i],
+  },
   {
     category: "T-Shirts",
     subCategoryFallback: "Classic T-Shirts",
     match: [/t[-\s]?shirt/i, /tee/i],
+  },
+  {
+    category: "Caps",
+    subCategoryFallback: "All Caps",
+    match: [/\bcap\b/i, /snapback/i, /baseball\s*cap/i, /trucker\s*cap/i],
   },
   {
     category: "Dresses",
@@ -74,9 +130,15 @@ export function deriveProductTaxonomy(input: {
   productType?: string | null;
   tags?: string[];
 }): TaxonomyResult {
-  const haystack = [input.title, input.productType ?? "", ...(input.tags ?? [])].join(" ");
+  const tags = input.tags ?? [];
+  const haystack = [input.title, input.productType ?? "", ...tags].join(" ");
+
+  const categoryFromTag = CATEGORY_TAG_OVERRIDES.find((override) =>
+    tags.some((tag) => override.match.some((pattern) => pattern.test(tag)))
+  );
 
   const categoryRule =
+    categoryFromTag ??
     CATEGORY_RULES.find((rule) => rule.match.some((pattern) => pattern.test(haystack))) ?? {
       category: input.productType?.trim() || "Catalog",
       subCategoryFallback: "All",
@@ -88,21 +150,59 @@ export function deriveProductTaxonomy(input: {
   );
 
   const subCategory = subCategoryRule?.name ?? categoryRule.subCategoryFallback;
+  const audience = deriveAudience(input);
 
   return {
     category: categoryRule.category,
     categorySlug: slugify(categoryRule.category),
     subCategory,
     subCategorySlug: slugify(subCategory),
+    audience,
+    audienceSlug: slugify(audience),
   };
+}
+
+function deriveAudience(input: { title: string; productType?: string | null; tags?: string[] }) {
+  const haystack = [input.title, input.productType ?? "", ...(input.tags ?? [])].join(" ");
+
+  if (/\b(unisex|all\s*gender|all\s*genders)\b/i.test(haystack)) {
+    return "Unisex";
+  }
+
+  if (/\b(girl|girls|women|womens|women's|ladies|female)\b/i.test(haystack)) {
+    return "Girls";
+  }
+
+  if (/\b(boy|boys|men|mens|men's|male)\b/i.test(haystack)) {
+    return "Boys";
+  }
+
+  return "Unisex";
+}
+
+export function matchesAudienceFilter(productAudience: string | undefined, selectedAudience: string | undefined) {
+  const normalizedSelected = (selectedAudience ?? "").trim().toLowerCase();
+
+  if (!normalizedSelected) {
+    return true;
+  }
+
+  const normalizedProductAudience = (productAudience ?? "").trim().toLowerCase();
+
+  if (normalizedSelected === "boys") {
+    return normalizedProductAudience === normalizedSelected || normalizedProductAudience === "unisex";
+  }
+
+  return normalizedProductAudience === normalizedSelected;
 }
 
 export function applyProductFilters(
   products: GridProduct[],
-  filters: { category?: string; subCategory?: string; q?: string }
+  filters: { category?: string; subCategory?: string; audience?: string; q?: string }
 ) {
   const normalizedCategory = (filters.category ?? "").trim().toLowerCase();
   const normalizedSubCategory = (filters.subCategory ?? "").trim().toLowerCase();
+  const normalizedAudience = (filters.audience ?? "").trim().toLowerCase();
   const normalizedQuery = (filters.q ?? "").trim().toLowerCase();
 
   return products.filter((product) => {
@@ -116,12 +216,15 @@ export function applyProductFilters(
       product.subCategorySlug?.toLowerCase() === normalizedSubCategory ||
       product.subCategory?.toLowerCase() === normalizedSubCategory;
 
+    const audienceMatch =
+      matchesAudienceFilter(product.audienceSlug ?? product.audience, normalizedAudience);
+
     const queryMatch =
       !normalizedQuery ||
       product.name.toLowerCase().includes(normalizedQuery) ||
       product.description.toLowerCase().includes(normalizedQuery);
 
-    return categoryMatch && subCategoryMatch && queryMatch;
+    return categoryMatch && subCategoryMatch && audienceMatch && queryMatch;
   });
 }
 
@@ -138,7 +241,9 @@ export function buildCategoryTree(products: GridProduct[]) {
       tree.set(category, { slug: categorySlug, subCategories: new Map() });
     }
 
-    tree.get(category)?.subCategories.set(subCategory, subCategorySlug);
+    if (subCategorySlug !== "all") {
+      tree.get(category)?.subCategories.set(subCategory, subCategorySlug);
+    }
   }
 
   return Array.from(tree.entries())

@@ -7,11 +7,12 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const category = searchParams.get("category") ?? undefined;
   const subCategory = searchParams.get("subCategory") ?? undefined;
+  const audience = searchParams.get("audience") ?? undefined;
   const q = searchParams.get("q") ?? undefined;
 
   const storefrontProducts = await getStorefrontProducts(40);
   const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
-  const filteredProducts = applyProductFilters(products, { category, subCategory, q });
+  const filteredProducts = applyProductFilters(products, { category, subCategory, audience, q });
   const categories = buildCategoryTree(products);
   const selectedCategory =
     category
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
     filters: {
       category: category ?? null,
       subCategory: subCategory ?? null,
+      audience: audience ?? null,
       q: q ?? null,
     },
     categories,
