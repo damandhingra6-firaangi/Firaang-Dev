@@ -3,196 +3,102 @@
 @tailwind utilities;
 
 :root {
-  --primary: #62131A;
-  --secondary: #400D11;
-  --surface: #3a090f;
-  --cream: #f8ece7;
-  --gold: #D3A736;
-  --page-bg: #400D11;
-  --page-fg: #ffffff;
-  --announcement-bg: #7a202a;
-  --announcement-fg: #fff4f6;
-  --nav-bg: #400D11;
-  --nav-border: #8a2c35;
-  --nav-text: #fff2eb;
-  --menu-bg: #240609;
-  --menu-text: #f2d8cf;
-  --panel-bg: #2b060b;
-  --panel-hover: #451018;
-  --panel-signout: #5a1420;
-  --nav-active: var(--gold);
-  --sale-bg: var(--primary);
-  --sale-border: #8a2c35;
-  --sale-text: #ffffff;
-  --sale-subtext: #f7e7de;
-  --newsletter-bg: #5a111a;
-  --newsletter-subtext: #efd6cd;
-  --newsletter-input-bg: #4a0b12;
-  --newsletter-input-ph: #9f7e7d;
-  --newsletter-input-border: rgba(255,255,255,0.12);
-  --newsletter-input-focus-bg: #531019;
-  --footer-bg: #400D11;
-  --footer-border: rgba(255,255,255,0.08);
-  --footer-heading: #f4e1da;
-  --footer-links: #dfc0ba;
-  --footer-contact-border: rgba(255,255,255,0.06);
-  --footer-bottom: #d2b3ae;
-  --currency-bg: rgba(127,32,42,0.7);
-  --currency-text: #f4ddd4;
-  --currency-border: rgba(255,255,255,0.12);
-  --currency-dropdown: #5d111a;
-  --currency-option: #f2d8cf;
-  --shop-input-bg: #4a0b12;
-  --shop-input-text: #ffffff;
-  --shop-input-ph: #d5bdb9;
-  --shop-filter-active: #5a141e;
-  --shop-filter-text: #f2dbd7;
-  --shop-subcategory-panel: rgba(61,12,19,0.7);
-  --shop-card-bg: #4a0b12;
-  --shop-card-desc: #e9c9c3;
-  --shop-card-old-price: #d5bdb9;
-  --popup-bg: #2b060b;
-  --popup-gradient: linear-gradient(180deg,#3a0710 0%,#2a040a 100%);
-  --popup-card: rgba(74,12,20,0.58);
-  --popup-inner: rgba(58,13,20,0.7);
-  --popup-input: #3a0d14;
-  --popup-input-deep: #2d0a10;
-  --popup-input-text: #ffffff;
-  --popup-input-ph: #9f7e7d;
-  --popup-hover: #461017;
-  --popup-hover2: #4a1118;
-  --popup-muted: #d5bdb9;
-  --popup-label: #f2d7c3;
-  --popup-subtext: #e3c8c1;
+  --primary: #b34a48;
+  --secondary: #8f3438;
+  --surface: #f3e6df;
+  --cream: #fdf9f6;
+  --gold: #cfa53a;
+  --page-bg: #fdf9f6;
+  --page-fg: #2f2b2a;
+  --announcement-bg: #b54847;
+  --announcement-fg: #fff4ed;
+  --nav-bg: #ffffff;
+  --nav-border: #e7dfd8;
+  --nav-text: #3f3a38;
+  --menu-bg: #fffdfb;
+  --menu-text: #4a4340;
+  --panel-bg: #fffaf6;
+  --panel-hover: #f2e8df;
+  --panel-signout: #f8e6e1;
+  --nav-active: #ad4546;
+  --sale-bg: #f7ede7;
+  --sale-border: #e6d2c5;
+  --sale-text: #453e3b;
+  --sale-subtext: #786b65;
+  --newsletter-bg: #f2e7e8;
+  --newsletter-subtext: #635a57;
+  --newsletter-input-bg: #fffdfc;
+  --newsletter-input-ph: #a5867b;
+  --newsletter-input-border: #e1c8bf;
+  --newsletter-input-focus-bg: #fff9f5;
+  --footer-bg: #ad4747;
+  --footer-border: rgba(255, 236, 228, 0.2);
+  --footer-heading: #fff3ea;
+  --footer-links: #f7dfd4;
+  --footer-contact-border: rgba(255, 236, 228, 0.26);
+  --footer-bottom: #f0cec2;
+  --currency-bg: rgba(255, 240, 232, 0.16);
+  --currency-text: #fff3ea;
+  --currency-border: rgba(255, 236, 228, 0.3);
+  --currency-dropdown: #fff7f2;
+  --currency-option: #4e4744;
+  --shop-input-bg: #fffdfb;
+  --shop-input-text: #3f3a38;
+  --shop-input-ph: #aa8f86;
+  --shop-filter-active: #b24d4f;
+  --shop-filter-text: #544d49;
+  --shop-subcategory-panel: rgba(247, 236, 228, 0.82);
+  --shop-card-bg: #fffefc;
+  --shop-card-desc: #6f6661;
+  --shop-card-old-price: #a48d84;
+  --popup-bg: #fffdfa;
+  --popup-gradient: linear-gradient(180deg, #fffdfa 0%, #f7eee8 100%);
+  --popup-card: rgba(255, 249, 244, 0.98);
+  --popup-inner: #f9efe8;
+  --popup-input: #fffefc;
+  --popup-input-deep: #f7eee8;
+  --popup-input-text: #3d3734;
+  --popup-input-ph: #a8897d;
+  --popup-hover: #f3e8de;
+  --popup-hover2: #efdfd3;
+  --popup-muted: #7f726b;
+  --popup-label: #6f6561;
+  --popup-subtext: #6b615d;
   --popup-selected-text: #ffffff;
-  --popup-header-cell: #3f0f16;
-  --popup-row-cell: #2f0b11;
-  --success-bg: rgba(16, 185, 129, 0.18);
-  --success-border: rgba(52, 211, 153, 0.4);
-  --success-text: #d1fae5;
-  --popup-footer-bg: rgba(59,13,20,0.65);
-  --popup-footer-text: #f6e4de;
-  --popup-footer-inactive: #f5ddd4;
-  --ribbon-top-bg: #52200f;
-  --ribbon-main-bg: #7a1923;
-  --ribbon-text: #ffffff;
-  --ribbon-subtext: #f1dcda;
-  --arrivals-bg: var(--secondary);
-  --arrivals-muted: #d8bbb6;
-  --arrivals-card-bg: linear-gradient(to bottom, #5c0f19, #3a070d);
-  --arrivals-card-title: #f9ece6;
-  --arrivals-price: #ffffff;
-  --arrivals-old-price: #d5bdb9;
-  --arrivals-hover: #4d1018;
-  --arrivals-action-bg: #2b060b;
-  --arrivals-dot: #c59b96;
-  --arrivals-dot-hover: #dfb9b3;
-  --card-hover-overlay: rgba(0,0,0,0.25);
-}
-
-/* Light Theme (Modern, Subtle Luxury) */
-:root[data-theme="light"] {
-  --primary: #A64D5E;
-  --secondary: #8B3F4F;
-  --surface: #D4A5B0;
-  --cream: #FEFCF9;
-  --gold: #E8D04B;
-  --page-bg: #FEFCF9;
-  --page-fg: #4b2630;
-  --announcement-bg: #A64D5E;
-  --announcement-fg: #fff7f2;
-  --nav-bg: #fffaf6;
-  --nav-border: #ead8cf;
-  --nav-text: #5d2a36;
-  --menu-bg: #fff9f6;
-  --menu-text: #5f2a36;
-  --panel-bg: #fff5f0;
-  --panel-hover: #f4e4dc;
-  --panel-signout: #f1d8dd;
-  --nav-active: #8B3F4F;
-  --sale-bg: #fdf0ea;
-  --sale-border: #d4b5a8;
-  --sale-text: #5d2a36;
-  --sale-subtext: #8c5561;
-  --newsletter-bg: #f5e0d5;
-  --newsletter-subtext: #7a4550;
-  --newsletter-input-bg: #fffaf7;
-  --newsletter-input-ph: #b8888f;
-  --newsletter-input-border: rgba(139,63,79,0.2);
-  --newsletter-input-focus-bg: #fff4ee;
-  --footer-bg: #edddd5;
-  --footer-border: rgba(139,63,79,0.14);
-  --footer-heading: #5d2a36;
-  --footer-links: #7a4550;
-  --footer-contact-border: rgba(139,63,79,0.12);
-  --footer-bottom: #8c6268;
-  --currency-bg: rgba(255,248,244,0.9);
-  --currency-text: #5d2a36;
-  --currency-border: rgba(139,63,79,0.25);
-  --currency-dropdown: #fff5f0;
-  --currency-option: #5d2a36;
-  --shop-input-bg: #fff8f4;
-  --shop-input-text: #5d2a36;
-  --shop-input-ph: #b8888f;
-  --shop-filter-active: #A64D5E;
-  --shop-filter-text: #5d2a36;
-  --shop-subcategory-panel: rgba(244,228,220,0.8);
-  --shop-card-bg: #fff8f4;
-  --shop-card-desc: #7a4550;
-  --shop-card-old-price: #9d6a74;
-  --popup-bg: #fff8f4;
-  --popup-gradient: linear-gradient(180deg,#fff5f0 0%,#fefcf9 100%);
-  --popup-card: rgba(255,245,240,0.97);
-  --popup-inner: rgba(249,232,224,0.7);
-  --popup-input: #fff8f4;
-  --popup-input-deep: #f9ede8;
-  --popup-input-text: #5d2a36;
-  --popup-input-ph: #b8888f;
-  --popup-hover: #f4e4dc;
-  --popup-hover2: #f0ddd4;
-  --popup-muted: #7f4f58;
-  --popup-label: #7a4550;
-  --popup-subtext: #7a4550;
-  --popup-selected-text: #fff8f4;
-  --popup-header-cell: #f4e4dc;
-  --popup-row-cell: #f9ede8;
-  --success-bg: #dff4ea;
-  --success-border: #9fd3b8;
-  --success-text: #205945;
-  --popup-footer-bg: rgba(244,228,220,0.65);
-  --popup-footer-text: #5d2a36;
-  --popup-footer-inactive: #7a4550;
-  --ribbon-top-bg: #f2dfd4;
-  --ribbon-main-bg: #f8ece3;
-  --ribbon-text: #6a3341;
-  --ribbon-subtext: #8c5561;
-  --arrivals-bg: #fef8f4;
-  --arrivals-muted: #8c5b66;
-  --arrivals-card-bg: linear-gradient(to bottom, #fffdfb, #f9efe8);
-  --arrivals-card-title: #5d2d39;
-  --arrivals-price: #5a2a36;
-  --arrivals-old-price: #9d6a74;
-  --arrivals-hover: #f6e5db;
-  --arrivals-action-bg: #fff8f2;
-  --arrivals-dot: #d2b2a8;
-  --arrivals-dot-hover: #bc8d80;
-  --card-hover-overlay: rgba(139,63,79,0.14);
+  --popup-header-cell: #efe2d6;
+  --popup-row-cell: #f8eee7;
+  --success-bg: #e6f6ed;
+  --success-border: #abd8bf;
+  --success-text: #1f5e42;
+  --popup-footer-bg: #fff8f2;
+  --popup-footer-text: #342f2d;
+  --popup-footer-inactive: #6f6460;
+  --ribbon-top-bg: #f2e5dc;
+  --ribbon-main-bg: #f9f1ea;
+  --ribbon-text: #4e4642;
+  --ribbon-subtext: #7d6f68;
+  --arrivals-bg: #fdf8f3;
+  --arrivals-muted: #80746d;
+  --arrivals-card-bg: linear-gradient(to bottom, #fffefc, #f8eee7);
+  --arrivals-card-title: #3b3532;
+  --arrivals-price: #342f2d;
+  --arrivals-old-price: #a28a7f;
+  --arrivals-hover: #f6eae0;
+  --arrivals-action-bg: #fffcf8;
+  --arrivals-dot: #d2b4a1;
+  --arrivals-dot-hover: #bf9680;
+  --card-hover-overlay: rgba(120, 82, 58, 0.12);
+  --nav-cta-bg: #b54847;
+  --nav-cta-hover: #a43f3f;
+  --nav-cta-fg: #fff4ed;
 }
 
 body {
   font-family: var(--font-poppins), sans-serif;
-  background:
-    radial-gradient(circle at 20% 0%, #7b1b24 0%, transparent 30%),
-    radial-gradient(circle at 90% 20%, #4c0e15 0%, transparent 20%),
-    var(--page-bg);
+  background: linear-gradient(180deg, #fffdfb 0%, #f9f2ec 100%);
   color: var(--page-fg);
   transition: background-color 200ms ease, color 200ms ease;
-}
-
-:root[data-theme="light"] body {
-  background:
-    linear-gradient(180deg, #fff7f2 0%, #fefcf9 38%, #fcf6f2 100%);
-  color: var(--page-fg);
+  overflow-x: clip;
 }
 
 h1,
@@ -214,6 +120,18 @@ h4 {
   @apply rounded-[8px] border border-[var(--gold)] bg-transparent px-7 py-3 text-sm font-medium tracking-[0.04em] text-[var(--gold)] transition duration-300 hover:bg-[var(--gold)] hover:text-black;
 }
 
+.nav-shop-button {
+  @apply inline-flex h-10 items-center whitespace-nowrap rounded-[8px] border px-4 text-[12px] font-semibold tracking-[0.06em] transition duration-300 md:h-11 md:px-5 md:text-[13px] lg:h-12 lg:px-7 lg:text-sm;
+  border-color: var(--nav-cta-bg);
+  background: var(--nav-cta-bg);
+  color: var(--nav-cta-fg);
+}
+
+.nav-shop-button:hover {
+  border-color: var(--nav-cta-hover);
+  background: var(--nav-cta-hover);
+}
+
 .fade-in-up {
   animation: fadeInUp 700ms ease-out both;
 }
@@ -227,20 +145,16 @@ h4 {
 }
 
 .hero-title {
-  color: #ffffff;
+  color: #fef7f0;
+  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
 }
 
-:root[data-theme="light"] .hero-overlay-primary {
-  background: linear-gradient(90deg, rgba(255, 248, 242, 0.74) 0%, rgba(255, 244, 236, 0.58) 48%, rgba(255, 241, 234, 0.7) 100%);
+.hero-overlay-primary {
+  background: linear-gradient(95deg, rgba(28, 19, 16, 0.72) 0%, rgba(69, 42, 35, 0.56) 42%, rgba(34, 23, 20, 0.52) 100%);
 }
 
-:root[data-theme="light"] .hero-overlay-glow {
-  background: radial-gradient(circle at 68% 42%, rgba(232, 208, 75, 0.16), transparent 36%);
-}
-
-:root[data-theme="light"] .hero-title {
-  color: var(--primary);
-  text-shadow: 0 2px 14px rgba(255, 255, 255, 0.45);
+.hero-overlay-glow {
+  background: radial-gradient(circle at 64% 38%, rgba(193, 146, 80, 0.22), transparent 42%);
 }
 
 @media (max-height: 500px) and (max-width: 900px) {
@@ -249,7 +163,7 @@ h4 {
   }
 
   .hero-section .hero-content {
-    top: 78px;
+    top: 18px;
     padding-top: 0.25rem;
   }
 
@@ -267,7 +181,7 @@ h4 {
 
 @media (max-width: 430px) {
   .hero-section .hero-content {
-    top: 92px;
+    top: 24px;
     padding-top: 0.2rem;
   }
 

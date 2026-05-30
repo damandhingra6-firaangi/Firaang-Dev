@@ -122,36 +122,48 @@ export default function Hero() {
   };
 
   return (
-    <section className="hero-section relative min-h-[56vh] w-full overflow-hidden pt-20 max-[390px]:min-h-[52vh] min-[401px]:min-h-[60vh] md:min-h-[90vh] md:pt-28 lg:mt-24">
+    <section className="hero-section relative mt-[84px] min-h-[66vh] w-full overflow-hidden min-[401px]:min-h-[68vh] md:mt-[104px] md:min-h-[84vh] lg:min-h-[90vh]">
       <SafeImage
         src="/hero.jpg"
         alt={activeSlide.alt}
-        className="absolute left-0 top-0 h-full w-full object-cover object-[50%_24%] max-[390px]:object-[50%_22%] min-[401px]:object-[50%_26%] md:hidden"
+        className="absolute left-0 top-0 h-full w-full object-cover object-[50%_4%] max-[374px]:object-[50%_2%] min-[375px]:object-[50%_3%] min-[390px]:object-[50%_4%] min-[414px]:object-[50%_6%] md:hidden"
       />
       <SafeImage
         src={activeSlide.image}
         alt={activeSlide.alt}
-        className="absolute left-0 top-0 hidden h-full w-full object-cover object-top md:block"
+        className="absolute left-0 top-0 hidden h-full w-full object-cover object-[50%_3%] md:block lg:object-[50%_7%] xl:object-[50%_10%]"
       />
 
-      <div className="hero-overlay-primary absolute inset-0 bg-gradient-to-r from-[#30070bcc] via-[#4f0f17c2] to-[#220406de]" />
-      <div className="hero-overlay-glow absolute inset-0 bg-[radial-gradient(circle_at_70%_40%,rgba(211,167,54,0.18),transparent_35%)]" />
+      <div className="hero-overlay-primary absolute inset-0" />
+      <div className="hero-overlay-glow absolute inset-0" />
 
-      <div className="hero-content absolute inset-x-0 bottom-0 top-[122px] z-10 section-shell flex flex-col items-center justify-start pt-4 text-center fade-in-up max-[390px]:top-[106px] max-[390px]:pt-3 min-[401px]:top-[126px] min-[401px]:pt-5 md:inset-0 md:justify-center md:pt-0">
-        <p className="hero-eyebrow text-xs font-medium uppercase tracking-[0.35em] text-[var(--gold)] md:text-sm">
+      <div className="hero-content absolute inset-x-0 bottom-0 top-6 z-10 section-shell flex flex-col items-center justify-start pt-6 text-center fade-in-up md:inset-0 md:justify-center md:pt-0">
+        <p className="hero-eyebrow text-[11px] font-medium uppercase tracking-[0.28em] text-[#dfc18b] md:text-[12px]">
           {activeSlide.eyebrow}
         </p>
 
-        <h1 className="hero-title mt-4 text-4xl font-bold leading-tight drop-shadow-2xl md:text-7xl">
+        <h1 className="hero-title mt-5 max-w-4xl text-[2.5rem] font-semibold leading-[0.98] md:text-[4.35rem] lg:text-[5.2rem]">
           {activeSlide.title[0]} <br />
           {activeSlide.title[1]}
         </h1>
 
+        <p className="mt-5 max-w-2xl text-sm leading-7 text-[#f4e4d6] md:text-base md:leading-8">
+          Curated silhouettes and statement jewellery crafted for modern wardrobes that demand timeless elegance.
+        </p>
+
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:gap-4">
-          <button type="button" onClick={handleShopCollection} className="outline-button px-6 py-3">
+          <button
+            type="button"
+            onClick={handleShopCollection}
+            className="inline-flex items-center justify-center rounded-[10px] border border-[#b64a4a] bg-[#b64a4a] px-7 py-3 text-sm font-semibold tracking-[0.08em] text-[#fff4ed] transition duration-300 hover:-translate-y-0.5 hover:bg-[#a64040]"
+          >
             SHOP COLLECTION
           </button>
-          <button type="button" onClick={handleExploreJewellery} className="gold-button px-6 py-3">
+          <button
+            type="button"
+            onClick={handleExploreJewellery}
+            className="inline-flex items-center justify-center rounded-[10px] border border-[#d6b26a] bg-[#d6b26a] px-7 py-3 text-sm font-semibold tracking-[0.08em] text-[#2d2521] transition duration-300 hover:-translate-y-0.5 hover:bg-[#cda75d]"
+          >
             EXPLORE JEWELLERY
           </button>
         </div>

@@ -23,6 +23,14 @@
   },
   "dynamicRoutes": [
     {
+      "page": "/api/coupons/[id]",
+      "regex": "^/api/coupons/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/coupons/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/shop/[category]",
       "regex": "^/shop/([^/]+?)(?:/)?$",
       "routeKeys": {
@@ -64,6 +72,12 @@
       "regex": "^/about(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/about(?:/)?$"
+    },
+    {
+      "page": "/admin/coupons",
+      "regex": "^/admin/coupons(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/coupons(?:/)?$"
     },
     {
       "page": "/admin/feedback",
@@ -144,6 +158,18 @@
       "namedRegex": "^/api/checkout/verify(?:/)?$"
     },
     {
+      "page": "/api/coupons",
+      "regex": "^/api/coupons(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/coupons(?:/)?$"
+    },
+    {
+      "page": "/api/coupons/validate",
+      "regex": "^/api/coupons/validate(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/coupons/validate(?:/)?$"
+    },
+    {
       "page": "/api/feedback",
       "regex": "^/api/feedback(?:/)?$",
       "routeKeys": {},
@@ -184,6 +210,12 @@
       "regex": "^/api/products/sub\\-categories(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/products/sub\\-categories(?:/)?$"
+    },
+    {
+      "page": "/checkout",
+      "regex": "^/checkout(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/checkout(?:/)?$"
     },
     {
       "page": "/contact",

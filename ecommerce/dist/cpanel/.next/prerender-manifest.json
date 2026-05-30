@@ -74,6 +74,30 @@
         "x-next-revalidate-tag-token"
       ]
     },
+    "/admin/coupons": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/admin/coupons",
+      "dataRoute": "/admin/coupons.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/admin/feedback": {
       "experimentalBypassFor": [
         {
@@ -113,6 +137,30 @@
       "initialRevalidateSeconds": false,
       "srcRoute": "/admin/newsletter",
       "dataRoute": "/admin/newsletter.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/checkout": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/checkout",
+      "dataRoute": "/checkout.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -275,8 +323,8 @@
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "22f56ea78cf9cc90dbeb2709652af490",
-    "previewModeSigningKey": "a7fae60ccc93c2d8bda50a54a7c6f18c4cf3f13e35c51d46c47f7efb629f5b63",
-    "previewModeEncryptionKey": "58f66fa455f36b52d94a3de8fcb11c3b708d4920f42306da2542b788458ae8c0"
+    "previewModeId": "afb575e7aa2ff5a1da588e44c78fbb96",
+    "previewModeSigningKey": "0e3388c522dcb265ced7f63eddf685c9cad30ed0b3b664646862942155e80dbf",
+    "previewModeEncryptionKey": "4ad7cbf9ea8f8fa342e33bda9ae5455f328fea5b71328f8209a71001c1f7581a"
   }
 }

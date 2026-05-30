@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Playfair_Display, Poppins } from "next/font/google";
 import AccountSessionBootstrap from "@/components/AccountSessionBootstrap";
-import ThemeBootstrap from "@/components/ThemeBootstrap";
 import ToastViewport from "@/components/ToastViewport";
 
 const poppins = Poppins({
@@ -40,7 +39,6 @@ export default function RootLayout({
       className={`${poppins.variable} ${playfair.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        <ThemeBootstrap />
         <AccountSessionBootstrap />
         {children}
         <ToastViewport />

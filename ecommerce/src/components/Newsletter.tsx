@@ -86,9 +86,9 @@ export default function Newsletter() {
   return (
     <>
       {/* Newsletter Section */}
-      <section data-newsletter-section className="bg-[var(--newsletter-bg)] py-16">
+      <section data-newsletter-section className="bg-[var(--newsletter-bg)] py-14 md:py-16">
         <div className="section-shell max-w-2xl text-center">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-[var(--gold)]">Stay Connected</p>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-[var(--page-fg)]/85">Stay Connected</p>
           <h2 className="mt-2 text-[44px] font-semibold leading-[1.08] tracking-[0.01em] md:text-[50px]" style={{ fontFamily: "var(--font-playfair), serif" }}>
             Join The Firaangi Club
           </h2>
@@ -96,20 +96,20 @@ export default function Newsletter() {
             Be the first to know about new collections, exclusive offers, and luxury style tips.
           </p>
 
-          <form className="mx-auto mt-6 flex w-full max-w-[520px] flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-center" onSubmit={handleSubscribe}>
+          <form className="mx-auto mt-7 flex w-full max-w-[560px] flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-center" onSubmit={handleSubscribe}>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Your email address"
-              className="w-full rounded-md border border-[var(--newsletter-input-border)] bg-[var(--newsletter-input-bg)] px-3.5 py-2.5 text-[14px] font-medium text-[var(--nav-text)] placeholder-[var(--newsletter-input-ph)] outline-none transition focus:border-[var(--gold)]/60 focus:bg-[var(--newsletter-input-focus-bg)] sm:max-w-[320px]"
+              className="w-full rounded-md border border-[var(--newsletter-input-border)] bg-[var(--newsletter-input-bg)] px-4 py-3 text-[14px] font-medium text-[var(--nav-text)] placeholder-[var(--newsletter-input-ph)] outline-none transition focus:border-[var(--gold)]/60 focus:bg-[var(--newsletter-input-focus-bg)] sm:max-w-[370px]"
               aria-label="Email address"
               required
             />
             <button
               type="submit"
               data-newsletter-subscribe
-              className="gold-button inline-flex h-[42px] items-center justify-center gap-2 rounded-md px-5 py-2.5 text-[14px]"
+              className="gold-button inline-flex h-[48px] items-center justify-center gap-2 rounded-md px-7 py-2.5 text-[14px]"
               disabled={isSubmitting}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -120,13 +120,13 @@ export default function Newsletter() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-[var(--footer-border)] bg-[var(--footer-bg)] pb-0 pt-12">
+      <footer className="border-t border-[var(--footer-border)] bg-[var(--footer-bg)] pb-0 pt-14">
         <div className="section-shell">
-            <div className="grid gap-9 border-b border-[var(--footer-border)] pb-9 md:grid-cols-2 lg:grid-cols-[1.45fr_1fr_1fr_1fr_1.35fr]">
+        <div className="grid gap-9 border-b border-[var(--footer-border)] pb-10 md:grid-cols-2 lg:grid-cols-[1.45fr_1fr_1fr_1fr_1.35fr]">
             {/* Brand */}
             <div>
               <SafeImage src="/Firaangi Logo Design.svg" alt="Firaangi" className="h-[52px] w-auto" />
-              <p className="mt-5 max-w-sm text-[16px] font-medium leading-[1.6] text-[var(--footer-links)]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+              <p className="mt-5 max-w-sm text-[16px] font-medium leading-[1.65] text-[var(--footer-links)]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
                 Where fashion meets global elegance. Curated clothing and jewellery for the modern connoisseur.
               </p>
               <p className="mt-4 inline-flex rounded-full border border-[var(--gold)]/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--gold)]">
@@ -248,7 +248,7 @@ export default function Newsletter() {
             </div>
           </div>
 
-          <div className="grid gap-4 py-4 text-[13px] font-medium text-[var(--footer-bottom)] md:grid-cols-[1fr_auto_1fr] md:items-center" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
+          <div className="grid gap-4 py-5 text-[13px] font-medium text-[var(--footer-bottom)] md:grid-cols-[1fr_auto_1fr] md:items-center" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
             <p className="text-center md:text-left">© 2026 Firaangi. All rights reserved.</p>
 
             <div className="flex items-center justify-center gap-2">

@@ -38,6 +38,11 @@ export type AccountOrder = {
   cancelReason?: string;
   paymentId?: string;
   items: AccountOrderItem[];
+  shippingName?: string;
+  shippingAddress?: string;
+  shippingCity?: string;
+  shippingState?: string;
+  shippingPinCode?: string;
 };
 
 export type AccountSessionSnapshot = {
@@ -91,6 +96,11 @@ type AccountOrderDocument = {
   items: AccountOrderItem[];
   createdAt: Date;
   updatedAt: Date;
+  shippingName?: string;
+  shippingAddress?: string;
+  shippingCity?: string;
+  shippingState?: string;
+  shippingPinCode?: string;
 };
 
 const USERS_COLLECTION_NAME = process.env.MONGODB_USERS_COLLECTION ?? "users";
@@ -185,6 +195,11 @@ function mapOrder(document: AccountOrderDocument): AccountOrder {
     cancelReason: document.cancelReason,
     paymentId: document.paymentId,
     items: document.items,
+    shippingName: document.shippingName,
+    shippingAddress: document.shippingAddress,
+    shippingCity: document.shippingCity,
+    shippingState: document.shippingState,
+    shippingPinCode: document.shippingPinCode,
   };
 }
 
@@ -574,6 +589,30 @@ export async function updateAccountProfileBySessionToken(
   return updatedUser ? mapProfile(updatedUser) : null;
 }
 
+export async function saveShippingAddressForSessionToken(
+  token: string,
+  addr: {
+    fullName?: string;
+    address: string;
+    city?: string;
+    state: string;
+    pinCode?: string;
+  },
+): Promise<void> {
+  const { users, sessions } = await getCollections();
+  const session = await sessions.findOne({ tokenHash: hashSessionToken(token) });
+  if (!session) return;
+  const setFields: Record<string, unknown> = {
+    address: addr.address,
+    state: addr.state,
+    updatedAt: new Date(),
+  };
+  if (addr.fullName) setFields.fullName = addr.fullName;
+  if (addr.city) setFields.city = addr.city;
+  if (addr.pinCode) setFields.pinCode = addr.pinCode;
+  await users.updateOne({ _id: session.userId }, { $set: setFields });
+}
+
 export async function createPendingOrderForSessionToken(
   token: string,
   input: {
@@ -582,6 +621,11 @@ export async function createPendingOrderForSessionToken(
     currencyCode: string;
     paymentMethod?: "online" | "cod";
     items: AccountOrderItem[];
+    shippingName?: string;
+    shippingAddress?: string;
+    shippingCity?: string;
+    shippingState?: string;
+    shippingPinCode?: string;
   },
 ) {
   const { sessions, orders } = await getCollections();
@@ -603,6 +647,11 @@ export async function createPendingOrderForSessionToken(
         paymentMethod: input.paymentMethod ?? "online",
         items: input.items,
         status: "pending",
+          shippingName: input.shippingName,
+          shippingAddress: input.shippingAddress,
+          shippingCity: input.shippingCity,
+          shippingState: input.shippingState,
+          shippingPinCode: input.shippingPinCode,
         updatedAt: now,
       },
       $setOnInsert: {

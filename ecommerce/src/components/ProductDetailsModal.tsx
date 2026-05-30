@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
-import { Check, ChevronDown, Heart, Minus, Plus, ShoppingBag, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Minus, Plus, ShoppingBag, Sparkles, X } from "lucide-react";
 import { getConfiguredSizeChart } from "@/lib/size-charts";
 import SafeImage from "@/components/SafeImage";
 import { useUiStore } from "@/store/useUiStore";
@@ -15,6 +15,7 @@ type ProductDetailsModalProps = {
   onClose: () => void;
   onToggleWishlist: (product: GridProduct) => void;
   onAddToCart: (product: GridProduct) => void;
+  onBuyNow: (product: GridProduct) => void;
 };
 
 function isColorOption(optionName: string) {
@@ -162,6 +163,7 @@ export default function ProductDetailsModal({
   onClose,
   onToggleWishlist,
   onAddToCart,
+  onBuyNow,
 }: ProductDetailsModalProps) {
   const displayCurrency = useUiStore((state) => state.currency);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
@@ -396,6 +398,44 @@ export default function ProductDetailsModal({
 
   const activeImage = selectedImage ?? resolvedProduct?.img ?? product?.img ?? "";
 
+  const activeImageIndex = previewImages.findIndex((preview) => preview.img === activeImage);
+
+  const updateActivePreview = (preview: { img: string; variantId: string | null }) => {
+    if (preview.variantId) {
+      setSelectedVariantId(preview.variantId);
+      setSelectedImage(null);
+    } else {
+      setSelectedImage(preview.img);
+    }
+
+    setZoomLevel(1);
+    setZoomOrigin("50% 50%");
+    pinchStartRef.current = null;
+    panStartRef.current = null;
+    didPanRef.current = false;
+    setIsPanning(false);
+
+    const matchingVariant = preview.variantId ? variants.find((variant) => variant.id === preview.variantId) : null;
+
+    if (matchingVariant) {
+      setSelectedOptions(Object.fromEntries(matchingVariant.options.map((option) => [option.name, option.value])));
+    }
+  };
+
+  const navigatePreviewImage = (direction: 1 | -1) => {
+    if (previewImages.length <= 1) {
+      return;
+    }
+
+    const baseIndex = activeImageIndex >= 0 ? activeImageIndex : 0;
+    const nextIndex = (baseIndex + direction + previewImages.length) % previewImages.length;
+    const nextPreview = previewImages[nextIndex];
+
+    if (nextPreview) {
+      updateActivePreview(nextPreview);
+    }
+  };
+
   const selectOptionValue = (optionName: string, optionValue: string) => {
     setSelectedOptions((current) => {
       const nextOptions = {
@@ -458,32 +498,38 @@ export default function ProductDetailsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 px-3 py-5 md:px-6" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[90] overflow-y-auto bg-black/75 px-3 py-3 backdrop-blur-[2px] md:px-6 md:py-6"
+      onClick={onClose}
+    >
       <div
-        className="w-full max-w-5xl overflow-hidden rounded-3xl border border-[var(--gold)]/45 bg-[image:var(--popup-gradient)] shadow-[0_30px_70px_rgba(0,0,0,0.6)]"
+        className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border border-[var(--gold)]/45 bg-[image:var(--popup-gradient)] shadow-[0_30px_70px_rgba(0,0,0,0.6)] md:min-h-0 md:max-h-[calc(100vh-3rem)]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between border-b border-[var(--gold)]/25 px-5 py-4 md:px-7 md:py-5">
-          <div>
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--gold)]/25 px-5 py-4 md:px-7 md:py-5">
+          <div className="min-w-0 flex-1">
             <p className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-[var(--gold)]/30 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-[var(--gold)]">
               <Sparkles className="h-3 w-3" />
               Product Details
             </p>
-            <h3 className="text-2xl leading-tight text-[var(--popup-footer-text)] md:text-3xl">{resolvedProduct?.name ?? product.name}</h3>
+            <h3 className="max-w-4xl text-xl leading-tight text-[var(--popup-footer-text)] sm:text-2xl md:text-3xl">
+              {resolvedProduct?.name ?? product.name}
+            </h3>
           </div>
           <button
             type="button"
             aria-label="Close product details"
-            className="rounded-full p-2 text-[var(--gold)] transition hover:bg-[var(--popup-hover2)]"
+            className="shrink-0 rounded-full p-2 text-[var(--gold)] transition hover:bg-[var(--popup-hover2)]"
             onClick={onClose}
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="grid max-h-[82vh] gap-6 overflow-y-auto p-5 md:grid-cols-[1.15fr_1fr] md:gap-8 md:p-7">
-          <div className="space-y-3">
-            <div className="group relative overflow-hidden rounded-2xl border border-[var(--gold)]/25 bg-[var(--popup-input-deep)]">
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          <div className="grid gap-6 p-5 md:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] md:items-start md:gap-8 md:p-7">
+            <div className="space-y-3 md:sticky md:top-0">
+              <div className="group relative overflow-hidden rounded-[1.75rem] border border-[var(--gold)]/25 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.18),_transparent_55%),linear-gradient(180deg,rgba(255,255,255,0.08),rgba(0,0,0,0.08))]">
               <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-full border border-[var(--gold)]/40 bg-black/35 px-1.5 py-1 backdrop-blur-sm">
                 <button
                   type="button"
@@ -513,6 +559,30 @@ export default function ProductDetailsModal({
                   <Plus className="h-3.5 w-3.5" />
                 </button>
               </div>
+
+              {previewImages.length > 1 ? (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Previous product image"
+                    className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full border border-[var(--gold)]/35 bg-black/45 p-2 text-[var(--gold)] backdrop-blur-sm transition hover:bg-black/60"
+                    onClick={() => navigatePreviewImage(-1)}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Next product image"
+                    className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full border border-[var(--gold)]/35 bg-black/45 p-2 text-[var(--gold)] backdrop-blur-sm transition hover:bg-black/60"
+                    onClick={() => navigatePreviewImage(1)}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                  <div className="pointer-events-none absolute bottom-3 right-3 z-10 rounded-full border border-[var(--gold)]/30 bg-black/45 px-3 py-1 text-[10px] font-medium tracking-[0.08em] text-[var(--popup-footer-text)] backdrop-blur-sm sm:text-[11px]">
+                    {activeImageIndex + 1} / {previewImages.length}
+                  </div>
+                </>
+              ) : null}
 
               <button
                 type="button"
@@ -667,15 +737,17 @@ export default function ProductDetailsModal({
                   }
                 }}
               >
-              <SafeImage
-                src={activeImage}
-                alt={resolvedProduct?.name ?? product.name}
-                className="h-[320px] w-full select-none object-cover transition-transform duration-200 ease-out sm:h-[420px] md:h-[500px]"
-                style={{
-                  transform: `scale(${zoomLevel})`,
-                  transformOrigin: zoomOrigin,
-                }}
-              />
+                <div className="flex min-h-[340px] items-start justify-center px-4 pb-4 pt-14 sm:min-h-[420px] sm:px-6 sm:pb-6 md:min-h-[560px] md:px-8 md:pb-8">
+                  <SafeImage
+                    src={activeImage}
+                    alt={resolvedProduct?.name ?? product.name}
+                    className="h-full max-h-[72vh] w-full select-none object-contain object-top transition-transform duration-200 ease-out"
+                    style={{
+                      transform: `scale(${zoomLevel})`,
+                      transformOrigin: zoomOrigin,
+                    }}
+                  />
+                </div>
               </button>
 
               {zoomLevel > 1 ? (
@@ -698,40 +770,15 @@ export default function ProductDetailsModal({
                     <button
                       key={preview.id}
                       type="button"
-                      onClick={() => {
-                        if (preview.variantId) {
-                          setSelectedVariantId(preview.variantId);
-                          setSelectedImage(null);
-                        } else {
-                          setSelectedImage(preview.img);
-                        }
-
-                        setZoomLevel(1);
-                        setZoomOrigin("50% 50%");
-                        pinchStartRef.current = null;
-                        panStartRef.current = null;
-                        didPanRef.current = false;
-                        setIsPanning(false);
-
-                        const matchingVariant = preview.variantId
-                          ? variants.find((variant) => variant.id === preview.variantId)
-                          : null;
-                        if (matchingVariant) {
-                          setSelectedOptions(
-                            Object.fromEntries(
-                              matchingVariant.options.map((option) => [option.name, option.value])
-                            )
-                          );
-                        }
-                      }}
-                      className={`overflow-hidden rounded-xl border transition ${
+                      onClick={() => updateActivePreview(preview)}
+                      className={`overflow-hidden rounded-xl border bg-white/5 transition ${
                         isActive
                           ? "border-[var(--gold)] ring-2 ring-[var(--gold)]/40"
                           : "border-[var(--gold)]/20 hover:border-[var(--gold)]/50"
                       }`}
                       aria-label={`Preview ${preview.label}`}
                     >
-                      <SafeImage src={preview.img} alt={preview.label} className="h-14 w-full object-cover sm:h-16" />
+                      <SafeImage src={preview.img} alt={preview.label} className="h-16 w-full object-contain object-top p-1 sm:h-20" />
                     </button>
                   );
                 })}
@@ -739,41 +786,43 @@ export default function ProductDetailsModal({
             ) : null}
           </div>
 
-          <div className="flex flex-col">
-            <div className="mb-5 max-h-56 space-y-3 overflow-y-auto pr-2 text-[15px] leading-7 text-[var(--popup-subtext)] md:max-h-72">
+            <div className="flex min-w-0 flex-col self-start md:max-h-none">
+              <div className="mb-5 rounded-[1.75rem] border border-[var(--gold)]/15 bg-black/10 p-5 md:p-6">
+                <div className="mb-5 flex items-end gap-3 border-b border-[var(--gold)]/15 pb-5">
+                  <p className="text-3xl leading-none sm:text-4xl">
+                    {formatCurrency(
+                      convertAmount(
+                        resolvedProduct?.priceAmount ?? product.priceAmount,
+                        toSupportedCurrency(resolvedProduct?.currencyCode ?? product.currencyCode),
+                        displayCurrency,
+                      ),
+                      displayCurrency,
+                    )}
+                  </p>
+                  {(resolvedProduct?.oldPrice ?? product.oldPrice) ? (
+                    <p className="text-base text-[var(--popup-muted)] line-through sm:text-lg">
+                      {formatCurrency(
+                        convertAmount(
+                          Number.parseFloat((resolvedProduct?.oldPrice ?? product.oldPrice).replace(/[^\d.]/g, "")) ||
+                            (resolvedProduct?.priceAmount ?? product.priceAmount),
+                          toSupportedCurrency(resolvedProduct?.currencyCode ?? product.currencyCode),
+                          displayCurrency,
+                        ),
+                        displayCurrency,
+                      )}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="space-y-3 text-[15px] leading-7 text-[var(--popup-subtext)]">
               {descriptionBlocks.map((block, index) => (
                 <p key={`${block.label ?? "text"}-${index}`} className="text-pretty">
                   {block.label ? <span className="font-semibold text-[var(--popup-footer-text)]">{block.label}: </span> : null}
                   {block.text}
                 </p>
               ))}
-            </div>
-
-            <div className="mb-6 flex items-end gap-3 border-b border-[var(--gold)]/15 pb-5">
-              <p className="text-3xl leading-none">
-                {formatCurrency(
-                  convertAmount(
-                    resolvedProduct?.priceAmount ?? product.priceAmount,
-                    toSupportedCurrency(resolvedProduct?.currencyCode ?? product.currencyCode),
-                    displayCurrency,
-                  ),
-                  displayCurrency,
-                )}
-              </p>
-              {(resolvedProduct?.oldPrice ?? product.oldPrice) ? (
-                <p className="text-base text-[var(--popup-muted)] line-through">
-                  {formatCurrency(
-                    convertAmount(
-                      Number.parseFloat((resolvedProduct?.oldPrice ?? product.oldPrice).replace(/[^\d.]/g, "")) ||
-                        (resolvedProduct?.priceAmount ?? product.priceAmount),
-                      toSupportedCurrency(resolvedProduct?.currencyCode ?? product.currencyCode),
-                      displayCurrency,
-                    ),
-                    displayCurrency,
-                  )}
-                </p>
-              ) : null}
-            </div>
+                </div>
+              </div>
 
             {optionGroups.length > 0 ? (
               <div className="mb-7 space-y-5">
@@ -907,19 +956,33 @@ export default function ProductDetailsModal({
               <p className="mb-3 text-xs text-[var(--popup-muted)]">This variant is currently out of stock. Pick another option to continue.</p>
             ) : null}
 
-            <div className="mt-auto flex flex-col gap-3 sm:flex-row">
+            <div className="mt-auto flex flex-col gap-3 border-t border-[var(--gold)]/15 pt-5 sm:flex-row">
+              <button
+                type="button"
+                disabled={activeVariant ? !activeVariant.availableForSale : false}
+                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-[var(--gold)] px-5 py-3 font-medium text-[var(--popup-input-text)] transition hover:bg-[var(--popup-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => {
+                  if (resolvedProduct) {
+                    onAddToCart(resolvedProduct);
+                    onClose();
+                  }
+                }}
+              >
+                <ShoppingBag className="h-4 w-4" />
+                Add to Cart
+              </button>
               <button
                 type="button"
                 disabled={activeVariant ? !activeVariant.availableForSale : false}
                 className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[var(--gold)] px-5 py-3 font-medium text-[#3b0810] transition hover:bg-[#f0c654] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[var(--gold)]"
                 onClick={() => {
                   if (resolvedProduct) {
-                    onAddToCart(resolvedProduct);
+                    onBuyNow(resolvedProduct);
                   }
                 }}
               >
                 <ShoppingBag className="h-4 w-4" />
-                Add to Cart
+                Buy Now
               </button>
               <button
                 type="button"
@@ -942,5 +1005,6 @@ export default function ProductDetailsModal({
         </div>
       </div>
     </div>
+  </div>
   );
 }

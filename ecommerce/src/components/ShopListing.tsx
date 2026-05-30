@@ -222,6 +222,16 @@ export default function ShopListing({
     openCart();
   };
 
+  const handleModalAddToCart = (product: GridProduct) => {
+    addToCart(product);
+  };
+
+  const handleModalBuyNow = (product: GridProduct) => {
+    addToCart(product);
+    setSelectedProduct(null);
+    openCart();
+  };
+
   return (
     <section className="section-shell py-12 md:py-16">
       <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
@@ -363,10 +373,14 @@ export default function ShopListing({
           {filteredProducts.map((product) => (
             <article
               key={product.id}
-              className="overflow-hidden rounded-[18px] border border-[var(--gold)]/50 bg-[var(--shop-card-bg)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(0,0,0,0.18)]"
+              className="overflow-hidden rounded-[18px] border border-[var(--gold)]/35 bg-[var(--shop-card-bg)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(120,82,58,0.2)]"
               onClick={() => handleOpenDetails(product)}
             >
-              <SafeImage src={product.img} alt={product.name} className="h-[320px] w-full cursor-pointer object-cover" />
+              <SafeImage
+                src={product.img}
+                alt={product.name}
+                className="h-[330px] w-full cursor-pointer object-cover object-[50%_12%] max-[374px]:object-[50%_10%] min-[375px]:object-[50%_11%] min-[390px]:object-[50%_12%] min-[414px]:object-[50%_14%] md:h-[340px] md:object-[50%_16%] lg:h-[320px] lg:object-[50%_18%]"
+              />
               <div className="space-y-3 p-4">
                 <h3 className="cursor-pointer text-lg leading-tight text-[var(--arrivals-card-title)]">{product.name}</h3>
                 <p className="line-clamp-2 text-sm text-[var(--shop-card-desc)]">{product.description}</p>
@@ -403,7 +417,7 @@ export default function ShopListing({
                   </button>
                   <button
                     type="button"
-                    className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[var(--gold)] px-4 py-2 text-sm font-medium text-[#3b0810]"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[var(--gold)] px-4 py-2 text-sm font-semibold text-[#3b0810] transition hover:bg-[#e1bb55]"
                     onClick={(event) => {
                       event.stopPropagation();
                       handleAddToCart(product);
@@ -414,7 +428,7 @@ export default function ShopListing({
                   </button>
                   <button
                     type="button"
-                    className="rounded-full border border-[var(--gold)] p-2"
+                    className="rounded-full border border-[var(--gold)]/65 p-2 transition hover:bg-[var(--popup-hover)]"
                     onClick={(event) => {
                       event.stopPropagation();
                       handleToggleWishlist(product);
@@ -436,7 +450,8 @@ export default function ShopListing({
         isWishlisted={(product) => wishlistIds.has(product.id)}
         onClose={() => setSelectedProduct(null)}
         onToggleWishlist={handleToggleWishlist}
-        onAddToCart={handleAddToCart}
+        onAddToCart={handleModalAddToCart}
+        onBuyNow={handleModalBuyNow}
       />
     </section>
   );

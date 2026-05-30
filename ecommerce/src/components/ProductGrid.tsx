@@ -90,6 +90,16 @@ export default function ProductGrid({ products }: ProductGridProps) {
     openCart();
   };
 
+  const handleModalAddToCart = (product: GridProduct) => {
+    addToCart(product);
+  };
+
+  const handleModalBuyNow = (product: GridProduct) => {
+    addToCart(product);
+    setSelectedProduct(null);
+    openCart();
+  };
+
   const pauseAutoplay = (resumeAfterMs: number) => {
     setIsAutoplayPaused(true);
 
@@ -194,7 +204,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
               aria-label="Previous products"
               onClick={goToPrev}
               disabled={!canGoPrev}
-              className="absolute -left-3 top-[46%] z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[var(--arrivals-hover)] disabled:opacity-40 md:flex"
+              className="absolute left-1 top-[46%] z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[var(--arrivals-hover)] disabled:opacity-40 md:flex"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -204,7 +214,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
               aria-label="Next products"
               onClick={goToNext}
               disabled={!canGoNext}
-              className="absolute -right-3 top-[46%] z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[var(--arrivals-hover)] disabled:opacity-40 md:flex"
+              className="absolute right-1 top-[46%] z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--gold)] text-[var(--gold)] transition hover:bg-[var(--arrivals-hover)] disabled:opacity-40 md:flex"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -365,7 +375,8 @@ export default function ProductGrid({ products }: ProductGridProps) {
         isWishlisted={(product) => wishlistIds.has(product.id)}
         onClose={() => setSelectedProduct(null)}
         onToggleWishlist={handleToggleWishlist}
-        onAddToCart={handleAddToCart}
+        onAddToCart={handleModalAddToCart}
+        onBuyNow={handleModalBuyNow}
       />
     </section>
   );

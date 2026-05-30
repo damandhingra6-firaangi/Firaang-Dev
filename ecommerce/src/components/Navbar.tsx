@@ -2,9 +2,9 @@
 
 // components/Navbar.tsx
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Heart, ShoppingBag, User, ChevronDown, Menu, X, Moon, Sun } from "lucide-react";
+import { Heart, ShoppingBag, User, ChevronDown, Menu, X } from "lucide-react";
 import AccountModal from "@/components/AccountModal";
 import AccountQuickActionsSheet from "@/components/AccountQuickActionsSheet";
 import CartDrawer from "./CartDrawer";
@@ -14,12 +14,9 @@ import WishlistDrawer from "@/components/WishlistDrawer";
 import { useAccountStore } from "@/store/useAccountStore";
 import { getCartCount, getWishlistItems, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
-import { useTheme } from "@/hooks/useTheme";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { theme, toggleTheme, mounted } = useTheme();
   const [isAccountSheetOpen, setIsAccountSheetOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [activeAccountView, setActiveAccountView] = useState<"signin" | "profile" | "orders">("signin");
@@ -85,20 +82,6 @@ export default function Navbar() {
     return `/shop?${params.toString()}`;
   };
 
-  const buildAudienceHref = (audience: "boys" | "girls" | "unisex") => {
-    const params = new URLSearchParams();
-    params.set("audience", audience);
-    return `/shop?${params.toString()}`;
-  };
-
-  const audienceQuickLinks = [
-    { label: "Boys", slug: "boys" },
-    { label: "Girls", slug: "girls" },
-    { label: "Unisex", slug: "unisex" },
-  ] as const;
-
-  const activeAudience = (searchParams.get("audience") ?? "").trim().toLowerCase();
-
   const collections = [
     { label: "Devotional", categorySlug: "t-shirts", subCategorySlug: "devotional", tag: "NEW" },
     { label: "Mandala Magic", categorySlug: "t-shirts", subCategorySlug: "mandala-magic" },
@@ -149,7 +132,7 @@ export default function Navbar() {
 
   const desktopNavActiveClass = "text-[var(--nav-active)] after:scale-x-100";
   const desktopIconButtonClass =
-    "relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--nav-text)] transition-colors hover:text-[var(--gold)]";
+    "relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--nav-text)] transition-colors hover:text-[var(--gold)]";
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -220,22 +203,21 @@ export default function Navbar() {
 
   return (
     <header className="fixed top-0 z-50 w-full">
-      <div className="bg-[var(--announcement-bg)] px-3 py-1.5 text-center text-[8px] font-medium uppercase tracking-[0.18em] text-[var(--announcement-fg)] md:py-2 md:text-xs md:tracking-[0.22em]">
-        <span className="md:hidden">Free Shipping Above ₹700 | Festive Edit Live</span>
-        <span className="hidden md:inline">Free Shipping on Orders Above ₹700 | New Festive Edit Live</span>
+      <div className="bg-[var(--announcement-bg)] px-3 py-1 text-center text-[9px] font-medium uppercase tracking-[0.16em] text-[var(--announcement-fg)] md:py-1.5 md:text-[10px] md:tracking-[0.2em]">
+        {/* <span>Free Shipping Above INR 700</span> */}
       </div>
 
       <div className="border-y border-[color:var(--nav-border)]/60 bg-[var(--nav-bg)] text-[var(--nav-text)]">
-        <div className="mx-auto flex max-w-[1380px] items-center justify-between px-4 py-3 md:px-6 md:py-4 lg:px-8 xl:px-10">
+        <div className="mx-auto flex max-w-[1380px] items-center justify-between px-4 py-3 md:px-6 md:py-3.5 lg:px-8 xl:px-10">
         <Link href="/" className="shrink-0 xl:mr-6">
           <SafeImage
             src="/Firaangi Logo Design.svg"
             alt="Firaangi Logo"
-            className="h-[36px] w-auto md:h-[46px]"
+            className="h-[38px] w-auto md:h-[50px]"
           />
         </Link>
 
-        <nav className="hidden flex-1 items-center justify-center gap-5 text-[14px] font-normal tracking-[0.08em] lg:gap-6 xl:gap-7 xl:text-[15px] md:flex">
+        <nav className="hidden flex-1 items-center justify-center gap-6 text-[13px] font-medium tracking-[0.08em] lg:gap-7 xl:gap-8 xl:text-[14px] md:flex">
           <Link
             href="/"
             className={`${desktopNavBaseClass} ${isNavItemActive("/") ? desktopNavActiveClass : ""}`}
@@ -260,7 +242,7 @@ export default function Navbar() {
             </button>
 
             {isCategoriesOpen ? (
-              <div className="absolute left-1/2 top-[calc(100%+14px)] z-[110] w-52 -translate-x-1/2 overflow-hidden rounded-2xl border border-[var(--gold)]/30 bg-[var(--menu-bg)] shadow-[0_24px_52px_rgba(0,0,0,0.28)] backdrop-blur-md">
+              <div className="absolute left-1/2 top-[calc(100%+10px)] z-[110] w-52 -translate-x-1/2 overflow-hidden rounded-2xl border border-[var(--gold)]/30 bg-[var(--menu-bg)] shadow-[0_18px_36px_rgba(39,28,20,0.2)] backdrop-blur-md">
                 <div className="px-2 py-2">
                   {categories.map((category) => (
                     <Link
@@ -301,7 +283,7 @@ export default function Navbar() {
             </button>
 
             {isCollectionsOpen ? (
-              <div className="absolute left-1/2 top-[calc(100%+14px)] z-[110] w-56 -translate-x-1/2 overflow-hidden rounded-2xl border border-[var(--gold)]/30 bg-[var(--menu-bg)] shadow-[0_24px_52px_rgba(0,0,0,0.28)] backdrop-blur-md">
+              <div className="absolute left-1/2 top-[calc(100%+10px)] z-[110] w-56 -translate-x-1/2 overflow-hidden rounded-2xl border border-[var(--gold)]/30 bg-[var(--menu-bg)] shadow-[0_18px_36px_rgba(39,28,20,0.2)] backdrop-blur-md">
                 <div className="px-2 py-2">
                   {collections.map((col) => (
                     <Link
@@ -345,7 +327,7 @@ export default function Navbar() {
           ))}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2.5 md:gap-3.5" ref={userMenuRef}>
+        <div className="flex shrink-0 items-center gap-2 md:gap-3" ref={userMenuRef}>
           <button
             type="button"
             aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -374,20 +356,14 @@ export default function Navbar() {
             ) : null}
           </button>
 
-          {mounted && (
-            <button
-              type="button"
-              aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-              onClick={toggleTheme}
-              className={desktopIconButtonClass}
+          {cartCount > 0 ? (
+            <Link
+              href="/checkout"
+              className="hidden rounded-full border border-[var(--gold)]/35 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--nav-text)] transition hover:border-[var(--gold)] hover:text-[var(--gold)] md:inline-flex"
             >
-              {theme === "dark" ? (
-                <Sun className="h-5 w-5" />
-              ) : (
-                <Moon className="h-5 w-5" />
-              )}
-            </button>
-          )}
+              Checkout
+            </Link>
+          ) : null}
 
           <button
             type="button"
@@ -403,7 +379,7 @@ export default function Navbar() {
           </button>
 
           {isUserMenuOpen ? (
-            <div className="absolute right-0 top-[74px] z-[101] hidden min-w-[220px] rounded-xl border border-[var(--gold)]/40 bg-[var(--panel-bg)] p-2 shadow-xl md:block">
+            <div className="absolute right-0 top-[78px] z-[101] hidden min-w-[220px] rounded-xl border border-[var(--gold)]/40 bg-[var(--panel-bg)] p-2 shadow-[0_16px_34px_rgba(39,28,20,0.18)] md:block">
               <button
                 type="button"
                 onClick={() => openAccountModal("signin")}
@@ -440,35 +416,12 @@ export default function Navbar() {
             </div>
           ) : null}
 
-          <Link href="/shop" className="gold-button hidden h-11 items-center whitespace-nowrap px-6 md:inline-flex">
+          <Link href="/shop" className="nav-shop-button hidden md:inline-flex">
             SHOP NOW
           </Link>
         </div>
         </div>
 
-        <div className="hidden border-t border-[var(--nav-border)]/45 lg:block">
-          <div className="mx-auto flex max-w-[1380px] justify-center px-4 py-2 md:px-6 lg:px-8 xl:px-10">
-            <div className="flex items-center rounded-full border border-[var(--gold)]/35 bg-[var(--gold)]/[0.04] p-1">
-              {audienceQuickLinks.map((item) => {
-                const isActive = pathname.startsWith("/shop") && activeAudience === item.slug;
-
-                return (
-                  <Link
-                    key={item.slug}
-                    href={buildAudienceHref(item.slug)}
-                    className={`rounded-full px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
-                      isActive
-                        ? "bg-[var(--gold)] text-[#3b0810]"
-                        : "text-[var(--nav-text)] hover:bg-[var(--gold)]/20 hover:text-[var(--gold)]"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </div>
       </div>
 
       {isMobileMenuOpen ? (
@@ -583,33 +536,22 @@ export default function Navbar() {
                 </Link>
               ))}
 
-              <Link href="/shop" onClick={closeMobileMenu} className="gold-button mt-2 block text-center">
+              <Link
+                href="/shop"
+                onClick={closeMobileMenu}
+                className="mx-auto mt-2 inline-flex h-10 items-center justify-center rounded-[8px] border border-[var(--nav-cta-bg)] bg-[var(--nav-cta-bg)] px-5 text-xs font-semibold tracking-[0.08em] text-[var(--nav-cta-fg)] transition hover:bg-[var(--nav-cta-hover)] hover:border-[var(--nav-cta-hover)]"
+              >
                 SHOP NOW
               </Link>
 
-              <div className="mt-3 rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-3">
-                <p className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--gold)]">Shop By Audience</p>
-                <div className="flex flex-wrap gap-2">
-                  {audienceQuickLinks.map((item) => {
-                    const isActive = pathname.startsWith("/shop") && activeAudience === item.slug;
+              <Link
+                href="/checkout"
+                onClick={closeMobileMenu}
+                className="mt-2 block rounded-xl border border-[var(--gold)]/35 px-3 py-3 text-center text-sm font-medium tracking-[0.12em] text-[var(--menu-text)] transition hover:border-[var(--gold)] hover:text-[var(--gold)]"
+              >
+                CHECKOUT
+              </Link>
 
-                    return (
-                      <Link
-                        key={item.slug}
-                        href={buildAudienceHref(item.slug)}
-                        onClick={closeMobileMenu}
-                        className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] ${
-                          isActive
-                            ? "border-[var(--gold)] bg-[var(--gold)] text-[#3b0810]"
-                            : "border-[var(--gold)]/35 text-[var(--menu-text)]"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
             </div>
           </div>
         </div>

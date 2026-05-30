@@ -3,6 +3,9 @@
   "functions": {
     "/api/auth/mobile/request-otp": {},
     "/api/auth/mobile/verify-otp": {},
+    "/api/coupons": {},
+    "/api/coupons/[id]": {},
+    "/api/coupons/validate": {},
     "/api/feedback": {},
     "/api/feedback/health": {},
     "/api/health/otp-readiness": {},
