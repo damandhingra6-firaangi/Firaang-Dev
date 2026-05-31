@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { cancelOrderForSessionToken } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
+import { findOrderWithCustomerByOrderId } from "@/lib/account-data";
+import { notifyOrderCancelled } from "@/lib/order-notifications";
+import { syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
 
 type CancelOrderRequest = {
   orderId?: string;
@@ -48,6 +51,22 @@ export async function POST(request: Request) {
     if (!result.order) {
       return NextResponse.json({ error: "Unable to cancel order" }, { status: 500 });
     }
+
+    const linkedOrder = await findOrderWithCustomerByOrderId(orderId);
+    await notifyOrderCancelled({
+      orderId,
+      customerName: linkedOrder?.customer?.fullName ?? result.order.shippingName,
+      customerEmail: linkedOrder?.customer?.email,
+      totalAmount: result.order.totalAmount,
+      currencyCode: result.order.currencyCode,
+      reason: reason || undefined,
+    }).catch((error) => {
+      console.error("Cancellation notification failed", error);
+    });
+
+    await syncShopifyInventoryForOrder(orderId, "release").catch((error) => {
+      console.error("Shopify inventory release sync failed", error);
+    });
 
     return NextResponse.json({ cancelled: true, order: result.order });
   } catch (error) {

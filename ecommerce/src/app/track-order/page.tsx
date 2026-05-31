@@ -20,6 +20,11 @@ type TrackedOrder = {
     quantity: number;
     lineTotal: number;
   }>;
+  events?: Array<{
+    type: string;
+    at: string;
+    note?: string;
+  }>;
 };
 
 export default function TrackOrderPage() {
@@ -68,6 +73,8 @@ export default function TrackOrderPage() {
   };
 
   const statusLabel = order?.status ? order.status.toUpperCase() : "";
+
+  const timelineEntries = order?.events ?? [];
 
   return (
     <main>
@@ -179,6 +186,24 @@ export default function TrackOrderPage() {
                   </div>
                 ))}
               </div>
+
+              {timelineEntries.length > 0 ? (
+                <div className="mt-6 rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[var(--gold)]">Order Timeline</p>
+                  <div className="mt-4 space-y-4">
+                    {timelineEntries.map((event, index) => (
+                      <div key={`${event.type}-${event.at}-${index}`} className="flex gap-3">
+                        <div className="mt-1 h-2.5 w-2.5 rounded-full bg-[var(--gold)]" />
+                        <div className="min-w-0">
+                          <p className="text-sm text-[var(--popup-footer-text)] uppercase tracking-[0.08em]">{event.type}</p>
+                          <p className="text-xs text-[var(--popup-muted)]">{new Date(event.at).toLocaleString()}</p>
+                          {event.note ? <p className="mt-1 text-sm text-[var(--popup-subtext)]">{event.note}</p> : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 

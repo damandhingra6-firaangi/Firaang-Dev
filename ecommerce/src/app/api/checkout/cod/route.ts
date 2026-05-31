@@ -4,6 +4,7 @@ import { createPendingOrderForSessionToken } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 import { COD_FEE_INR, COD_MAX_SUBTOTAL_INR } from "@/lib/checkout-config";
 import { resolveCheckoutItems } from "@/lib/products";
+import { syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
 
 type CreateCodOrderRequest = {
   items?: Array<{
@@ -64,6 +65,12 @@ export async function POST(request: Request) {
           })),
         })
       : null;
+
+    if (savedOrder) {
+      await syncShopifyInventoryForOrder(savedOrder.id, "reserve").catch((error) => {
+        console.error("Shopify inventory reserve sync failed", error);
+      });
+    }
 
     return NextResponse.json({
       placed: true,

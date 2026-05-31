@@ -27,6 +27,20 @@ export type AccountOrderItem = {
   lineTotal: number;
 };
 
+export type AccountOrderEvent = {
+  type: "created" | "reserved" | "committed" | "released" | "paid" | "synced" | "fulfilled" | "cancelled" | "refunded";
+  at: string;
+  note?: string;
+};
+
+export type AccountInventorySyncAttempt = {
+  variantId: string;
+  quantity: number;
+  status: "reserved" | "released" | "failed" | "skipped";
+  message?: string;
+  inventoryItemId?: string;
+};
+
 export type AccountOrder = {
   id: string;
   createdAt: string;
@@ -34,9 +48,27 @@ export type AccountOrder = {
   currencyCode: string;
   status: "paid" | "pending" | "failed" | "cancelled";
   paymentMethod: "online" | "cod";
+  paymentGateway?: "razorpay";
+  paymentStatus?: "created" | "authorized" | "captured" | "failed" | "refunded";
   cancelledAt?: string;
   cancelReason?: string;
   paymentId?: string;
+  refundId?: string;
+  refundAmount?: number;
+  refundedAt?: string;
+  shopifyOrderId?: string;
+  shopifySyncStatus?: "pending" | "synced" | "failed" | "skipped";
+  shopifySyncError?: string;
+  inventorySyncStatus?: "pending" | "reserved" | "released" | "partial" | "failed" | "skipped";
+  inventorySyncError?: string;
+  inventorySyncAttempts?: AccountInventorySyncAttempt[];
+  fulfillmentStatus?: "unfulfilled" | "processing" | "fulfilled" | "cancelled";
+  shippingCarrier?: string;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+  events?: AccountOrderEvent[];
   items: AccountOrderItem[];
   shippingName?: string;
   shippingAddress?: string;
@@ -48,6 +80,14 @@ export type AccountOrder = {
 export type AccountSessionSnapshot = {
   profile: AccountProfile;
   orders: AccountOrder[];
+};
+
+export type AccountOrderWithCustomer = {
+  order: AccountOrder;
+  customer: {
+    email: string;
+    fullName: string;
+  } | null;
 };
 
 type AccountUserDocument = {
@@ -76,6 +116,15 @@ type AccountMobileOtpDocument = {
   consumedAt?: Date;
 };
 
+type InventoryMovementDocument = {
+  orderId: string;
+  userId: ObjectId;
+  type: "reserved" | "committed" | "released" | "refunded";
+  items: AccountOrderItem[];
+  note?: string;
+  createdAt: Date;
+};
+
 type AccountSessionDocument = {
   userId: ObjectId;
   tokenHash: string;
@@ -91,8 +140,26 @@ type AccountOrderDocument = {
   currencyCode: string;
   status: "paid" | "pending" | "failed" | "cancelled";
   paymentMethod?: "online" | "cod";
+  paymentGateway?: "razorpay";
+  paymentStatus?: "created" | "authorized" | "captured" | "failed" | "refunded";
   cancelledAt?: Date;
   cancelReason?: string;
+  refundId?: string;
+  refundAmount?: number;
+  refundedAt?: Date;
+  shopifyOrderId?: string;
+  shopifySyncStatus?: "pending" | "synced" | "failed" | "skipped";
+  shopifySyncError?: string;
+  inventorySyncStatus?: "pending" | "reserved" | "released" | "partial" | "failed" | "skipped";
+  inventorySyncError?: string;
+  inventorySyncAttempts?: AccountInventorySyncAttempt[];
+  fulfillmentStatus?: "unfulfilled" | "processing" | "fulfilled" | "cancelled";
+  shippingCarrier?: string;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  shippedAt?: Date;
+  deliveredAt?: Date;
+  events?: Array<{ type: AccountOrderEvent["type"]; at: Date; note?: string }>;
   items: AccountOrderItem[];
   createdAt: Date;
   updatedAt: Date;
@@ -107,6 +174,7 @@ const USERS_COLLECTION_NAME = process.env.MONGODB_USERS_COLLECTION ?? "users";
 const SESSIONS_COLLECTION_NAME = process.env.MONGODB_SESSIONS_COLLECTION ?? "account_sessions";
 const ORDERS_COLLECTION_NAME = process.env.MONGODB_ORDERS_COLLECTION ?? "orders";
 const MOBILE_OTPS_COLLECTION_NAME = process.env.MONGODB_MOBILE_OTPS_COLLECTION ?? "account_mobile_otps";
+const INVENTORY_MOVEMENTS_COLLECTION_NAME = process.env.MONGODB_INVENTORY_COLLECTION ?? "inventory_movements";
 const MOBILE_OTP_COOLDOWN_MS = 45 * 1000;
 
 let ensureAccountIndexesPromise: Promise<void> | null = null;
@@ -191,9 +259,31 @@ function mapOrder(document: AccountOrderDocument): AccountOrder {
     currencyCode: document.currencyCode,
     status: document.status,
     paymentMethod: document.paymentMethod ?? "online",
+    paymentGateway: document.paymentGateway,
+    paymentStatus: document.paymentStatus,
     cancelledAt: document.cancelledAt?.toISOString(),
     cancelReason: document.cancelReason,
     paymentId: document.paymentId,
+    refundId: document.refundId,
+    refundAmount: document.refundAmount,
+    refundedAt: document.refundedAt?.toISOString(),
+    shopifyOrderId: document.shopifyOrderId,
+    shopifySyncStatus: document.shopifySyncStatus,
+    shopifySyncError: document.shopifySyncError,
+    inventorySyncStatus: document.inventorySyncStatus,
+    inventorySyncError: document.inventorySyncError,
+    inventorySyncAttempts: document.inventorySyncAttempts,
+    fulfillmentStatus: document.fulfillmentStatus,
+    shippingCarrier: document.shippingCarrier,
+    trackingNumber: document.trackingNumber,
+    trackingUrl: document.trackingUrl,
+    shippedAt: document.shippedAt?.toISOString(),
+    deliveredAt: document.deliveredAt?.toISOString(),
+    events: document.events?.map((event) => ({
+      type: event.type,
+      at: event.at.toISOString(),
+      note: event.note,
+    })),
     items: document.items,
     shippingName: document.shippingName,
     shippingAddress: document.shippingAddress,
@@ -210,6 +300,7 @@ async function getCollections() {
   const sessions = db.collection<AccountSessionDocument>(SESSIONS_COLLECTION_NAME);
   const orders = db.collection<AccountOrderDocument>(ORDERS_COLLECTION_NAME);
   const mobileOtps = db.collection<AccountMobileOtpDocument>(MOBILE_OTPS_COLLECTION_NAME);
+  const inventoryMovements = db.collection<InventoryMovementDocument>(INVENTORY_MOVEMENTS_COLLECTION_NAME);
 
   if (!ensureAccountIndexesPromise) {
     ensureAccountIndexesPromise = Promise.all([
@@ -219,6 +310,9 @@ async function getCollections() {
       sessions.createIndex({ expiresAt: 1 }, { name: "session_expires_ttl", expireAfterSeconds: 0 }),
       orders.createIndex({ orderId: 1 }, { name: "order_id_unique", unique: true }),
       orders.createIndex({ userId: 1, createdAt: -1 }, { name: "order_user_created_desc" }),
+      orders.createIndex({ paymentId: 1 }, { name: "order_payment_id_lookup", sparse: true }),
+      inventoryMovements.createIndex({ orderId: 1, type: 1 }, { name: "inventory_order_type_unique", unique: true }),
+      inventoryMovements.createIndex({ createdAt: -1 }, { name: "inventory_created_desc" }),
       mobileOtps.createIndex({ phone: 1, createdAt: -1 }, { name: "mobile_otp_phone_created_desc" }),
         users.createIndex(
           { phone: 1 },
@@ -243,7 +337,7 @@ async function getCollections() {
   }
 
   await ensureAccountIndexesPromise;
-  return { users, sessions, orders, mobileOtps };
+  return { users, sessions, orders, mobileOtps, inventoryMovements };
 }
 
 async function listOrdersForUserId(orders: Collection<AccountOrderDocument>, userId: ObjectId) {
@@ -636,6 +730,11 @@ export async function createPendingOrderForSessionToken(
   }
 
   const now = new Date();
+  const isOnlinePayment = (input.paymentMethod ?? "online") === "online";
+  const initialEvents = [
+    { type: "created" as const, at: now, note: "Checkout order created" },
+    { type: "reserved" as const, at: now, note: "Inventory reserved from cart" },
+  ];
 
   await orders.updateOne(
     { orderId: input.orderId },
@@ -645,13 +744,18 @@ export async function createPendingOrderForSessionToken(
         totalAmount: input.totalAmount,
         currencyCode: input.currencyCode,
         paymentMethod: input.paymentMethod ?? "online",
+        paymentGateway: isOnlinePayment ? "razorpay" : undefined,
+        paymentStatus: isOnlinePayment ? "created" : undefined,
+        inventorySyncStatus: "pending",
         items: input.items,
         status: "pending",
-          shippingName: input.shippingName,
-          shippingAddress: input.shippingAddress,
-          shippingCity: input.shippingCity,
-          shippingState: input.shippingState,
-          shippingPinCode: input.shippingPinCode,
+        fulfillmentStatus: "unfulfilled",
+        shippingName: input.shippingName,
+        shippingAddress: input.shippingAddress,
+        shippingCity: input.shippingCity,
+        shippingState: input.shippingState,
+        shippingPinCode: input.shippingPinCode,
+        events: initialEvents,
         updatedAt: now,
       },
       $setOnInsert: {
@@ -662,7 +766,242 @@ export async function createPendingOrderForSessionToken(
   );
 
   const document = await orders.findOne({ orderId: input.orderId });
+
+  if (document) {
+    await recordInventoryMovementByOrderId({
+      orderId: input.orderId,
+      userId: session.userId,
+      type: "reserved",
+      items: input.items,
+      note: "Inventory reserved at checkout",
+    });
+  }
+
   return document ? mapOrder(document) : null;
+}
+
+export async function appendOrderEventByOrderId(input: { orderId: string; type: AccountOrderEvent["type"]; note?: string }) {
+  const { orders } = await getCollections();
+  const now = new Date();
+
+  await orders.updateOne(
+    { orderId: input.orderId },
+    {
+      $push: {
+        events: {
+          type: input.type,
+          at: now,
+          ...(input.note ? { note: input.note } : {}),
+        },
+      },
+      $set: { updatedAt: now },
+    },
+  );
+
+  const updated = await orders.findOne({ orderId: input.orderId });
+  return updated ? mapOrder(updated) : null;
+}
+
+export async function updateInventorySyncStatusByOrderId(
+  orderId: string,
+  input: {
+    status: NonNullable<AccountOrderDocument["inventorySyncStatus"]>;
+    error?: string;
+    attempts?: AccountInventorySyncAttempt[];
+  },
+) {
+  const { orders } = await getCollections();
+  const now = new Date();
+
+  await orders.updateOne(
+    { orderId },
+    {
+      $set: {
+        inventorySyncStatus: input.status,
+        inventorySyncError: input.error,
+        inventorySyncAttempts: input.attempts,
+        updatedAt: now,
+      },
+    },
+  );
+
+  const updated = await orders.findOne({ orderId });
+  return updated ? mapOrder(updated) : null;
+}
+
+export async function recordInventoryMovementByOrderId(input: {
+  orderId: string;
+  userId: ObjectId;
+  type: "reserved" | "committed" | "released" | "refunded";
+  items: AccountOrderItem[];
+  note?: string;
+}) {
+  const { inventoryMovements } = await getCollections();
+  const now = new Date();
+
+  await inventoryMovements.updateOne(
+    { orderId: input.orderId, type: input.type },
+    {
+      $set: {
+        orderId: input.orderId,
+        userId: input.userId,
+        type: input.type,
+        items: input.items,
+        note: input.note,
+        createdAt: now,
+      },
+    },
+    { upsert: true },
+  );
+}
+
+async function updateOrderByOrderId(
+  orderId: string,
+  updates: Partial<Omit<AccountOrderDocument, "orderId" | "userId" | "createdAt">>,
+) {
+  const { orders } = await getCollections();
+  const now = new Date();
+
+  await orders.updateOne(
+    { orderId },
+    {
+      $set: {
+        ...updates,
+        updatedAt: now,
+      },
+      $setOnInsert: {
+        createdAt: now,
+      },
+    },
+  );
+
+  const updated = await orders.findOne({ orderId });
+  return updated ? mapOrder(updated) : null;
+}
+
+export async function markOrderPaidByOrderId(input: {
+  orderId: string;
+  paymentId: string;
+  paymentStatus?: "authorized" | "captured";
+}) {
+  const { orders } = await getCollections();
+  const orderDocument = await orders.findOne({ orderId: input.orderId });
+  const order = await updateOrderByOrderId(input.orderId, {
+    status: "paid",
+    paymentId: input.paymentId,
+    paymentGateway: "razorpay",
+    paymentStatus: input.paymentStatus ?? "captured",
+    fulfillmentStatus: "processing",
+  });
+
+  if (orderDocument) {
+    await recordInventoryMovementByOrderId({
+      orderId: input.orderId,
+      userId: orderDocument.userId,
+      type: "committed",
+      items: orderDocument.items,
+      note: "Payment captured and inventory committed",
+    });
+  }
+
+  await appendOrderEventByOrderId({
+    orderId: input.orderId,
+    type: input.paymentStatus === "authorized" ? "paid" : "committed",
+    note: input.paymentStatus === "authorized" ? "Payment authorized" : "Payment captured and inventory committed",
+  });
+
+  return order;
+}
+
+export async function markOrderFailedByOrderId(input: { orderId: string; paymentId?: string }) {
+  const { orders } = await getCollections();
+  const orderDocument = await orders.findOne({ orderId: input.orderId });
+  const order = await updateOrderByOrderId(input.orderId, {
+    status: "failed",
+    paymentId: input.paymentId,
+    paymentGateway: "razorpay",
+    paymentStatus: "failed",
+    fulfillmentStatus: "cancelled",
+  });
+
+  if (orderDocument) {
+    await recordInventoryMovementByOrderId({
+      orderId: input.orderId,
+      userId: orderDocument.userId,
+      type: "released",
+      items: orderDocument.items,
+      note: "Payment failed and inventory released",
+    });
+  }
+
+  await appendOrderEventByOrderId({
+    orderId: input.orderId,
+    type: "released",
+    note: "Payment failed and inventory released",
+  });
+
+  return order;
+}
+
+export async function markOrderRefundedByOrderId(input: {
+  orderId: string;
+  paymentId?: string;
+  refundId: string;
+  refundAmount?: number;
+}) {
+  const { orders } = await getCollections();
+  const orderDocument = await orders.findOne({ orderId: input.orderId });
+  const order = await updateOrderByOrderId(input.orderId, {
+    status: "cancelled",
+    paymentId: input.paymentId,
+    paymentGateway: "razorpay",
+    paymentStatus: "refunded",
+    refundId: input.refundId,
+    refundAmount: input.refundAmount,
+    refundedAt: new Date(),
+    fulfillmentStatus: "cancelled",
+  });
+
+  if (orderDocument) {
+    await recordInventoryMovementByOrderId({
+      orderId: input.orderId,
+      userId: orderDocument.userId,
+      type: "refunded",
+      items: orderDocument.items,
+      note: "Refund processed and inventory released",
+    });
+  }
+
+  await appendOrderEventByOrderId({
+    orderId: input.orderId,
+    type: "refunded",
+    note: "Refund processed and inventory released",
+  });
+
+  return order;
+}
+
+export async function attachShopifySyncResultToOrder(input: {
+  orderId: string;
+  shopifyOrderId?: string;
+  shopifySyncStatus: "synced" | "failed" | "skipped";
+  shopifySyncError?: string;
+}) {
+  const order = await updateOrderByOrderId(input.orderId, {
+    shopifyOrderId: input.shopifyOrderId,
+    shopifySyncStatus: input.shopifySyncStatus,
+    shopifySyncError: input.shopifySyncError,
+  });
+
+  if (input.shopifySyncStatus === "synced") {
+    await appendOrderEventByOrderId({
+      orderId: input.orderId,
+      type: "synced",
+      note: "Order synced to Shopify Admin",
+    });
+  }
+
+  return order;
 }
 
 export async function markOrderPaidForSessionToken(token: string, input: { orderId: string; paymentId: string }) {
@@ -673,16 +1012,37 @@ export async function markOrderPaidForSessionToken(token: string, input: { order
     return null;
   }
 
+  const existingOrder = await orders.findOne({ orderId: input.orderId, userId: session.userId });
+
   await orders.updateOne(
     { orderId: input.orderId, userId: session.userId },
     {
       $set: {
         status: "paid",
         paymentId: input.paymentId,
+        paymentGateway: "razorpay",
+        paymentStatus: "captured",
+        fulfillmentStatus: "processing",
         updatedAt: new Date(),
       },
     },
   );
+
+  if (existingOrder) {
+    await recordInventoryMovementByOrderId({
+      orderId: input.orderId,
+      userId: session.userId,
+      type: "committed",
+      items: existingOrder.items,
+      note: "Payment captured and inventory committed",
+    });
+  }
+
+  await appendOrderEventByOrderId({
+    orderId: input.orderId,
+    type: "committed",
+    note: "Payment captured and inventory committed",
+  });
 
   const updatedOrder = await orders.findOne({ orderId: input.orderId, userId: session.userId });
   return updatedOrder ? mapOrder(updatedOrder) : null;
@@ -731,6 +1091,22 @@ export async function cancelOrderForSessionToken(token: string, input: { orderId
     },
   );
 
+  if (existingOrder) {
+    await recordInventoryMovementByOrderId({
+      orderId: input.orderId,
+      userId: session.userId,
+      type: "released",
+      items: existingOrder.items,
+      note: "Order cancelled and inventory released",
+    });
+  }
+
+  await appendOrderEventByOrderId({
+    orderId: input.orderId,
+    type: "released",
+    note: "Order cancelled and inventory released",
+  });
+
   const updatedOrder = await orders.findOne({ orderId: input.orderId, userId: session.userId });
   return { order: updatedOrder ? mapOrder(updatedOrder) : null, reason: null as null };
 }
@@ -752,4 +1128,139 @@ export async function findOrderForTracking(input: { orderId: string; email: stri
 
   const order = await orders.findOne({ orderId, userId: user._id });
   return order ? mapOrder(order) : null;
+}
+
+export async function findOrderWithCustomerByOrderId(orderId: string): Promise<AccountOrderWithCustomer | null> {
+  const { users, orders } = await getCollections();
+  const normalizedOrderId = orderId.trim();
+
+  if (!normalizedOrderId) {
+    return null;
+  }
+
+  const orderDocument = await orders.findOne({ orderId: normalizedOrderId });
+
+  if (!orderDocument) {
+    return null;
+  }
+
+  const customer = await users.findOne({ _id: orderDocument.userId });
+
+  return {
+    order: mapOrder(orderDocument),
+    customer: customer
+      ? {
+          email: customer.email,
+          fullName: customer.fullName,
+        }
+      : null,
+  };
+}
+
+export async function findOrderWithCustomerByPaymentId(paymentId: string): Promise<AccountOrderWithCustomer | null> {
+  const { users, orders } = await getCollections();
+  const normalizedPaymentId = paymentId.trim();
+
+  if (!normalizedPaymentId) {
+    return null;
+  }
+
+  const orderDocument = await orders.findOne({ paymentId: normalizedPaymentId });
+
+  if (!orderDocument) {
+    return null;
+  }
+
+  const customer = await users.findOne({ _id: orderDocument.userId });
+
+  return {
+    order: mapOrder(orderDocument),
+    customer: customer
+      ? {
+          email: customer.email,
+          fullName: customer.fullName,
+        }
+      : null,
+  };
+}
+
+export async function listOrdersForAdmin(limit = 100) {
+  const { users, orders } = await getCollections();
+  const documents = await orders.find({}, { sort: { createdAt: -1 }, limit: Math.min(Math.max(1, limit), 500) }).toArray();
+
+  const userIds = Array.from(new Set(documents.map((document) => document.userId.toHexString()))).map(
+    (id) => new ObjectId(id),
+  );
+  const usersById = new Map(
+    (await users.find({ _id: { $in: userIds } }).toArray()).map((user) => [user._id.toHexString(), user]),
+  );
+
+  return documents.map((document) => {
+    const mapped = mapOrder(document);
+    const customer = usersById.get(document.userId.toHexString());
+
+    return {
+      ...mapped,
+      customer: customer
+        ? {
+            email: customer.email,
+            fullName: customer.fullName,
+          }
+        : null,
+    };
+  });
+}
+
+export async function updateOrderForAdmin(
+  orderId: string,
+  updates: Partial<{
+    status: AccountOrderDocument["status"];
+    paymentStatus: AccountOrderDocument["paymentStatus"];
+    paymentId: string;
+    refundId: string;
+    refundAmount: number;
+    shopifyOrderId: string;
+    shopifySyncStatus: NonNullable<AccountOrderDocument["shopifySyncStatus"]>;
+    shopifySyncError: string;
+    fulfillmentStatus: NonNullable<AccountOrderDocument["fulfillmentStatus"]>;
+    shippingCarrier: string;
+    trackingNumber: string;
+    trackingUrl: string;
+    shippedAt: string | null;
+    deliveredAt: string | null;
+    cancelReason: string;
+  }>,
+) {
+  const { orders } = await getCollections();
+  const now = new Date();
+  const $set: Record<string, unknown> = { updatedAt: now };
+  const $unset: Record<string, ""> = {};
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (value === undefined) {
+      continue;
+    }
+
+    if (key === "shippedAt" || key === "deliveredAt") {
+      if (value === null || value === "") {
+        $unset[key] = "";
+      } else {
+        const parsed = new Date(String(value));
+        if (!Number.isNaN(parsed.getTime())) {
+          $set[key] = parsed;
+        }
+      }
+      continue;
+    }
+
+    $set[key] = value;
+  }
+
+  if (updates.status === "cancelled" && !$set.cancelledAt) {
+    $set.cancelledAt = now;
+  }
+
+  await orders.updateOne({ orderId }, { $set, ...(Object.keys($unset).length > 0 ? { $unset } : {}) });
+  const updated = await orders.findOne({ orderId });
+  return updated ? mapOrder(updated) : null;
 }

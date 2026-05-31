@@ -16,6 +16,8 @@ import FeedbackPill from "@/components/FeedbackPill";
 import { fallbackProducts } from "@/lib/catalog";
 import { getStorefrontProducts } from "@/lib/shopify";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const storefrontProducts = await getStorefrontProducts(10);
   const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;

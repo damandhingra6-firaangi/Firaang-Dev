@@ -5,6 +5,7 @@ import { calculateCheckoutPricing, computeCouponDiscount } from "@/lib/checkout-
 import { getRazorpayClient } from "@/lib/razorpay";
 import { resolveCheckoutItems } from "@/lib/products";
 import { getActiveCouponByCode } from "@/lib/coupon-store";
+import { syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
 
 type CreateOrderRequest = {
   items?: Array<{
@@ -155,6 +156,12 @@ export async function POST(request: Request) {
           lineTotal: item.product.priceAmount * item.quantity,
         })),
       });
+
+      if (persistedOrder) {
+        await syncShopifyInventoryForOrder(persistedOrder.id, "reserve").catch((error) => {
+          console.error("Shopify inventory reserve sync failed", error);
+        });
+      }
     }
 
     return NextResponse.json({
