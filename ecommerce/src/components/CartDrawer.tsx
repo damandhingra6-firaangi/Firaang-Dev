@@ -187,16 +187,23 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       });
 
       const orderData = (await orderResponse.json().catch(() => ({}))) as {
-        orderId?: string; amount?: number; currency?: string; error?: string;
+        orderId?: string; amount?: number; currency?: string; keyId?: string; error?: string;
       };
+
+      const effectiveRazorpayKey = orderData.keyId ?? razorpayKey;
 
       if (!orderResponse.ok || !orderData.orderId || !orderData.amount || !orderData.currency) {
         pushToast(orderData.error ?? "Unable to create order", { variant: "error" });
         return;
       }
 
+      if (!effectiveRazorpayKey) {
+        pushToast("Checkout key is missing on server", { variant: "error" });
+        return;
+      }
+
       const razorpay = new window.Razorpay({
-        key: razorpayKey,
+        key: effectiveRazorpayKey,
         amount: orderData.amount,
         currency: orderData.currency,
         name: "Firaangi",
