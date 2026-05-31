@@ -1,6 +1,7 @@
 {
   "version": 1,
   "functions": {
+    "/api/admin/orders": {},
     "/api/auth/mobile/request-otp": {},
     "/api/auth/mobile/verify-otp": {},
     "/api/coupons": {},
@@ -9,6 +10,7 @@
     "/api/feedback": {},
     "/api/feedback/health": {},
     "/api/health/otp-readiness": {},
-    "/api/newsletter": {}
+    "/api/newsletter": {},
+    "/api/webhooks/razorpay": {}
   }
 }

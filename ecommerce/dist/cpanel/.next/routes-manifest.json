@@ -92,6 +92,12 @@
       "namedRegex": "^/admin/newsletter(?:/)?$"
     },
     {
+      "page": "/admin/orders",
+      "regex": "^/admin/orders(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/orders(?:/)?$"
+    },
+    {
       "page": "/api/account/orders/cancel",
       "regex": "^/api/account/orders/cancel(?:/)?$",
       "routeKeys": {},
@@ -108,6 +114,12 @@
       "regex": "^/api/account/session(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/account/session(?:/)?$"
+    },
+    {
+      "page": "/api/admin/orders",
+      "regex": "^/api/admin/orders(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/admin/orders(?:/)?$"
     },
     {
       "page": "/api/auth/google",
@@ -210,6 +222,12 @@
       "regex": "^/api/products/sub\\-categories(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/products/sub\\-categories(?:/)?$"
+    },
+    {
+      "page": "/api/webhooks/razorpay",
+      "regex": "^/api/webhooks/razorpay(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/webhooks/razorpay(?:/)?$"
     },
     {
       "page": "/checkout",
