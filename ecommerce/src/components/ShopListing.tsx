@@ -179,6 +179,7 @@ export default function ShopListing({
     const normalized = query.trim().toLowerCase();
     const normalizedCategory = selectedCategory.trim().toLowerCase();
     const normalizedSubCategory = selectedSubCategory.trim().toLowerCase();
+    const normalizedSubCategorySlug = slugify(selectedSubCategory);
     const normalizedAudience = selectedAudience.trim().toLowerCase();
 
     return products.filter((product) => {
@@ -190,7 +191,11 @@ export default function ShopListing({
       const subCategoryMatch =
         !normalizedSubCategory ||
         product.subCategorySlug?.toLowerCase() === normalizedSubCategory ||
-        product.subCategory?.toLowerCase() === normalizedSubCategory;
+        product.subCategory?.toLowerCase() === normalizedSubCategory ||
+        (product.tags ?? []).some((tag) => {
+          const normalizedTag = tag.trim().toLowerCase();
+          return normalizedTag === normalizedSubCategory || slugify(tag) === normalizedSubCategorySlug;
+        });
 
       const searchMatch =
         !normalized ||

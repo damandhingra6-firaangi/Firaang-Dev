@@ -7,8 +7,8 @@ const ribbonItems = [
     iconSrc: "/FreeReturn.svg",
   },
   {
-    title: "Free Shipping",
-    subtitle: "Free Shipping On All Order",
+    title: "Fast Delivery",
+    subtitle: "Quick Delivery Across India",
     iconSrc: "/FreeShipping.svg",
   },
   {

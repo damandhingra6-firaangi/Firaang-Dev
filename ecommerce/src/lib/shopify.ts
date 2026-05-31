@@ -1,4 +1,4 @@
-import { GridProduct, ProductSizeChart } from "@/lib/catalog";
+import { GridProduct, ProductMedia, ProductSizeChart } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { deriveProductTaxonomy } from "@/lib/product-taxonomy";
 
@@ -25,6 +25,23 @@ type ShopifyProductsResponse = {
             nodes?: Array<{
               url: string;
               altText: string | null;
+            }>;
+          };
+          media?: {
+            nodes?: Array<{
+              __typename: string;
+              image?: {
+                url: string;
+                altText: string | null;
+              } | null;
+              previewImage?: {
+                url: string;
+                altText: string | null;
+              } | null;
+              sources?: Array<{
+                url: string;
+                mimeType: string;
+              }>;
             }>;
           };
           priceRange: {
@@ -90,6 +107,27 @@ const productsQuery = `#graphql
             nodes {
               url
               altText
+            }
+          }
+          media(first: 20) {
+            nodes {
+              __typename
+              ... on MediaImage {
+                image {
+                  url
+                  altText
+                }
+              }
+              ... on Video {
+                previewImage {
+                  url
+                  altText
+                }
+                sources {
+                  url
+                  mimeType
+                }
+              }
             }
           }
           priceRange {
@@ -495,10 +533,40 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
 
     return productEdges.map(({ node }) => {
       const imageUrl = node.featuredImage?.url ?? "/cat1.jpg";
+      const productMedia = (node.media?.nodes ?? []).reduce<ProductMedia[]>((acc, mediaNode) => {
+        if (mediaNode.__typename === "Video") {
+          const sources = mediaNode.sources ?? [];
+          const selectedSource =
+            sources.find((source) => source.mimeType.toLowerCase().includes("mp4")) ??
+            sources[0];
+
+          if (selectedSource?.url) {
+            acc.push({
+              type: "video",
+              src: selectedSource.url,
+              thumbnail: mediaNode.previewImage?.url ?? undefined,
+              alt: mediaNode.previewImage?.altText ?? node.title,
+            });
+          }
+
+          return acc;
+        }
+
+        if (mediaNode.__typename === "MediaImage" && mediaNode.image?.url) {
+          acc.push({
+            type: "image",
+            src: mediaNode.image.url,
+            alt: mediaNode.image.altText ?? node.title,
+          });
+        }
+
+        return acc;
+      }, []);
       const allProductImages = Array.from(
         new Set(
           [
             imageUrl,
+            ...productMedia.filter((media) => media.type === "image").map((media) => media.src),
             ...(node.images?.nodes ?? []).map((image) => image.url),
             ...((node.variants?.edges ?? []).map(({ node: variantNode }) => variantNode.image?.url).filter(Boolean) as string[]),
           ].filter(Boolean)
@@ -526,6 +594,7 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
       return {
         id: node.id,
         handle: node.handle,
+        tags: node.tags,
         category: taxonomy.category,
         categorySlug: taxonomy.categorySlug,
         subCategory: taxonomy.subCategory,
@@ -539,6 +608,7 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
         oldPrice: formatCurrency(resolvedCompareAtAmount, "INR"),
         img: imageUrl,
         galleryImages: allProductImages,
+        productMedia,
         description:
           node.description?.trim() ||
           "Discover premium craftsmanship and modern elegance in this signature piece.",

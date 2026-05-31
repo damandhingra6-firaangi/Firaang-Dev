@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Minus, Plus, ShoppingBag, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Minus, Play, Plus, ShoppingBag, Sparkles, X } from "lucide-react";
 import { getConfiguredSizeChart } from "@/lib/size-charts";
 import SafeImage from "@/components/SafeImage";
 import { useUiStore } from "@/store/useUiStore";
@@ -16,6 +16,15 @@ type ProductDetailsModalProps = {
   onToggleWishlist: (product: GridProduct) => void;
   onAddToCart: (product: GridProduct) => void;
   onBuyNow: (product: GridProduct) => void;
+};
+
+type PreviewMediaItem = {
+  id: string;
+  type: "image" | "video";
+  src: string;
+  thumbnail?: string;
+  label: string;
+  variantId: string | null;
 };
 
 function isColorOption(optionName: string) {
@@ -169,7 +178,7 @@ export default function ProductDetailsModal({
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
   const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
@@ -301,7 +310,7 @@ export default function ProductDetailsModal({
     setSelectedOptions(
       Object.fromEntries((initialVariant?.options ?? []).map((option) => [option.name, option.value]))
     );
-    setSelectedImage(null);
+    setSelectedPreviewId(null);
     setIsSizeGuideOpen(false);
     setZoomLevel(1);
     setZoomOrigin("50% 50%");
@@ -317,7 +326,7 @@ export default function ProductDetailsModal({
     null;
 
   useEffect(() => {
-    setSelectedImage(null);
+    setSelectedPreviewId(null);
     setZoomLevel(1);
     setZoomOrigin("50% 50%");
     pinchStartRef.current = null;
@@ -353,19 +362,38 @@ export default function ProductDetailsModal({
     } satisfies GridProduct;
   }, [activeVariant, product]);
 
-  const previewImages = useMemo(() => {
+  const previewMedia = useMemo(() => {
     if (!product) {
       return [];
     }
 
     const source = variants.length > 0 ? variants : [];
-    const uniqueImages = new Map<string, { id: string; img: string; label: string; variantId: string | null }>();
+    const uniqueMedia = new Map<string, PreviewMediaItem>();
+
+    const productMedia = product.productMedia ?? [];
+    for (const media of productMedia) {
+      const key = `${media.type}:${media.src}`;
+
+      if (!uniqueMedia.has(key)) {
+        uniqueMedia.set(key, {
+          id: `media-${media.type}-${media.src}`,
+          type: media.type,
+          src: media.src,
+          thumbnail: media.thumbnail,
+          label: media.alt ?? product.name,
+          variantId: null,
+        });
+      }
+    }
 
     for (const variant of source) {
-      if (!uniqueImages.has(variant.img)) {
-        uniqueImages.set(variant.img, {
+      const key = `image:${variant.img}`;
+
+      if (!uniqueMedia.has(key)) {
+        uniqueMedia.set(key, {
           id: `variant-${variant.id}`,
-          img: variant.img,
+          type: "image",
+          src: variant.img,
           label: variant.name,
           variantId: variant.id,
         });
@@ -374,38 +402,54 @@ export default function ProductDetailsModal({
 
     const galleryImages = product.galleryImages ?? [];
     for (const image of galleryImages) {
-      if (!uniqueImages.has(image)) {
-        uniqueImages.set(image, {
+      const key = `image:${image}`;
+
+      if (!uniqueMedia.has(key)) {
+        uniqueMedia.set(key, {
           id: `gallery-${image}`,
-          img: image,
+          type: "image",
+          src: image,
           label: product.name,
           variantId: null,
         });
       }
     }
 
-    if (!uniqueImages.has(product.img)) {
-      uniqueImages.set(product.img, {
+    const defaultKey = `image:${product.img}`;
+    if (!uniqueMedia.has(defaultKey)) {
+      uniqueMedia.set(defaultKey, {
         id: `product-${product.id}`,
-        img: product.img,
+        type: "image",
+        src: product.img,
         label: product.name,
         variantId: null,
       });
     }
 
-    return Array.from(uniqueImages.values()).slice(0, 6);
+    return Array.from(uniqueMedia.values());
   }, [product, variants]);
 
-  const activeImage = selectedImage ?? resolvedProduct?.img ?? product?.img ?? "";
+  const activePreview =
+    (selectedPreviewId
+      ? previewMedia.find((preview) => preview.id === selectedPreviewId)
+      : undefined) ??
+    previewMedia.find((preview) => preview.variantId === activeVariant?.id) ??
+    previewMedia[0] ??
+    null;
 
-  const activeImageIndex = previewImages.findIndex((preview) => preview.img === activeImage);
+  const activeImage = activePreview?.src ?? resolvedProduct?.img ?? product?.img ?? "";
+  const activeMediaType = activePreview?.type ?? "image";
+  const activeImageThumbnail = activePreview?.thumbnail;
+  const activeImageIndex = activePreview
+    ? previewMedia.findIndex((preview) => preview.id === activePreview.id)
+    : -1;
 
-  const updateActivePreview = (preview: { img: string; variantId: string | null }) => {
+  const updateActivePreview = (preview: PreviewMediaItem) => {
     if (preview.variantId) {
       setSelectedVariantId(preview.variantId);
-      setSelectedImage(null);
+      setSelectedPreviewId(preview.id);
     } else {
-      setSelectedImage(preview.img);
+      setSelectedPreviewId(preview.id);
     }
 
     setZoomLevel(1);
@@ -423,13 +467,13 @@ export default function ProductDetailsModal({
   };
 
   const navigatePreviewImage = (direction: 1 | -1) => {
-    if (previewImages.length <= 1) {
+    if (previewMedia.length <= 1) {
       return;
     }
 
     const baseIndex = activeImageIndex >= 0 ? activeImageIndex : 0;
-    const nextIndex = (baseIndex + direction + previewImages.length) % previewImages.length;
-    const nextPreview = previewImages[nextIndex];
+    const nextIndex = (baseIndex + direction + previewMedia.length) % previewMedia.length;
+    const nextPreview = previewMedia[nextIndex];
 
     if (nextPreview) {
       updateActivePreview(nextPreview);
@@ -530,37 +574,39 @@ export default function ProductDetailsModal({
           <div className="grid gap-6 p-5 md:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] md:items-start md:gap-8 md:p-7">
             <div className="space-y-3 md:sticky md:top-0">
               <div className="group relative overflow-hidden rounded-[1.75rem] border border-[var(--gold)]/25 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.18),_transparent_55%),linear-gradient(180deg,rgba(255,255,255,0.08),rgba(0,0,0,0.08))]">
-              <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-full border border-[var(--gold)]/40 bg-black/35 px-1.5 py-1 backdrop-blur-sm">
-                <button
-                  type="button"
-                  aria-label="Zoom out"
-                  disabled={!canZoomOut}
-                  className="rounded-full p-1 text-[var(--gold)] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-                  onClick={() => updateZoom(zoomLevel - 0.3)}
-                >
-                  <Minus className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Reset zoom"
-                  disabled={zoomLevel === 1}
-                  className="min-w-12 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-[var(--popup-footer-text)] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-                  onClick={() => updateZoom(1)}
-                >
-                  {Math.round(zoomLevel * 100)}%
-                </button>
-                <button
-                  type="button"
-                  aria-label="Zoom in"
-                  disabled={!canZoomIn}
-                  className="rounded-full p-1 text-[var(--gold)] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-                  onClick={() => updateZoom(zoomLevel + 0.3)}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-              </div>
+                {activeMediaType === "image" ? (
+                  <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-full border border-[var(--gold)]/40 bg-black/35 px-1.5 py-1 backdrop-blur-sm">
+                    <button
+                      type="button"
+                      aria-label="Zoom out"
+                      disabled={!canZoomOut}
+                      className="rounded-full p-1 text-[var(--gold)] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                      onClick={() => updateZoom(zoomLevel - 0.3)}
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Reset zoom"
+                      disabled={zoomLevel === 1}
+                      className="min-w-12 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-[var(--popup-footer-text)] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => updateZoom(1)}
+                    >
+                      {Math.round(zoomLevel * 100)}%
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Zoom in"
+                      disabled={!canZoomIn}
+                      className="rounded-full p-1 text-[var(--gold)] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                      onClick={() => updateZoom(zoomLevel + 0.3)}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : null}
 
-              {previewImages.length > 1 ? (
+              {previewMedia.length > 1 ? (
                 <>
                   <button
                     type="button"
@@ -579,192 +625,203 @@ export default function ProductDetailsModal({
                     <ChevronRight className="h-5 w-5" />
                   </button>
                   <div className="pointer-events-none absolute bottom-3 right-3 z-10 rounded-full border border-[var(--gold)]/30 bg-black/45 px-3 py-1 text-[10px] font-medium tracking-[0.08em] text-[var(--popup-footer-text)] backdrop-blur-sm sm:text-[11px]">
-                    {activeImageIndex + 1} / {previewImages.length}
+                    {activeImageIndex + 1} / {previewMedia.length}
                   </div>
                 </>
               ) : null}
 
-              <button
-                type="button"
-                aria-label="Toggle image zoom"
-                className={`block w-full touch-none ${zoomLevel > 1 ? (isPanning ? "cursor-grabbing" : "cursor-grab") : "cursor-zoom-in"}`}
-                onClick={() => {
-                  if (didPanRef.current) {
-                    didPanRef.current = false;
-                    return;
-                  }
-
-                  updateZoom(zoomLevel > 1 ? 1 : 1.8);
-                }}
-                onMouseDown={(event) => {
-                  if (zoomLevel === 1) {
-                    return;
-                  }
-
-                  event.preventDefault();
-                  const { x, y } = parseZoomOrigin(zoomOrigin);
-                  didPanRef.current = false;
-                  setIsPanning(true);
-                  panStartRef.current = {
-                    clientX: event.clientX,
-                    clientY: event.clientY,
-                    originX: x,
-                    originY: y,
-                  };
-                }}
-                onMouseMove={(event) => {
-                  if (panStartRef.current && zoomLevel > 1 && event.buttons === 1) {
-                    event.preventDefault();
-
-                    const deltaX = event.clientX - panStartRef.current.clientX;
-                    const deltaY = event.clientY - panStartRef.current.clientY;
-
-                    if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
-                      didPanRef.current = true;
-                    }
-
-                    panZoomOriginFromDelta(
-                      event.currentTarget,
-                      deltaX,
-                      deltaY,
-                      panStartRef.current.originX,
-                      panStartRef.current.originY,
-                    );
-                    return;
-                  }
-
-                  if (zoomLevel === 1) {
-                    return;
-                  }
-
-                  updateZoomOriginFromClientPoint(event.currentTarget, event.clientX, event.clientY);
-                }}
-                onMouseUp={() => {
-                  panStartRef.current = null;
-                  setIsPanning(false);
-                }}
-                onWheel={(event) => {
-                  event.preventDefault();
-
-                  const wheelDirection = Math.sign(event.deltaY);
-                  const zoomStep = wheelDirection > 0 ? -0.14 : 0.14;
-
-                  updateZoomOriginFromClientPoint(event.currentTarget, event.clientX, event.clientY);
-                  updateZoom(zoomLevel + zoomStep);
-                }}
-                onTouchStart={(event) => {
-                  if (event.touches.length === 2) {
-                    const [touchA, touchB] = [event.touches[0], event.touches[1]];
-                    panStartRef.current = null;
-                    setIsPanning(false);
-                    pinchStartRef.current = {
-                      distance: getTouchDistance(touchA, touchB),
-                      zoom: zoomLevel,
-                    };
-                    return;
-                  }
-
-                  if (event.touches.length === 1 && zoomLevel > 1) {
-                    const touch = event.touches[0];
-                    const { x, y } = parseZoomOrigin(zoomOrigin);
-
-                    didPanRef.current = false;
-                    setIsPanning(true);
-                    panStartRef.current = {
-                      clientX: touch.clientX,
-                      clientY: touch.clientY,
-                      originX: x,
-                      originY: y,
-                    };
-                  }
-                }}
-                onTouchMove={(event) => {
-                  if (event.touches.length === 2 && pinchStartRef.current) {
-                    event.preventDefault();
-
-                    const [touchA, touchB] = [event.touches[0], event.touches[1]];
-                    const currentDistance = getTouchDistance(touchA, touchB);
-                    const { distance: initialDistance, zoom: initialZoom } = pinchStartRef.current;
-
-                    if (initialDistance <= 0) {
+              {activeMediaType === "video" ? (
+                <div className="flex min-h-[340px] items-start justify-center px-4 pb-4 pt-14 sm:min-h-[420px] sm:px-6 sm:pb-6 md:min-h-[560px] md:px-8 md:pb-8">
+                  <video
+                    key={activePreview?.id ?? activeImage}
+                    src={activeImage}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    poster={activeImageThumbnail}
+                    className="h-full max-h-[72vh] w-full rounded-xl bg-black object-contain"
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  aria-label="Toggle image zoom"
+                  className={`block w-full touch-none ${zoomLevel > 1 ? (isPanning ? "cursor-grabbing" : "cursor-grab") : "cursor-zoom-in"}`}
+                  onClick={() => {
+                    if (didPanRef.current) {
+                      didPanRef.current = false;
                       return;
                     }
 
-                    const midpointX = (touchA.clientX + touchB.clientX) / 2;
-                    const midpointY = (touchA.clientY + touchB.clientY) / 2;
-
-                    updateZoomOriginFromClientPoint(event.currentTarget, midpointX, midpointY);
-                    updateZoom(initialZoom * (currentDistance / initialDistance));
-                    return;
-                  }
-
-                  if (event.touches.length === 1 && panStartRef.current && zoomLevel > 1) {
-                    event.preventDefault();
-
-                    const touch = event.touches[0];
-                    const deltaX = touch.clientX - panStartRef.current.clientX;
-                    const deltaY = touch.clientY - panStartRef.current.clientY;
-
-                    if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
-                      didPanRef.current = true;
+                    updateZoom(zoomLevel > 1 ? 1 : 1.8);
+                  }}
+                  onMouseDown={(event) => {
+                    if (zoomLevel === 1) {
+                      return;
                     }
 
-                    panZoomOriginFromDelta(
-                      event.currentTarget,
-                      deltaX,
-                      deltaY,
-                      panStartRef.current.originX,
-                      panStartRef.current.originY,
-                    );
-                  }
-                }}
-                onTouchEnd={() => {
-                  pinchStartRef.current = null;
-                  panStartRef.current = null;
-                  setIsPanning(false);
-                }}
-                onTouchCancel={() => {
-                  pinchStartRef.current = null;
-                  panStartRef.current = null;
-                  setIsPanning(false);
-                }}
-                onMouseLeave={() => {
-                  panStartRef.current = null;
-                  setIsPanning(false);
+                    event.preventDefault();
+                    const { x, y } = parseZoomOrigin(zoomOrigin);
+                    didPanRef.current = false;
+                    setIsPanning(true);
+                    panStartRef.current = {
+                      clientX: event.clientX,
+                      clientY: event.clientY,
+                      originX: x,
+                      originY: y,
+                    };
+                  }}
+                  onMouseMove={(event) => {
+                    if (panStartRef.current && zoomLevel > 1 && event.buttons === 1) {
+                      event.preventDefault();
 
-                  if (zoomLevel === 1) {
-                    setZoomOrigin("50% 50%");
-                  }
-                }}
-              >
-                <div className="flex min-h-[340px] items-start justify-center px-4 pb-4 pt-14 sm:min-h-[420px] sm:px-6 sm:pb-6 md:min-h-[560px] md:px-8 md:pb-8">
-                  <SafeImage
-                    src={activeImage}
-                    alt={resolvedProduct?.name ?? product.name}
-                    className="h-full max-h-[72vh] w-full select-none object-contain object-top transition-transform duration-200 ease-out"
-                    style={{
-                      transform: `scale(${zoomLevel})`,
-                      transformOrigin: zoomOrigin,
-                    }}
-                  />
-                </div>
-              </button>
+                      const deltaX = event.clientX - panStartRef.current.clientX;
+                      const deltaY = event.clientY - panStartRef.current.clientY;
 
-              {zoomLevel > 1 ? (
+                      if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+                        didPanRef.current = true;
+                      }
+
+                      panZoomOriginFromDelta(
+                        event.currentTarget,
+                        deltaX,
+                        deltaY,
+                        panStartRef.current.originX,
+                        panStartRef.current.originY,
+                      );
+                      return;
+                    }
+
+                    if (zoomLevel === 1) {
+                      return;
+                    }
+
+                    updateZoomOriginFromClientPoint(event.currentTarget, event.clientX, event.clientY);
+                  }}
+                  onMouseUp={() => {
+                    panStartRef.current = null;
+                    setIsPanning(false);
+                  }}
+                  onWheel={(event) => {
+                    event.preventDefault();
+
+                    const wheelDirection = Math.sign(event.deltaY);
+                    const zoomStep = wheelDirection > 0 ? -0.14 : 0.14;
+
+                    updateZoomOriginFromClientPoint(event.currentTarget, event.clientX, event.clientY);
+                    updateZoom(zoomLevel + zoomStep);
+                  }}
+                  onTouchStart={(event) => {
+                    if (event.touches.length === 2) {
+                      const [touchA, touchB] = [event.touches[0], event.touches[1]];
+                      panStartRef.current = null;
+                      setIsPanning(false);
+                      pinchStartRef.current = {
+                        distance: getTouchDistance(touchA, touchB),
+                        zoom: zoomLevel,
+                      };
+                      return;
+                    }
+
+                    if (event.touches.length === 1 && zoomLevel > 1) {
+                      const touch = event.touches[0];
+                      const { x, y } = parseZoomOrigin(zoomOrigin);
+
+                      didPanRef.current = false;
+                      setIsPanning(true);
+                      panStartRef.current = {
+                        clientX: touch.clientX,
+                        clientY: touch.clientY,
+                        originX: x,
+                        originY: y,
+                      };
+                    }
+                  }}
+                  onTouchMove={(event) => {
+                    if (event.touches.length === 2 && pinchStartRef.current) {
+                      event.preventDefault();
+
+                      const [touchA, touchB] = [event.touches[0], event.touches[1]];
+                      const currentDistance = getTouchDistance(touchA, touchB);
+                      const { distance: initialDistance, zoom: initialZoom } = pinchStartRef.current;
+
+                      if (initialDistance <= 0) {
+                        return;
+                      }
+
+                      const midpointX = (touchA.clientX + touchB.clientX) / 2;
+                      const midpointY = (touchA.clientY + touchB.clientY) / 2;
+
+                      updateZoomOriginFromClientPoint(event.currentTarget, midpointX, midpointY);
+                      updateZoom(initialZoom * (currentDistance / initialDistance));
+                      return;
+                    }
+
+                    if (event.touches.length === 1 && panStartRef.current && zoomLevel > 1) {
+                      event.preventDefault();
+
+                      const touch = event.touches[0];
+                      const deltaX = touch.clientX - panStartRef.current.clientX;
+                      const deltaY = touch.clientY - panStartRef.current.clientY;
+
+                      if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+                        didPanRef.current = true;
+                      }
+
+                      panZoomOriginFromDelta(
+                        event.currentTarget,
+                        deltaX,
+                        deltaY,
+                        panStartRef.current.originX,
+                        panStartRef.current.originY,
+                      );
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    pinchStartRef.current = null;
+                    panStartRef.current = null;
+                    setIsPanning(false);
+                  }}
+                  onTouchCancel={() => {
+                    pinchStartRef.current = null;
+                    panStartRef.current = null;
+                    setIsPanning(false);
+                  }}
+                  onMouseLeave={() => {
+                    panStartRef.current = null;
+                    setIsPanning(false);
+
+                    if (zoomLevel === 1) {
+                      setZoomOrigin("50% 50%");
+                    }
+                  }}
+                >
+                  <div className="flex min-h-[340px] items-start justify-center px-4 pb-4 pt-14 sm:min-h-[420px] sm:px-6 sm:pb-6 md:min-h-[560px] md:px-8 md:pb-8">
+                    <SafeImage
+                      src={activeImage}
+                      alt={resolvedProduct?.name ?? product.name}
+                      className="h-full max-h-[72vh] w-full select-none object-contain object-top transition-transform duration-200 ease-out"
+                      style={{
+                        transform: `scale(${zoomLevel})`,
+                        transformOrigin: zoomOrigin,
+                      }}
+                    />
+                  </div>
+                </button>
+              )}
+
+              {activeMediaType === "image" && zoomLevel > 1 ? (
                 <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-full border border-[var(--gold)]/35 bg-black/45 px-3 py-1 text-[10px] font-medium tracking-[0.06em] text-[var(--popup-footer-text)] backdrop-blur-sm sm:text-[11px]">
                   Drag to pan • Pinch or wheel to zoom
                 </div>
               ) : null}
             </div>
 
-            {previewImages.length > 1 ? (
+            {previewMedia.length > 1 ? (
               <div className="grid grid-cols-5 gap-2 sm:grid-cols-6">
-                {previewImages.map((preview) => {
-                  const isActive = selectedImage
-                    ? selectedImage === preview.img
-                    : preview.variantId
-                      ? activeVariant?.id === preview.variantId
-                      : activeImage === preview.img;
+                {previewMedia.map((preview) => {
+                  const isActive = preview.id === activePreview?.id;
+                  const previewThumb = preview.type === "video" ? (preview.thumbnail ?? product.img) : preview.src;
 
                   return (
                     <button
@@ -778,7 +835,16 @@ export default function ProductDetailsModal({
                       }`}
                       aria-label={`Preview ${preview.label}`}
                     >
-                      <SafeImage src={preview.img} alt={preview.label} className="h-16 w-full object-contain object-top p-1 sm:h-20" />
+                      <div className="relative">
+                        <SafeImage src={previewThumb} alt={preview.label} className="h-16 w-full object-contain object-top p-1 sm:h-20" />
+                        {preview.type === "video" ? (
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <span className="rounded-full bg-black/60 p-1.5 text-white">
+                              <Play className="h-3.5 w-3.5 fill-white" />
+                            </span>
+                          </span>
+                        ) : null}
+                      </div>
                     </button>
                   );
                 })}

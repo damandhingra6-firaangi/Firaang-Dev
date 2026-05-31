@@ -14,6 +14,13 @@ export type ProductSizeChart = {
   note?: string;
 };
 
+export type ProductMedia = {
+  type: "image" | "video";
+  src: string;
+  thumbnail?: string;
+  alt?: string;
+};
+
 export type ProductVariant = {
   id: string;
   name: string;
@@ -30,6 +37,7 @@ export type GridProduct = {
   id: string;
   parentId?: string;
   handle?: string;
+  tags?: string[];
   category?: string;
   categorySlug?: string;
   subCategory?: string;
@@ -43,6 +51,7 @@ export type GridProduct = {
   oldPrice: string;
   img: string;
   galleryImages?: string[];
+  productMedia?: ProductMedia[];
   description: string;
   optionGroups?: ProductOptionGroup[];
   sizeChart?: ProductSizeChart;

@@ -20,6 +20,27 @@ type SubCategoryRule = {
   match: RegExp[];
 };
 
+const CANONICAL_TSHIRT_SUBCATEGORIES = [
+  "Devotional",
+  "Mandala Magic",
+  "Animal",
+  "Games & Sports",
+  "Anime Art",
+  "Dark Art",
+  "Abstract Art",
+  "Motivation",
+  "Yoga & Wellness",
+  "Gothic",
+  "Gen Z T-Shirts",
+  "Oversized T-Shirts",
+  "Graphic T-Shirts",
+  "Minimal T-Shirts",
+] as const;
+
+const TSHIRT_SUBCATEGORY_ORDER = new Map(
+  CANONICAL_TSHIRT_SUBCATEGORIES.map((name, index) => [name.toLowerCase(), index])
+);
+
 type CategoryTagOverride = {
   category: string;
   subCategoryFallback: string;
@@ -100,7 +121,22 @@ const CATEGORY_RULES: CategoryRule[] = [
 const SUB_CATEGORY_RULES_BY_CATEGORY: Record<string, SubCategoryRule[]> = {
   "T-Shirts": [
     { name: "Mandala Magic", match: [/mandala/i, /mandala\s*magic/i, /mandalamagic/i] },
-    { name: "Devotional", match: [/shiv/i, /shiva/i, /mahadev/i, /hanuman/i, /krishna/i, /ram/i, /om/i, /devotional/i, /spiritual/i, /bhakti/i, /ganesh/i] },
+    {
+      name: "Devotional",
+      match: [
+        /\bshiv\b/i,
+        /\bshiva\b/i,
+        /\bmahadev\b/i,
+        /\bhanuman\b/i,
+        /\bkrishna\b/i,
+        /\bram\b/i,
+        /\bom\b/i,
+        /\bdevotional\b/i,
+        /\bspiritual\b/i,
+        /\bbhakti\b/i,
+        /\bganesh\b/i,
+      ],
+    },
     { name: "Animal", match: [/animal/i, /cat/i, /dog/i, /tiger/i, /lion/i, /wolf/i, /eagle/i, /panther/i, /bear/i] },
     { name: "Games & Sports", match: [/game/i, /gaming/i, /esports/i, /football/i, /cricket/i, /tennis/i, /basketball/i, /sport/i] },
     { name: "Anime Art", match: [/anime/i, /manga/i, /otaku/i] },
@@ -145,9 +181,18 @@ export function deriveProductTaxonomy(input: {
       match: [],
     };
 
-  const subCategoryRule = (SUB_CATEGORY_RULES_BY_CATEGORY[categoryRule.category] ?? []).find((rule) =>
-    rule.match.some((pattern) => pattern.test(haystack))
+  // First, try to find a matching sub-category from explicit tags
+  const subCategoryRulesForCategory = SUB_CATEGORY_RULES_BY_CATEGORY[categoryRule.category] ?? [];
+  let subCategoryRule = subCategoryRulesForCategory.find((rule) =>
+    tags.some((tag) => rule.match.some((pattern) => pattern.test(tag)))
   );
+
+  // If no tag match, fall back to matching against the full haystack
+  if (!subCategoryRule) {
+    subCategoryRule = subCategoryRulesForCategory.find((rule) =>
+      rule.match.some((pattern) => pattern.test(haystack))
+    );
+  }
 
   const subCategory = subCategoryRule?.name ?? categoryRule.subCategoryFallback;
   const audience = deriveAudience(input);
@@ -202,6 +247,7 @@ export function applyProductFilters(
 ) {
   const normalizedCategory = (filters.category ?? "").trim().toLowerCase();
   const normalizedSubCategory = (filters.subCategory ?? "").trim().toLowerCase();
+  const normalizedSubCategorySlug = slugify(filters.subCategory ?? "");
   const normalizedAudience = (filters.audience ?? "").trim().toLowerCase();
   const normalizedQuery = (filters.q ?? "").trim().toLowerCase();
 
@@ -246,14 +292,37 @@ export function buildCategoryTree(products: GridProduct[]) {
     }
   }
 
+  // Keep core T-Shirt collections visible in filters even when current data has no matches.
+  const tShirtNode = tree.get("T-Shirts");
+  if (tShirtNode) {
+    for (const subCategory of CANONICAL_TSHIRT_SUBCATEGORIES) {
+      if (!tShirtNode.subCategories.has(subCategory)) {
+        tShirtNode.subCategories.set(subCategory, slugify(subCategory));
+      }
+    }
+  }
+
   return Array.from(tree.entries())
     .map(([name, value]) => ({
       name,
       slug: value.slug,
-      subCategories: Array.from(value.subCategories.entries()).map(([subName, subSlug]) => ({
-        name: subName,
-        slug: subSlug,
-      })),
+      subCategories: Array.from(value.subCategories.entries())
+        .map(([subName, subSlug]) => ({
+          name: subName,
+          slug: subSlug,
+        }))
+        .sort((a, b) => {
+          if (name === "T-Shirts") {
+            const aOrder = TSHIRT_SUBCATEGORY_ORDER.get(a.name.toLowerCase());
+            const bOrder = TSHIRT_SUBCATEGORY_ORDER.get(b.name.toLowerCase());
+
+            if (typeof aOrder === "number" || typeof bOrder === "number") {
+              return (aOrder ?? Number.MAX_SAFE_INTEGER) - (bOrder ?? Number.MAX_SAFE_INTEGER);
+            }
+          }
+
+          return a.name.localeCompare(b.name);
+        }),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

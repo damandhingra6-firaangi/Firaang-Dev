@@ -83,7 +83,8 @@ export default function Navbar() {
   };
 
   const collections = [
-    { label: "Devotional", categorySlug: "t-shirts", subCategorySlug: "devotional", tag: "NEW" },
+    { label: "Gen Z T-Shirts", categorySlug: "t-shirts", subCategorySlug: "gen-z-t-shirts", tag: "NEW" },
+    { label: "Devotional", categorySlug: "t-shirts", subCategorySlug: "devotional" },
     { label: "Mandala Magic", categorySlug: "t-shirts", subCategorySlug: "mandala-magic" },
     { label: "Animal", categorySlug: "t-shirts", subCategorySlug: "animal" },
     { label: "Games & Sports", categorySlug: "t-shirts", subCategorySlug: "games-sports" },
@@ -93,6 +94,9 @@ export default function Navbar() {
     { label: "Motivation", categorySlug: "t-shirts", subCategorySlug: "motivation" },
     { label: "Yoga & Wellness", categorySlug: "t-shirts", subCategorySlug: "yoga-wellness" },
     { label: "Gothic", categorySlug: "t-shirts", subCategorySlug: "gothic" },
+    { label: "Oversized T-Shirts", categorySlug: "t-shirts", subCategorySlug: "oversized-t-shirts" },
+    { label: "Graphic T-Shirts", categorySlug: "t-shirts", subCategorySlug: "graphic-t-shirts" },
+    { label: "Minimal T-Shirts", categorySlug: "t-shirts", subCategorySlug: "minimal-t-shirts" },
     { label: "All T-Shirts", categorySlug: "t-shirts" },
   ] as const;
 
@@ -108,6 +112,10 @@ export default function Navbar() {
     {
       title: "Art & Edge",
       items: collections.filter((item) => ["Anime Art", "Dark Art", "Abstract Art", "Gothic"].includes(item.label)),
+    },
+    {
+      title: "Street & Essentials",
+      items: collections.filter((item) => ["Gen Z T-Shirts", "Oversized T-Shirts", "Graphic T-Shirts", "Minimal T-Shirts"].includes(item.label)),
     },
   ] as const;
 
