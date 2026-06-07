@@ -1,11 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { CheckCircle2, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import SafeImage from "@/components/SafeImage";
-import { newsletterSchema } from "@/lib/newsletter";
-import { useUiStore } from "@/store/useUiStore";
+import JewelleryComingSoonModal from "@/components/JewelleryComingSoonModal";
 
 const heroSlides = [
   {
@@ -20,12 +18,7 @@ const heroSlides = [
 export default function Hero() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
-  const [isWaitlistConfirmed, setIsWaitlistConfirmed] = useState(false);
-  const [waitlistConfirmationMessage, setWaitlistConfirmationMessage] = useState("");
-  const [waitlistEmail, setWaitlistEmail] = useState("");
-  const [isSubmittingWaitlist, setIsSubmittingWaitlist] = useState(false);
   const router = useRouter();
-  const pushToast = useUiStore((state) => state.pushToast);
 
   useEffect(() => {
     if (heroSlides.length <= 1) {
@@ -46,79 +39,7 @@ export default function Hero() {
   };
 
   const handleExploreJewellery = () => {
-    setWaitlistEmail("");
-    setIsWaitlistConfirmed(false);
-    setWaitlistConfirmationMessage("");
     setIsWaitlistOpen(true);
-  };
-
-  useEffect(() => {
-    if (!isWaitlistConfirmed) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setIsWaitlistOpen(false);
-      setIsWaitlistConfirmed(false);
-      setWaitlistConfirmationMessage("");
-    }, 1400);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [isWaitlistConfirmed]);
-
-  const handleWaitlistSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const parsed = newsletterSchema.safeParse({ email: waitlistEmail });
-
-    if (!parsed.success) {
-      const firstError = parsed.error.issues[0]?.message ?? "Please enter a valid email address";
-      pushToast(firstError, { variant: "warning" });
-      return;
-    }
-
-    setIsSubmittingWaitlist(true);
-
-    try {
-      const response = await fetch("/api/newsletter", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(parsed.data),
-      });
-
-      const payload = (await response.json().catch(() => ({}))) as {
-        duplicate?: boolean;
-        error?: string;
-        meta?: {
-          storage?: "mongo" | "fallback";
-        };
-      };
-
-      if (!response.ok) {
-        pushToast(payload.error ?? "Could not join waitlist right now", { variant: "error" });
-        return;
-      }
-
-      if (payload.duplicate) {
-        setWaitlistConfirmationMessage("You are already on the jewellery waitlist.");
-      } else {
-        setWaitlistConfirmationMessage("You are on the jewellery waitlist. We will notify you first.");
-      }
-
-      if (payload.meta?.storage === "fallback") {
-        pushToast("Newsletter saved locally, but MongoDB is not connected.", { variant: "warning" });
-      }
-
-      setWaitlistEmail("");
-      setIsWaitlistConfirmed(true);
-    } catch (error) {
-      console.error("Jewellery waitlist signup failed", error);
-      pushToast("Could not join waitlist right now", { variant: "error" });
-    } finally {
-      setIsSubmittingWaitlist(false);
-    }
   };
 
   return (
@@ -185,63 +106,10 @@ export default function Hero() {
         </div>
       ) : null}
 
-      {isWaitlistOpen ? (
-        <div className="fixed inset-0 z-[120] bg-black/70 px-4 py-8" onClick={() => setIsWaitlistOpen(false)}>
-          <div
-            className="mx-auto mt-12 w-full max-w-lg rounded-2xl border border-[var(--gold)]/45 bg-[var(--popup-bg)] p-5 shadow-2xl md:mt-24 md:p-6"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-[var(--gold)]">Coming Soon</p>
-                <h3 className="mt-1 text-2xl leading-tight text-[var(--page-fg)]">Explore Jewellery</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsWaitlistOpen(false)}
-                aria-label="Close jewellery waitlist"
-                className="rounded-full p-2 transition hover:bg-[var(--popup-hover2)] text-[var(--page-fg)]"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <p className="mb-5 text-sm text-[var(--popup-subtext)]">
-              Our jewellery line is launching soon. Join the waitlist and get notified first.
-            </p>
-
-            {isWaitlistConfirmed ? (
-              <div className="rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-5 text-center">
-                <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-emerald-300" />
-                <p className="text-sm text-emerald-100">{waitlistConfirmationMessage}</p>
-              </div>
-            ) : (
-              <form onSubmit={handleWaitlistSubmit} className="space-y-3">
-                <label className="block text-xs uppercase tracking-[0.12em] text-[var(--popup-label)]" htmlFor="jewellery-waitlist-email">
-                  Email
-                </label>
-                <input
-                  id="jewellery-waitlist-email"
-                  type="email"
-                  value={waitlistEmail}
-                  onChange={(event) => setWaitlistEmail(event.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full rounded-lg border border-[var(--gold)]/35 bg-[var(--popup-input)] px-3 py-2.5 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)] placeholder:text-[var(--popup-input-ph)]"
-                  required
-                />
-
-                <button
-                  type="submit"
-                  className="gold-button w-full disabled:cursor-not-allowed disabled:opacity-70"
-                  disabled={isSubmittingWaitlist}
-                >
-                  {isSubmittingWaitlist ? "Joining..." : "Join Waitlist"}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      ) : null}
+      <JewelleryComingSoonModal
+        isOpen={isWaitlistOpen}
+        onClose={() => setIsWaitlistOpen(false)}
+      />
     </section>
   );
 }

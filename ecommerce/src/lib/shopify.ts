@@ -12,7 +12,12 @@ type MoneyV2 = {
 type ShopifyProductsResponse = {
   data?: {
     products?: {
+      pageInfo?: {
+        hasNextPage: boolean;
+        endCursor: string | null;
+      };
       edges?: Array<{
+        cursor?: string;
         node: {
           id: string;
           handle: string;
@@ -88,10 +93,19 @@ type ShopifyProductsResponse = {
   };
 };
 
+type ShopifyProductEdge = NonNullable<
+  NonNullable<NonNullable<ShopifyProductsResponse["data"]>["products"]>["edges"]
+>[number];
+
 const productsQuery = `#graphql
-  query GetHomeProducts($first: Int!) {
-    products(first: $first, sortKey: CREATED_AT, reverse: true) {
+  query GetHomeProducts($first: Int!, $after: String) {
+    products(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       edges {
+        cursor
         node {
           id
           handle
@@ -509,29 +523,46 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
   }
 
   const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
+  const safeLimit = Math.max(1, Math.min(limit, 1000));
+  const pageSize = Math.min(250, safeLimit);
 
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
-      },
-      body: JSON.stringify({
-        query: productsQuery,
-        variables: { first: limit },
-      }),
-      cache: "no-store",
-    });
+    const productEdges: ShopifyProductEdge[] = [];
+    let cursor: string | null = null;
+    let hasNextPage = true;
 
-    if (!response.ok) {
-      return [];
+    while (hasNextPage && productEdges.length < safeLimit) {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
+        },
+        body: JSON.stringify({
+          query: productsQuery,
+          variables: { first: Math.min(pageSize, safeLimit - productEdges.length), after: cursor },
+        }),
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const json = (await response.json()) as ShopifyProductsResponse;
+      const pageEdges = json.data?.products?.edges ?? [];
+      const pageInfo = json.data?.products?.pageInfo;
+
+      productEdges.push(...pageEdges);
+      hasNextPage = Boolean(pageInfo?.hasNextPage);
+      cursor = pageInfo?.endCursor ?? null;
+
+      if (!cursor) {
+        break;
+      }
     }
 
-    const json = (await response.json()) as ShopifyProductsResponse;
-    const productEdges = json.data?.products?.edges ?? [];
-
-    return productEdges.map(({ node }) => {
+    return productEdges.slice(0, safeLimit).map(({ node }) => {
       const imageUrl = node.featuredImage?.url ?? "/cat1.jpg";
       const productMedia = (node.media?.nodes ?? []).reduce<ProductMedia[]>((acc, mediaNode) => {
         if (mediaNode.__typename === "Video") {

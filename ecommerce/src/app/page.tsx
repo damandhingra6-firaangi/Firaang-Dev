@@ -18,8 +18,10 @@ import { getStorefrontProducts } from "@/lib/shopify";
 
 export const dynamic = "force-dynamic";
 
+const HOME_PRODUCT_FETCH_LIMIT = 250;
+
 export default async function Home() {
-  const storefrontProducts = await getStorefrontProducts(10);
+  const storefrontProducts = await getStorefrontProducts(HOME_PRODUCT_FETCH_LIMIT);
   const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
 
   return (

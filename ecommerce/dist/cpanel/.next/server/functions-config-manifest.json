@@ -9,6 +9,7 @@
     "/api/coupons/validate": {},
     "/api/feedback": {},
     "/api/feedback/health": {},
+    "/api/health/commerce-readiness": {},
     "/api/health/otp-readiness": {},
     "/api/newsletter": {},
     "/api/webhooks/razorpay": {}

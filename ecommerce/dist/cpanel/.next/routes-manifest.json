@@ -194,6 +194,12 @@
       "namedRegex": "^/api/feedback/health(?:/)?$"
     },
     {
+      "page": "/api/health/commerce-readiness",
+      "regex": "^/api/health/commerce\\-readiness(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/health/commerce\\-readiness(?:/)?$"
+    },
+    {
       "page": "/api/health/otp-readiness",
       "regex": "^/api/health/otp\\-readiness(?:/)?$",
       "routeKeys": {},
@@ -252,6 +258,12 @@
       "regex": "^/favicon\\.ico(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/favicon\\.ico(?:/)?$"
+    },
+    {
+      "page": "/pod-policy",
+      "regex": "^/pod\\-policy(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/pod\\-policy(?:/)?$"
     },
     {
       "page": "/privacy-policy",

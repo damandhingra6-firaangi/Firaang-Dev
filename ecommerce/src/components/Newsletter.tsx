@@ -209,7 +209,7 @@ export default function Newsletter() {
                   <Link href="/track-order" className="transition hover:text-[var(--gold)]">Shipping</Link>
                 </li>
                 <li>
-                  <Link href="/exchange-return" className="transition hover:text-[var(--gold)]">Returns</Link>
+                  <Link href="/pod-policy" className="transition hover:text-[var(--gold)]">POD Policy</Link>
                 </li>
                 <li>
                   <Link href="/contact" className="transition hover:text-[var(--gold)]">FAQs</Link>

@@ -2,8 +2,8 @@ import SafeImage from "@/components/SafeImage";
 
 const ribbonItems = [
   {
-    title: "Free Return",
-    subtitle: "30 Days Money Back Guarantee",
+    title: "Custom Printed Just for You",
+    subtitle: "Made-to-Order Premium Quality",
     iconSrc: "/FreeReturn.svg",
   },
   {

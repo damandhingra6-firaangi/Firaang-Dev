@@ -66,6 +66,21 @@ function normalizeStoreDomain(value: string) {
   return value.replace(/^https?:\/\//, "").replace(/\/$/, "");
 }
 
+function normalizeShopifyNumericId(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const gidMatch = trimmed.match(/\/(\d+)$/);
+  return gidMatch?.[1] ?? "";
+}
+
 function splitCustomerName(value: string) {
   const trimmed = value.trim();
 
@@ -116,8 +131,9 @@ async function adjustShopifyInventoryForVariants(
   const accessToken = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
   const locationId = process.env.SHOPIFY_INVENTORY_LOCATION_ID;
   const apiVersion = process.env.SHOPIFY_ADMIN_API_VERSION ?? process.env.SHOPIFY_API_VERSION ?? "2025-01";
+  const normalizedLocationId = normalizeShopifyNumericId(locationId ?? "");
 
-  if (!storeDomain || !accessToken || !locationId) {
+  if (!storeDomain || !accessToken || !locationId || !normalizedLocationId) {
     return { status: "skipped", reason: "shopify_inventory_not_configured", attempts: [] };
   }
 
@@ -238,8 +254,8 @@ async function adjustShopifyInventoryForVariants(
             "X-Shopify-Access-Token": accessToken,
           },
           body: JSON.stringify({
-            location_id: Number(locationId),
-            inventory_item_id: attempt.inventoryItemId,
+            location_id: Number.parseInt(normalizedLocationId, 10),
+            inventory_item_id: Number.parseInt(normalizeShopifyNumericId(attempt.inventoryItemId ?? "0"), 10),
             available_adjustment: attempt.quantity * adjustmentValue,
           }),
           cache: "no-store",
@@ -325,6 +341,14 @@ export async function syncPaidOrderToShopify(orderId: string) {
 
   if (!orderWithCustomer) {
     return { status: "skipped" as const, reason: "order_not_found" };
+  }
+
+  if (orderWithCustomer.order.shopifyOrderId || orderWithCustomer.order.shopifySyncStatus === "synced") {
+    return {
+      status: "skipped" as const,
+      reason: "already_synced",
+      shopifyOrderId: orderWithCustomer.order.shopifyOrderId,
+    };
   }
 
   const customerName = orderWithCustomer.order.shippingName ?? orderWithCustomer.customer?.fullName ?? "Firaangi Customer";

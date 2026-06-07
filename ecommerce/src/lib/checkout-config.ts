@@ -65,27 +65,27 @@ export type CheckoutPricingSummary = {
 
 export const SHIPPING_RULES: ShippingRule[] = [
   {
-    feeInr: 49,
+    feeInr: 1,
     label: "North India",
     states: ["Delhi", "Haryana", "Punjab", "Rajasthan", "Uttar Pradesh", "Chandigarh"],
   },
   {
-    feeInr: 69,
+    feeInr: 1,
     label: "West India",
     states: ["Gujarat", "Maharashtra", "Madhya Pradesh", "Goa"],
   },
   {
-    feeInr: 79,
+    feeInr: 1,
     label: "South India",
     states: ["Karnataka", "Tamil Nadu", "Telangana", "Andhra Pradesh", "Puducherry"],
   },
   {
-    feeInr: 89,
+    feeInr: 1,
     label: "East and Central India",
     states: ["Bihar", "Jharkhand", "Odisha", "West Bengal", "Chhattisgarh"],
   },
   {
-    feeInr: 99,
+    feeInr: 1,
     label: "Remote and Special Zones",
     states: [
       "Assam",
@@ -105,7 +105,7 @@ export const SHIPPING_RULES: ShippingRule[] = [
   },
 ];
 
-const DEFAULT_SHIPPING_FEE_INR = 99;
+const DEFAULT_SHIPPING_FEE_INR = 1;
 const DEFAULT_SHIPPING_LABEL = "Rest of India";
 
 function normalizeTextToken(value: string) {

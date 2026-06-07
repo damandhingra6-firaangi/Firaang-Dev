@@ -15,6 +15,7 @@ if [ -d "public" ]; then
   find public -type f -exec chmod 644 {} \;
 fi
 
+chmod 755 server.js || true
 chmod 755 app.js || true
 
-echo "Permissions normalized for .next, public, and app.js"
+echo "Permissions normalized for .next, public, server.js, and app.js"

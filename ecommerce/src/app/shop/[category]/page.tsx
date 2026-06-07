@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import JewelleryComingSoonGate from "@/components/JewelleryComingSoonGate";
 import ShopListing from "@/components/ShopListing";
 import { fallbackProducts } from "@/lib/catalog";
+import { isJewellerySlug } from "@/lib/jewellery";
 import { getStorefrontProducts } from "@/lib/shopify";
 import { buildCategoryTree, slugify } from "@/lib/product-taxonomy";
 
@@ -24,6 +26,16 @@ export default async function CategoryPage({
   const query = searchParamsResolved?.q ?? "";
   const subCategory = searchParamsResolved?.subCategory ?? "";
   const audience = searchParamsResolved?.audience ?? "";
+
+  if (isJewellerySlug(categorySlug) || isJewellerySlug(subCategory)) {
+    return (
+      <main className="min-h-screen bg-[var(--page-bg)]">
+        <Navbar />
+        <div className="h-24 md:h-28" />
+        <JewelleryComingSoonGate backHref="/shop" />
+      </main>
+    );
+  }
 
   // Fetch products
   const storefrontProducts = await getStorefrontProducts(40);

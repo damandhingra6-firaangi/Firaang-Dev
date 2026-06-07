@@ -2,6 +2,8 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $nextRoot = Join-Path $projectRoot ".next"
+$standaloneRoot = Join-Path $nextRoot "standalone"
+$staticRoot = Join-Path $nextRoot "static"
 $publicRoot = Join-Path $projectRoot "public"
 $packageJsonPath = Join-Path $projectRoot "package.json"
 $packageLockPath = Join-Path $projectRoot "package-lock.json"
@@ -11,6 +13,10 @@ $archivePath = Join-Path $distRoot "cpanel-deploy.zip"
 
 if (-not (Test-Path $nextRoot)) {
   throw "Build output was not found. Run 'npm run build' before packaging for cPanel."
+}
+
+if (-not (Test-Path $standaloneRoot)) {
+  throw "Standalone output was not found at .next/standalone. Ensure next.config.ts sets output='standalone' and run 'npm run build'."
 }
 
 if (Test-Path $packageRoot) {
@@ -23,22 +29,22 @@ if (Test-Path $archivePath) {
 
 New-Item -ItemType Directory -Path $packageRoot | Out-Null
 
-Copy-Item $nextRoot $packageRoot -Recurse -Force
-
-# Remove unreadable files/folders from standalone output and build cache.
-$standaloneInPackage = Join-Path $packageRoot ".next/standalone"
-if (Test-Path $standaloneInPackage) {
-  Remove-Item $standaloneInPackage -Recurse -Force
+# Copy traced production server and dependencies.
+$standaloneItems = Get-ChildItem -Path $standaloneRoot -Force | ForEach-Object { $_.FullName }
+if (-not $standaloneItems -or $standaloneItems.Count -eq 0) {
+  throw "Standalone build is empty; cannot package deployment archive."
 }
 
-$nextCacheInPackage = Join-Path $packageRoot ".next/cache"
-if (Test-Path $nextCacheInPackage) {
-  Remove-Item $nextCacheInPackage -Recurse -Force
+Copy-Item $standaloneItems $packageRoot -Recurse -Force
+
+# Copy static assets required by Next runtime.
+$packageNextRoot = Join-Path $packageRoot ".next"
+if (-not (Test-Path $packageNextRoot)) {
+  New-Item -ItemType Directory -Path $packageNextRoot | Out-Null
 }
 
-$nextDevInPackage = Join-Path $packageRoot ".next/dev"
-if (Test-Path $nextDevInPackage) {
-  Remove-Item $nextDevInPackage -Recurse -Force
+if (Test-Path $staticRoot) {
+  Copy-Item $staticRoot (Join-Path $packageNextRoot "static") -Recurse -Force
 }
 
 if (Test-Path $publicRoot) {
@@ -51,38 +57,12 @@ if (Test-Path $packageLockPath) {
   Copy-Item $packageLockPath $packageRoot -Force
 }
 
-$appEntrypoint = Join-Path $packageRoot "app.js"
-$appEntrypointContent = @"
-process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+$legacyEntrypointPath = Join-Path $packageRoot "app.js"
+$legacyEntrypointContent = @'
+require("./server.js");
+'@
 
-const http = require('http');
-const next = require('next');
-
-const port = Number.parseInt(process.env.PORT || '3000', 10);
-const hostname = '0.0.0.0';
-
-if (!Number.isFinite(port) || port < 1) {
-  throw new Error('Invalid PORT value. Set a valid PORT in cPanel Node.js app settings.');
-}
-
-const app = next({ dev: false, hostname, port });
-const handle = app.getRequestHandler();
-
-app
-  .prepare()
-  .then(() => {
-    const server = http.createServer((req, res) => handle(req, res));
-    server.listen(port, hostname, () => {
-      console.log('Next server listening on ' + hostname + ':' + port);
-    });
-  })
-  .catch((error) => {
-    console.error('Failed to start server', error);
-    process.exit(1);
-  });
-"@
-
-Set-Content -Path $appEntrypoint -Value $appEntrypointContent -Encoding utf8
+Set-Content -Path $legacyEntrypointPath -Value $legacyEntrypointContent -Encoding utf8
 
 $permissionsScriptPath = Join-Path $packageRoot "fix-permissions.sh"
 $permissionsScript = @'
@@ -103,13 +83,19 @@ if [ -d "public" ]; then
   find public -type f -exec chmod 644 {} \;
 fi
 
+chmod 755 server.js || true
 chmod 755 app.js || true
 
-echo "Permissions normalized for .next, public, and app.js"
+echo "Permissions normalized for .next, public, server.js, and app.js"
 '@
 
 Set-Content -Path $permissionsScriptPath -Value $permissionsScript -Encoding utf8
 
-Compress-Archive -Path (Join-Path $packageRoot "*") -DestinationPath $archivePath -Force
+$archiveItems = Get-ChildItem -Path $packageRoot -Force | ForEach-Object { $_.FullName }
+if (-not $archiveItems -or $archiveItems.Count -eq 0) {
+  throw "Packaging directory is empty; nothing to archive."
+}
+
+Compress-Archive -Path $archiveItems -DestinationPath $archivePath -Force
 
 Write-Host "Created cPanel deployment archive: $archivePath"

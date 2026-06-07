@@ -2,6 +2,8 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { markOrderPaidForSessionToken } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
+import { attachShopifySyncResultToOrder } from "@/lib/account-data";
+import { syncPaidOrderToShopify, syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
 
 type VerifyPaymentRequest = {
   razorpay_order_id?: string;
@@ -43,6 +45,38 @@ export async function POST(request: Request) {
           paymentId,
         })
       : null;
+
+    if (savedOrder && savedOrder.shopifySyncStatus !== "synced") {
+      const syncResult = await syncPaidOrderToShopify(orderId).catch((error) => ({
+        status: "failed" as const,
+        reason: error instanceof Error ? error.message : "Unknown Shopify sync failure",
+      }));
+
+      if (syncResult.status === "synced") {
+        await attachShopifySyncResultToOrder({
+          orderId,
+          shopifyOrderId: syncResult.shopifyOrderId,
+          shopifySyncStatus: "synced",
+        });
+      } else if (syncResult.status === "failed") {
+        await attachShopifySyncResultToOrder({
+          orderId,
+          shopifySyncStatus: "failed",
+          shopifySyncError: syncResult.reason,
+        });
+      } else {
+        await attachShopifySyncResultToOrder({
+          orderId,
+          shopifySyncStatus: "skipped",
+        });
+      }
+
+      if (savedOrder.inventorySyncStatus !== "reserved") {
+        await syncShopifyInventoryForOrder(orderId, "reserve").catch((error) => {
+          console.error("Shopify inventory reserve sync failed during verification", error);
+        });
+      }
+    }
 
     return NextResponse.json({
       verified: true,

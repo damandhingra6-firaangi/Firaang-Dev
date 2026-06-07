@@ -126,6 +126,30 @@ Implementation details:
 
 If Shopify credentials are not configured or Shopify is unavailable, the UI falls back to local product data.
 
+## Shopify Admin Order And Inventory Sync
+
+Paid-order sync to Shopify Admin and Shopify inventory adjustments require additional server-side environment variables:
+
+- `SHOPIFY_ADMIN_ACCESS_TOKEN`
+- `SHOPIFY_INVENTORY_LOCATION_ID`
+- `RAZORPAY_WEBHOOK_SECRET`
+- Optional: `SHOPIFY_ADMIN_API_VERSION` (falls back to `SHOPIFY_API_VERSION`)
+
+If these are missing in production, order documents can be marked paid in MongoDB but:
+
+- `shopifySyncStatus` may become `failed` with `SHOPIFY_ADMIN_NOT_CONFIGURED`
+- `inventorySyncStatus` may become `skipped` with `shopify_inventory_not_configured`
+
+Readiness check endpoint:
+
+- `GET /api/health/commerce-readiness`
+
+This endpoint reports whether webhook, Shopify Admin sync, and inventory sync are properly configured.
+
+Note:
+
+- Qikink order push is not implemented in this repository yet.
+
 ## Product Size Charts Configuration
 
 Product-level fallback size charts are configured in `src/lib/size-charts.ts`.

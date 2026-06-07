@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Heart, ShoppingBag } from "lucide-react";
 import { GridProduct } from "@/lib/catalog";
@@ -26,11 +26,12 @@ export default function ShopListing({
   initialSubCategory = "",
   initialAudience = "",
 }: ShopListingProps) {
-  const [query, setQuery] = useState(initialQuery);
+  const [query, setQuery] = useState(() => initialQuery);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedSubCategory, setSelectedSubCategory] = useState(initialSubCategory);
   const [selectedAudience, setSelectedAudience] = useState(initialAudience);
   const [selectedProduct, setSelectedProduct] = useState<GridProduct | null>(null);
+  const urlSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wishlist = useShopStore((state) => state.wishlist);
   const toggleWishlist = useShopStore((state) => state.toggleWishlist);
   const addToCart = useShopStore((state) => state.addToCart);
@@ -38,6 +39,7 @@ export default function ShopListing({
   const displayCurrency = useUiStore((state) => state.currency);
   const router = useRouter();
   const pathname = usePathname();
+  const deferredQuery = useDeferredValue(query);
 
   const wishlistIds = getWishlistIds(wishlist);
   const categoryTree = useMemo(() => buildCategoryTree(products), [products]);
@@ -90,11 +92,71 @@ export default function ShopListing({
   }, [products, selectedAudience]);
 
   useEffect(() => {
-    setQuery((prev) => (prev === initialQuery ? prev : initialQuery));
     setSelectedCategory((prev) => (prev === initialCategory ? prev : initialCategory));
     setSelectedSubCategory((prev) => (prev === initialSubCategory ? prev : initialSubCategory));
     setSelectedAudience((prev) => (prev === initialAudience ? prev : initialAudience));
-  }, [initialAudience, initialCategory, initialQuery, initialSubCategory]);
+  }, [initialAudience, initialCategory, initialSubCategory]);
+
+  useEffect(() => {
+    if (urlSyncTimeoutRef.current) {
+      clearTimeout(urlSyncTimeoutRef.current);
+      urlSyncTimeoutRef.current = null;
+    }
+
+    urlSyncTimeoutRef.current = setTimeout(() => {
+      // Keep the URL in sync without forcing the input to rehydrate on every keystroke.
+      const isSeoPatterRoute = pathname !== "/shop";
+
+      if (isSeoPatterRoute && selectedCategory && selectedSubCategory) {
+        const categorySlug = slugify(selectedCategory);
+        const subCategorySlug = slugify(selectedSubCategory);
+
+        const params = new URLSearchParams();
+        if (query.trim()) {
+          params.set("q", query.trim());
+        }
+        if (selectedAudience) {
+          params.set("audience", selectedAudience);
+        }
+
+        const queryString = params.toString();
+        const seoUrl = `/shop/${categorySlug}/${subCategorySlug}${queryString ? `?${queryString}` : ""}`;
+        router.replace(seoUrl, { scroll: false });
+        return;
+      }
+
+      if (!isSeoPatterRoute) {
+        const params = new URLSearchParams();
+
+        if (query.trim()) {
+          params.set("q", query.trim());
+        }
+
+        if (selectedCategory) {
+          params.set("category", selectedCategory);
+        }
+
+        if (selectedSubCategory) {
+          params.set("subCategory", selectedSubCategory);
+        }
+
+        if (selectedAudience) {
+          params.set("audience", selectedAudience);
+        }
+
+        const queryString = params.toString();
+        const nextUrl = queryString ? `${pathname}?${queryString}` : pathname;
+        router.replace(nextUrl, { scroll: false });
+      }
+    }, 220);
+
+    return () => {
+      if (urlSyncTimeoutRef.current) {
+        clearTimeout(urlSyncTimeoutRef.current);
+        urlSyncTimeoutRef.current = null;
+      }
+    };
+  }, [pathname, query, router, selectedAudience, selectedCategory, selectedSubCategory]);
 
   const selectedCategoryNode = useMemo(() => {
     if (!selectedCategory) {
@@ -129,54 +191,8 @@ export default function ShopListing({
     }
   }, [availableSubCategories, selectedCategoryNode, selectedSubCategory]);
 
-  useEffect(() => {
-    // Check if we're on a SEO route (e.g., /shop/t-shirts/gen-z-t-shirts)
-    const isSeoPatterRoute = pathname !== "/shop";
-
-    if (isSeoPatterRoute && selectedCategory && selectedSubCategory) {
-      // We're on a SEO route - navigate to new SEO URL when categories change
-      const categorySlug = slugify(selectedCategory);
-      const subCategorySlug = slugify(selectedSubCategory);
-
-      const params = new URLSearchParams();
-      if (query.trim()) {
-        params.set("q", query.trim());
-      }
-      if (selectedAudience) {
-        params.set("audience", selectedAudience);
-      }
-
-      const queryString = params.toString();
-      const seoUrl = `/shop/${categorySlug}/${subCategorySlug}${queryString ? `?${queryString}` : ""}`;
-      router.replace(seoUrl, { scroll: false });
-    } else if (!isSeoPatterRoute) {
-      // We're on the base /shop page - use query params
-      const params = new URLSearchParams();
-
-      if (query.trim()) {
-        params.set("q", query.trim());
-      }
-
-      if (selectedCategory) {
-        params.set("category", selectedCategory);
-      }
-
-      if (selectedSubCategory) {
-        params.set("subCategory", selectedSubCategory);
-      }
-
-      if (selectedAudience) {
-        params.set("audience", selectedAudience);
-      }
-
-      const queryString = params.toString();
-      const nextUrl = queryString ? `${pathname}?${queryString}` : pathname;
-      router.replace(nextUrl, { scroll: false });
-    }
-  }, [pathname, query, router, selectedAudience, selectedCategory, selectedSubCategory]);
-
   const filteredProducts = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = deferredQuery.trim().toLowerCase();
     const normalizedCategory = selectedCategory.trim().toLowerCase();
     const normalizedSubCategory = selectedSubCategory.trim().toLowerCase();
     const normalizedSubCategorySlug = slugify(selectedSubCategory);
@@ -212,7 +228,7 @@ export default function ShopListing({
         searchMatch
       );
     });
-  }, [products, query, selectedAudience, selectedCategory, selectedSubCategory]);
+  }, [deferredQuery, products, selectedAudience, selectedCategory, selectedSubCategory]);
 
   const handleOpenDetails = (product: GridProduct) => {
     setSelectedProduct(product);
