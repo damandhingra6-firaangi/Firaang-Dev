@@ -131,13 +131,45 @@ If Shopify credentials are not configured or Shopify is unavailable, the UI fall
 Paid-order sync to Shopify Admin and Shopify inventory adjustments require additional server-side environment variables:
 
 - `SHOPIFY_ADMIN_ACCESS_TOKEN`
+- or `SHOPIFY_ADMIN_CLIENT_ID` + `SHOPIFY_ADMIN_CLIENT_SECRET` (short-lived token fetch)
 - `SHOPIFY_INVENTORY_LOCATION_ID`
 - `RAZORPAY_WEBHOOK_SECRET`
 - Optional: `SHOPIFY_ADMIN_API_VERSION` (falls back to `SHOPIFY_API_VERSION`)
 
+Shopify app permissions required for draft-order sync:
+
+- `write_draft_orders` or `write_quick_sale`
+- Staff account permission to manage draft orders
+
+Runtime fallback behavior:
+
+- If `draftOrderCreate` is blocked by permissions, the app now falls back to Shopify Admin REST `orders` create flow for paid-order sync.
+- If `draftOrderComplete` fails, the app now falls back to Shopify Admin REST draft completion so drafts do not remain open.
+
+## Shopify Fulfillment Webhook Sync
+
+To sync vendor shipment and delivery updates from Shopify into Mongo/app order tracking:
+
+1. Set `SHOPIFY_WEBHOOK_SECRET` in server environment.
+2. In Shopify app webhook settings, subscribe these topics:
+	- `fulfillments/create`
+	- `fulfillments/update`
+	- `fulfillments/cancelled`
+3. Point each webhook endpoint to:
+	- `POST /api/webhooks/shopify`
+
+What syncs automatically:
+
+- `fulfillmentStatus` (processing, fulfilled, cancelled)
+- `shippingCarrier`
+- `trackingNumber`
+- `trackingUrl`
+- `shippedAt` and `deliveredAt` timestamps
+
 If these are missing in production, order documents can be marked paid in MongoDB but:
 
 - `shopifySyncStatus` may become `failed` with `SHOPIFY_ADMIN_NOT_CONFIGURED`
+- `shopifySyncStatus` may become `failed` with `SHOPIFY_DRAFT_ORDER_PERMISSION_DENIED` when app/user permissions are insufficient
 - `inventorySyncStatus` may become `skipped` with `shopify_inventory_not_configured`
 
 Readiness check endpoint:

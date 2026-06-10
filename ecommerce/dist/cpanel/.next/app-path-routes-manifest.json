@@ -30,6 +30,7 @@
   "/api/products/route": "/api/products",
   "/api/products/sub-categories/route": "/api/products/sub-categories",
   "/api/webhooks/razorpay/route": "/api/webhooks/razorpay",
+  "/api/webhooks/shopify/route": "/api/webhooks/shopify",
   "/checkout/page": "/checkout",
   "/contact/page": "/contact",
   "/exchange-return/page": "/exchange-return",

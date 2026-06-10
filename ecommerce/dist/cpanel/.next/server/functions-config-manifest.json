@@ -12,6 +12,7 @@
     "/api/health/commerce-readiness": {},
     "/api/health/otp-readiness": {},
     "/api/newsletter": {},
-    "/api/webhooks/razorpay": {}
+    "/api/webhooks/razorpay": {},
+    "/api/webhooks/shopify": {}
   }
 }

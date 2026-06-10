@@ -183,6 +183,31 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+function normalizeShopifyNumericId(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const gidMatch = trimmed.match(/\/(\d+)$/);
+  return gidMatch?.[1] ?? "";
+}
+
+function buildShopifyOrderIdCandidates(orderId: string) {
+  const numeric = normalizeShopifyNumericId(orderId);
+
+  if (!numeric) {
+    return [];
+  }
+
+  return [numeric, `gid://shopify/Order/${numeric}`];
+}
+
 export function normalizePhoneNumber(phone: string) {
   const raw = phone.trim();
   const digits = raw.replace(/\D/g, "");
@@ -309,6 +334,7 @@ async function getCollections() {
       sessions.createIndex({ tokenHash: 1 }, { name: "session_token_hash_unique", unique: true }),
       sessions.createIndex({ expiresAt: 1 }, { name: "session_expires_ttl", expireAfterSeconds: 0 }),
       orders.createIndex({ orderId: 1 }, { name: "order_id_unique", unique: true }),
+      orders.createIndex({ shopifyOrderId: 1 }, { name: "order_shopify_id_lookup", sparse: true }),
       orders.createIndex({ userId: 1, createdAt: -1 }, { name: "order_user_created_desc" }),
       orders.createIndex({ paymentId: 1 }, { name: "order_payment_id_lookup", sparse: true }),
       inventoryMovements.createIndex({ orderId: 1, type: 1 }, { name: "inventory_order_type_unique", unique: true }),
@@ -1263,4 +1289,100 @@ export async function updateOrderForAdmin(
   await orders.updateOne({ orderId }, { $set, ...(Object.keys($unset).length > 0 ? { $unset } : {}) });
   const updated = await orders.findOne({ orderId });
   return updated ? mapOrder(updated) : null;
+}
+
+export async function applyShopifyFulfillmentWebhook(input: {
+  shopifyOrderId: string;
+  fulfillmentId?: string;
+  status?: string;
+  shipmentStatus?: string;
+  trackingCompany?: string;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  eventAt?: string;
+}) {
+  const { orders } = await getCollections();
+  const idCandidates = buildShopifyOrderIdCandidates(input.shopifyOrderId);
+
+  if (idCandidates.length === 0) {
+    return { ok: false as const, reason: "invalid_shopify_order_id" as const };
+  }
+
+  const existing = await orders.findOne({ shopifyOrderId: { $in: idCandidates } });
+
+  if (!existing) {
+    return { ok: false as const, reason: "order_not_found" as const };
+  }
+
+  const status = (input.status ?? "").trim().toLowerCase();
+  const shipmentStatus = (input.shipmentStatus ?? "").trim().toLowerCase();
+  const eventTime = input.eventAt ? new Date(input.eventAt) : new Date();
+  const resolvedEventTime = Number.isNaN(eventTime.getTime()) ? new Date() : eventTime;
+
+  const trackingCompany = (input.trackingCompany ?? "").trim();
+  const trackingNumber = (input.trackingNumber ?? "").trim();
+  const trackingUrl = (input.trackingUrl ?? "").trim();
+
+  let nextFulfillmentStatus: NonNullable<AccountOrderDocument["fulfillmentStatus"]> = "processing";
+
+  if (status === "cancelled") {
+    nextFulfillmentStatus = "cancelled";
+  } else if (shipmentStatus === "delivered") {
+    nextFulfillmentStatus = "fulfilled";
+  } else if (existing.fulfillmentStatus === "fulfilled") {
+    nextFulfillmentStatus = "fulfilled";
+  }
+
+  const $set: Record<string, unknown> = {
+    updatedAt: new Date(),
+    fulfillmentStatus: nextFulfillmentStatus,
+  };
+
+  if (trackingCompany) {
+    $set.shippingCarrier = trackingCompany;
+  }
+
+  if (trackingNumber) {
+    $set.trackingNumber = trackingNumber;
+  }
+
+  if (trackingUrl) {
+    $set.trackingUrl = trackingUrl;
+  }
+
+  if (nextFulfillmentStatus !== "cancelled" && !existing.shippedAt) {
+    $set.shippedAt = resolvedEventTime;
+  }
+
+  if (nextFulfillmentStatus === "fulfilled") {
+    $set.deliveredAt = existing.deliveredAt ?? resolvedEventTime;
+  }
+
+  await orders.updateOne({ _id: existing._id }, { $set });
+
+  if (nextFulfillmentStatus === "fulfilled" && existing.fulfillmentStatus !== "fulfilled") {
+    await appendOrderEventByOrderId({
+      orderId: existing.orderId,
+      type: "fulfilled",
+      note: trackingCompany
+        ? `Shipment delivered via ${trackingCompany}${trackingNumber ? ` (${trackingNumber})` : ""}`
+        : "Order delivered",
+    });
+  }
+
+  if (nextFulfillmentStatus === "cancelled" && existing.fulfillmentStatus !== "cancelled") {
+    await appendOrderEventByOrderId({
+      orderId: existing.orderId,
+      type: "cancelled",
+      note: input.fulfillmentId ? `Shopify fulfillment ${input.fulfillmentId} was cancelled` : "Shopify fulfillment was cancelled",
+    });
+  }
+
+  const updated = await orders.findOne({ _id: existing._id });
+
+  return {
+    ok: true as const,
+    order: updated ? mapOrder(updated) : null,
+    orderId: existing.orderId,
+  };
 }

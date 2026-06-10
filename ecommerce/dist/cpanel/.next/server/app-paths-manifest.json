@@ -30,6 +30,7 @@
   "/api/products/route": "app/api/products/route.js",
   "/api/products/sub-categories/route": "app/api/products/sub-categories/route.js",
   "/api/webhooks/razorpay/route": "app/api/webhooks/razorpay/route.js",
+  "/api/webhooks/shopify/route": "app/api/webhooks/shopify/route.js",
   "/checkout/page": "app/checkout/page.js",
   "/contact/page": "app/contact/page.js",
   "/exchange-return/page": "app/exchange-return/page.js",

@@ -236,6 +236,12 @@
       "namedRegex": "^/api/webhooks/razorpay(?:/)?$"
     },
     {
+      "page": "/api/webhooks/shopify",
+      "regex": "^/api/webhooks/shopify(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/webhooks/shopify(?:/)?$"
+    },
+    {
       "page": "/checkout",
       "regex": "^/checkout(?:/)?$",
       "routeKeys": {},
