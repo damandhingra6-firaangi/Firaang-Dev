@@ -2,11 +2,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type TouchEventHandler } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Eye, Heart, ShoppingBag } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
-import ProductDetailsModal from "@/components/ProductDetailsModal";
 import { getCartCount, getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
 
@@ -21,7 +21,6 @@ export default function ProductGrid({ products }: ProductGridProps) {
   const [startIndex, setStartIndex] = useState(0);
   const [cardsPerRow, setCardsPerRow] = useState(6);
   const [rowCount, setRowCount] = useState(2);
-  const [selectedProduct, setSelectedProduct] = useState<GridProduct | null>(null);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [isAutoplayPaused, setIsAutoplayPaused] = useState(false);
   const resumeAutoplayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -32,6 +31,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
   const addToCart = useShopStore((state) => state.addToCart);
   const openCart = useUiStore((state) => state.openCart);
   const displayCurrency = useUiStore((state) => state.currency);
+  const router = useRouter();
 
   const wishlistIds = getWishlistIds(wishlist);
   const cartCount = getCartCount(cart);
@@ -160,7 +160,8 @@ export default function ProductGrid({ products }: ProductGridProps) {
   };
 
   const handleOpenDetails = (product: GridProduct) => {
-    setSelectedProduct(product);
+    const routeKey = product.handle?.trim() || product.id;
+    router.push(`/product/${encodeURIComponent(routeKey)}`);
   };
 
   const handleToggleWishlist = (product: GridProduct) => {
@@ -169,16 +170,6 @@ export default function ProductGrid({ products }: ProductGridProps) {
 
   const handleAddToCart = (product: GridProduct) => {
     addToCart(product);
-    openCart();
-  };
-
-  const handleModalAddToCart = (product: GridProduct) => {
-    addToCart(product);
-  };
-
-  const handleModalBuyNow = (product: GridProduct) => {
-    addToCart(product);
-    setSelectedProduct(null);
     openCart();
   };
 
@@ -206,7 +197,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
   }, []);
 
   useEffect(() => {
-    if (!showNavigation || isAutoplayPaused || selectedProduct) {
+    if (!showNavigation || isAutoplayPaused) {
       return;
     }
 
@@ -215,7 +206,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
     }, AUTOPLAY_INTERVAL_MS);
 
     return () => clearInterval(intervalId);
-  }, [advanceStep, discoveryProducts.length, isAutoplayPaused, selectedProduct, showNavigation]);
+  }, [advanceStep, discoveryProducts.length, isAutoplayPaused, showNavigation]);
 
   const handleTouchStart: TouchEventHandler<HTMLDivElement> = (event) => {
     if (cardsPerRow !== 2 || rowCount !== 1 || !showNavigation) {
@@ -474,16 +465,6 @@ export default function ProductGrid({ products }: ProductGridProps) {
         ) : null}
         </div>
       </div>
-
-      <ProductDetailsModal
-        product={selectedProduct}
-        isOpen={selectedProduct !== null}
-        isWishlisted={(product) => wishlistIds.has(product.id)}
-        onClose={() => setSelectedProduct(null)}
-        onToggleWishlist={handleToggleWishlist}
-        onAddToCart={handleModalAddToCart}
-        onBuyNow={handleModalBuyNow}
-      />
     </section>
   );
 }

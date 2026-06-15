@@ -5,8 +5,8 @@ import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
 
 export const metadata: Metadata = {
-  title: "Size Guide | Firaangi",
-  description: "Use the Firaangi size guide to find your ideal fit before ordering.",
+  title: "Size Guide | Firaang",
+  description: "Use the Firaang size guide to find your ideal fit before ordering.",
 };
 
 const SIZE_HEADERS = ["Size", "Bust / Chest", "Length", "Across Shoulder", "Body Fit Range"];

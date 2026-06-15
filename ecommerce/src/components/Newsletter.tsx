@@ -90,7 +90,7 @@ export default function Newsletter() {
         <div className="section-shell max-w-2xl text-center">
           <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-[var(--page-fg)]/85">Stay Connected</p>
           <h2 className="mt-2 text-[44px] font-semibold leading-[1.08] tracking-[0.01em] md:text-[50px]" style={{ fontFamily: "var(--font-playfair), serif" }}>
-            Join The Firaangi Club
+            Join The Firaang Club
           </h2>
           <p className="mt-4 text-[18px] font-normal leading-[1.55] text-[var(--newsletter-subtext)]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
             Be the first to know about new collections, exclusive offers, and luxury style tips.
@@ -125,7 +125,7 @@ export default function Newsletter() {
         <div className="grid gap-9 border-b border-[var(--footer-border)] pb-10 md:grid-cols-2 lg:grid-cols-[1.45fr_1fr_1fr_1fr_1.35fr]">
             {/* Brand */}
             <div>
-              <SafeImage src="/Firaangi Logo Design.svg" alt="Firaangi" className="h-[52px] w-auto" />
+              <SafeImage src="/Firaangi Logo Design.svg" alt="Firaang" className="h-[52px] w-auto" />
               <p className="mt-5 max-w-sm text-[16px] font-medium leading-[1.65] text-[var(--footer-links)]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
                 Where fashion meets global elegance. Curated clothing and jewellery for the modern connoisseur.
               </p>
@@ -230,7 +230,7 @@ export default function Newsletter() {
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-[#3b0810]">
                     <MapPin className="h-3.5 w-3.5" />
                   </span>
-                  <span>Firaangi Studio, Chandigarh, India</span>
+                  <span>Firaang Studio, Chandigarh, India</span>
                 </li>
                 <li className="flex items-start gap-3 border-b border-[var(--footer-contact-border)] pb-3">
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-[#3b0810]">
@@ -242,14 +242,14 @@ export default function Newsletter() {
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-[#3b0810]">
                     <Mail className="h-3.5 w-3.5" />
                   </span>
-                  <a href="mailto:support@firaangi.com" className="transition hover:text-[var(--gold)]">support@firaangi.com</a>
+                  <a href="mailto:support@firaang.com" className="transition hover:text-[var(--gold)]">support@firaang.com</a>
                 </li>
               </ul>
             </div>
           </div>
 
           <div className="grid gap-4 py-5 text-[13px] font-medium text-[var(--footer-bottom)] md:grid-cols-[1fr_auto_1fr] md:items-center" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
-            <p className="text-center md:text-left">© 2026 Firaangi. All rights reserved.</p>
+            <p className="text-center md:text-left">© 2026 Firaang. All rights reserved.</p>
 
             <div className="flex items-center justify-center gap-2">
               <div className="relative" ref={currencyRef}>

@@ -23,7 +23,7 @@ const projectRoot = path.resolve(scriptDirPath, "..");
 loadEnvConfig(projectRoot);
 
 const MONGODB_URI = process.env.MONGODB_URI;
-const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "firaangi";
+const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "Firaang";
 const COUPONS_COLLECTION_NAME = process.env.MONGODB_COUPONS_COLLECTION || "coupons";
 
 if (!MONGODB_URI) {

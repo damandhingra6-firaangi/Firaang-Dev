@@ -105,7 +105,7 @@ export const useShopStore = create<ShopState>()(
       clearCart: () => set({ cart: {} }),
     }),
     {
-      name: "firaangi-shop-store",
+      name: "Firaang-shop-store",
       partialize: (state) => ({
         wishlist: state.wishlist,
         cart: state.cart,

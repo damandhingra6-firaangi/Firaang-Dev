@@ -188,14 +188,14 @@ function splitCustomerName(value: string) {
   const trimmed = value.trim();
 
   if (!trimmed) {
-    return { firstName: "Firaangi", lastName: "Customer" };
+    return { firstName: "Firaang", lastName: "Customer" };
   }
 
   const [firstName, ...rest] = trimmed.split(/\s+/);
   const lastName = rest.join(" ").trim();
 
   return {
-    firstName: firstName || "Firaangi",
+    firstName: firstName || "Firaang",
     lastName: lastName || "Customer",
   };
 }
@@ -475,8 +475,8 @@ async function createPaidOrderViaRest(input: {
           send_receipt: false,
           send_fulfillment_receipt: false,
           currency: input.currencyCode,
-          note: `Firaangi order ${input.orderId}`,
-          tags: ["firaangi", "paid", input.paymentMethod, input.orderId].join(","),
+          note: `Firaang order ${input.orderId}`,
+          tags: ["Firaang", "paid", input.paymentMethod, input.orderId].join(","),
           line_items: input.lineItems.map((item) => ({
             title: item.title,
             quantity: item.quantity,
@@ -681,8 +681,8 @@ async function adjustShopifyInventoryForVariants(
   }
 
   const adjustmentValue = movement === "reserve" ? -1 : 1;
-  const adjustmentMutation = `mutation InventoryAdjustQuantities($input: InventoryAdjustQuantitiesInput!) {
-    inventoryAdjustQuantities(input: $input) {
+  const adjustmentMutation = `mutation InventoryAdjustQuantities($input: InventoryAdjustQuantitiesInput!, $idempotencyKey: String!) {
+    inventoryAdjustQuantities(input: $input) @idempotent(key: $idempotencyKey) {
       userErrors {
         field
         message
@@ -701,15 +701,17 @@ async function adjustShopifyInventoryForVariants(
       }
 
       const mutationResult = await runShopifyAdminMutation<ShopifyInventoryAdjustResponse>(adjustmentMutation, {
+        idempotencyKey: `inventory-${movement}-${attempt.variantId}-${attempt.quantity}`,
         input: {
           reason: "correction",
           name: "available",
-          referenceDocumentUri: `firaangi://order/${attempt.variantId}`,
+          referenceDocumentUri: `firaang://order/${attempt.variantId}`,
           changes: [
             {
               inventoryItemId,
               locationId: locationGid,
               delta: attempt.quantity * adjustmentValue,
+              changeFromQuantity: null,
             },
           ],
         },
@@ -806,7 +808,7 @@ export async function syncPaidOrderToShopify(orderId: string) {
     };
   }
 
-  const customerName = orderWithCustomer.order.shippingName ?? orderWithCustomer.customer?.fullName ?? "Firaangi Customer";
+  const customerName = orderWithCustomer.order.shippingName ?? orderWithCustomer.customer?.fullName ?? "Firaang Customer";
   const customerEmail = orderWithCustomer.customer?.email;
   const { firstName, lastName } = splitCustomerName(customerName);
   let skipDraftOrderFlow = false;
@@ -870,8 +872,8 @@ export async function syncPaidOrderToShopify(orderId: string) {
     {
       input: {
         email: customerEmail,
-        note: `Firaangi order ${orderWithCustomer.order.id}`,
-        tags: ["firaangi", "paid", orderWithCustomer.order.paymentMethod, orderWithCustomer.order.id],
+        note: `Firaang order ${orderWithCustomer.order.id}`,
+        tags: ["Firaang", "paid", orderWithCustomer.order.paymentMethod, orderWithCustomer.order.id],
         lineItems,
         shippingAddress,
       },

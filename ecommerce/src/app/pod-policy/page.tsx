@@ -4,8 +4,8 @@ import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
 
 export const metadata: Metadata = {
-  title: "Made-to-Order & Quality Policy | Firaangi",
-  description: "Understand Firaangi's print-on-demand production, quality checks, and support process.",
+  title: "Made-to-Order & Quality Policy | Firaang",
+  description: "Understand Firaang's print-on-demand production, quality checks, and support process.",
 };
 
 const policies = [
@@ -27,7 +27,7 @@ const policies = [
   },
   {
     title: "Support Request Process",
-    body: "Email support@firaangi.com with your order ID, issue details, and clear photos within 48 hours of delivery. Our team typically responds within 24-48 hours.",
+    body: "Email support@firaang.com with your order ID, issue details, and clear photos within 48 hours of delivery. Our team typically responds within 24-48 hours.",
   },
   {
     title: "Printed & Shipped with Care",
@@ -75,7 +75,7 @@ export default function PodPolicyPage() {
               Our support team is available Monday to Saturday, 11 AM to 8 PM. Include your order ID and product photos for faster resolution.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <a href="mailto:support@firaangi.com?subject=POD%20Support%20Request" className="gold-button w-full text-center sm:w-auto">
+              <a href="mailto:support@firaang.com?subject=POD%20Support%20Request" className="gold-button w-full text-center sm:w-auto">
                 Email Support
               </a>
               <a href="tel:+918556008254" className="outline-button w-full text-center sm:w-auto">

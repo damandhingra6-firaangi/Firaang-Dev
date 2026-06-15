@@ -662,7 +662,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
                       </div>
                     )}
                     <div>
-                      <p className="text-lg font-semibold text-[var(--popup-footer-text)]">{profile.fullName || "Firaangi Shopper"}</p>
+                      <p className="text-lg font-semibold text-[var(--popup-footer-text)]">{profile.fullName || "Firaang Shopper"}</p>
                       <p className="text-sm text-[var(--popup-subtext)]">{profile.email}</p>
                       <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[var(--gold)]">Signed in with {profile.authProvider}</p>
                     </div>

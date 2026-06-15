@@ -220,7 +220,7 @@ export default function Navbar() {
         <Link href="/" className="shrink-0 xl:mr-6">
           <SafeImage
             src="/Firaangi Logo Design.svg"
-            alt="Firaangi Logo"
+            alt="Firaang Logo"
             className="h-[38px] w-auto md:h-[50px]"
           />
         </Link>
@@ -439,7 +439,7 @@ export default function Navbar() {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-card)] px-4 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-[var(--gold)]">Navigate Firaangi</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-[var(--gold)]">Navigate Firaang</p>
               <p className="mt-2 text-[22px] font-semibold leading-[1.1] text-[var(--popup-footer-text)]" style={{ fontFamily: "var(--font-playfair), serif" }}>
                 Explore Categories, collections, and signature edits.
               </p>

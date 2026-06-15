@@ -4,8 +4,8 @@ import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Firaangi",
-  description: "Learn how Firaangi collects, uses and protects your personal information.",
+  title: "Privacy Policy | Firaang",
+  description: "Learn how Firaang collects, uses and protects your personal information.",
 };
 
 const sections = [
@@ -19,7 +19,7 @@ const sections = [
   },
   {
     title: "Payment Security",
-    body: "All payment transactions are processed through Razorpay, a PCI-DSS compliant payment gateway. Firaangi does not store your card details on our servers.",
+    body: "All payment transactions are processed through Razorpay, a PCI-DSS compliant payment gateway. Firaang does not store your card details on our servers.",
   },
   {
     title: "SMS & OTP",
@@ -39,7 +39,7 @@ const sections = [
   },
   {
     title: "Your Rights",
-    body: "You have the right to access, correct, or request deletion of your personal data. To exercise any of these rights, email us at support@firaangi.com and we will respond within 7 working days.",
+    body: "You have the right to access, correct, or request deletion of your personal data. To exercise any of these rights, email us at support@firaang.com and we will respond within 7 working days.",
   },
   {
     title: "Changes to This Policy",
@@ -88,7 +88,7 @@ export default function PrivacyPolicyPage() {
             <p className="mt-3 max-w-xl text-sm leading-7 text-[#f0d8cd]">
               Reach out to our team and we will respond within 7 working days.
             </p>
-            <a href="mailto:support@firaangi.com?subject=Privacy%20Enquiry" className="gold-button mt-6 inline-block">
+            <a href="mailto:support@firaang.com?subject=Privacy%20Enquiry" className="gold-button mt-6 inline-block">
               Contact Us
             </a>
           </div>

@@ -64,7 +64,7 @@ export async function notifyOrderPaid(context: OrderNotificationContext) {
   }
 
   const amount = formatMoney(context.totalAmount, context.currencyCode);
-  const subject = `Your Firaangi order ${context.orderId} is confirmed`;
+  const subject = `Your Firaang order ${context.orderId} is confirmed`;
   const html = `
     <div style="font-family:Arial,sans-serif;line-height:1.6;color:#2b060b">
       <h2>Your order is confirmed</h2>
@@ -74,7 +74,7 @@ export async function notifyOrderPaid(context: OrderNotificationContext) {
       <p>We’ll notify you again when your order is packed and shipped.</p>
     </div>
   `;
-  const text = `Your Firaangi order ${context.orderId} is confirmed. Total paid: ${amount}.`;
+  const text = `Your Firaang order ${context.orderId} is confirmed. Total paid: ${amount}.`;
 
   return sendEmailViaResend({ to: recipient, subject, html, text });
 }
@@ -86,7 +86,7 @@ export async function notifyOrderCancelled(context: OrderNotificationContext & {
   }
 
   const amount = formatMoney(context.totalAmount, context.currencyCode);
-  const subject = `Your Firaangi order ${context.orderId} was cancelled`;
+  const subject = `Your Firaang order ${context.orderId} was cancelled`;
   const html = `
     <div style="font-family:Arial,sans-serif;line-height:1.6;color:#2b060b">
       <h2>Order cancelled</h2>
@@ -96,7 +96,7 @@ export async function notifyOrderCancelled(context: OrderNotificationContext & {
       ${context.reason ? `<p>Reason: ${context.reason}</p>` : ""}
     </div>
   `;
-  const text = `Your Firaangi order ${context.orderId} was cancelled. Order amount: ${amount}.`;
+  const text = `Your Firaang order ${context.orderId} was cancelled. Order amount: ${amount}.`;
 
   return sendEmailViaResend({ to: recipient, subject, html, text });
 }
@@ -109,7 +109,7 @@ export async function notifyRefundProcessed(context: OrderNotificationContext & 
 
   const amount = formatMoney(context.totalAmount, context.currencyCode);
   const refundAmount = typeof context.refundAmount === "number" ? formatMoney(context.refundAmount, context.currencyCode) : amount;
-  const subject = `Refund processed for Firaangi order ${context.orderId}`;
+  const subject = `Refund processed for Firaang order ${context.orderId}`;
   const html = `
     <div style="font-family:Arial,sans-serif;line-height:1.6;color:#2b060b">
       <h2>Refund processed</h2>

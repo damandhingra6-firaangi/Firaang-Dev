@@ -138,7 +138,7 @@ export default function OrderAdminDashboard() {
   const didAutoLoadRef = useRef(false);
 
   useEffect(() => {
-    const savedKey = window.localStorage.getItem("firaangi-admin-key") ?? "";
+    const savedKey = window.localStorage.getItem("Firaang-admin-key") ?? "";
     if (savedKey) {
       setAdminKey(savedKey);
     }
@@ -210,7 +210,7 @@ export default function OrderAdminDashboard() {
           ]),
         ),
       );
-      window.localStorage.setItem("firaangi-admin-key", adminKey.trim());
+      window.localStorage.setItem("Firaang-admin-key", adminKey.trim());
       setSuccessMessage(`Loaded ${nextOrders.length} orders.`);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load orders");

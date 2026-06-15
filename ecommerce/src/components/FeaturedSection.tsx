@@ -23,7 +23,7 @@ export default function FeaturedSection() {
         <h3 className="mt-12 text-center text-2xl">Our Social Radar</h3>
         <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
           {gallery.map((item, index) => (
-            <SafeImage key={`${item}-${index}`} src={item} alt="Firaangi showcase" className="h-36 w-full object-cover" />
+            <SafeImage key={`${item}-${index}`} src={item} alt="Firaang showcase" className="h-36 w-full object-cover" />
           ))}
         </div>
       </div>

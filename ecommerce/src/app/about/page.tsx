@@ -5,8 +5,8 @@ import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
 
 export const metadata: Metadata = {
-  title: "About | Firaangi",
-  description: "Firaangi is a modern Indian label creating bold, expressive designs for everyday wear — blending global inspiration with comfort and style.",
+  title: "About | Firaang",
+  description: "Firaang is a modern Indian label creating bold, expressive designs for everyday wear — blending global inspiration with comfort and style.",
 };
 
 const valuePillars = [
@@ -43,12 +43,12 @@ export default function AboutPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_90%_40%,rgba(255,255,255,0.08),transparent_30%)]" />
 
         <div className="section-shell relative pb-10 md:pb-14">
-          <p className="text-xs uppercase tracking-[0.28em] text-[var(--gold)]">About Firaangi</p>
+          <p className="text-xs uppercase tracking-[0.28em] text-[var(--gold)]">About Firaang</p>
           <h1 className="mt-3 max-w-3xl text-4xl leading-tight text-[var(--page-fg)] md:text-6xl">
             A modern Indian label with a global fashion lens.
           </h1>
           <p className="mt-5 max-w-3xl text-sm leading-7 text-[var(--popup-subtext)] md:text-base">
-            Firaangi brings bold, expressive designs to everyday wear — crafted for comfort, styled for everyone.
+            Firaang brings bold, expressive designs to everyday wear — crafted for comfort, styled for everyone.
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">

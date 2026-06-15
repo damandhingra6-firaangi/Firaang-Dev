@@ -10,9 +10,10 @@ import { useUiStore } from "@/store/useUiStore";
 
 type ProductDetailsModalProps = {
   product: GridProduct | null;
-  isOpen: boolean;
+  isOpen?: boolean;
+  mode?: "modal" | "page";
   isWishlisted: (product: GridProduct) => boolean;
-  onClose: () => void;
+  onClose?: () => void;
   onToggleWishlist: (product: GridProduct) => void;
   onAddToCart: (product: GridProduct) => void;
   onBuyNow: (product: GridProduct) => void;
@@ -167,13 +168,15 @@ function parseZoomOrigin(origin: string) {
 
 export default function ProductDetailsModal({
   product,
-  isOpen,
+  isOpen = true,
+  mode = "modal",
   isWishlisted,
   onClose,
   onToggleWishlist,
   onAddToCart,
   onBuyNow,
 }: ProductDetailsModalProps) {
+  const isModalLayout = mode === "modal";
   const displayCurrency = useUiStore((state) => state.currency);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
@@ -537,18 +540,26 @@ export default function ProductDetailsModal({
     });
   };
 
-  if (!isOpen || !product) {
+  if ((isModalLayout && !isOpen) || !product) {
     return null;
   }
 
   return (
     <div
-      className="fixed inset-0 z-[90] overflow-y-auto bg-black/75 px-3 py-3 backdrop-blur-[2px] md:px-6 md:py-6"
-      onClick={onClose}
+      className={
+        isModalLayout
+          ? "fixed inset-0 z-[90] overflow-y-auto bg-black/75 px-3 py-3 backdrop-blur-[2px] md:px-6 md:py-6"
+          : "w-full py-4 md:py-6"
+      }
+      onClick={isModalLayout ? onClose : undefined}
     >
       <div
-        className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border border-[var(--gold)]/45 bg-[image:var(--popup-gradient)] shadow-[0_30px_70px_rgba(0,0,0,0.6)] md:min-h-0 md:max-h-[calc(100vh-3rem)]"
-        onClick={(event) => event.stopPropagation()}
+        className={
+          isModalLayout
+            ? "mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border border-[var(--gold)]/45 bg-[image:var(--popup-gradient)] shadow-[0_30px_70px_rgba(0,0,0,0.6)] md:min-h-0 md:max-h-[calc(100vh-3rem)]"
+            : "mx-auto flex w-full max-w-7xl flex-col overflow-hidden rounded-[2rem] border border-[var(--gold)]/45 bg-[image:var(--popup-gradient)] shadow-[0_30px_70px_rgba(0,0,0,0.45)]"
+        }
+        onClick={isModalLayout ? (event) => event.stopPropagation() : undefined}
       >
         <div className="flex items-start justify-between gap-4 border-b border-[var(--gold)]/25 px-5 py-4 md:px-7 md:py-5">
           <div className="min-w-0 flex-1">
@@ -560,14 +571,16 @@ export default function ProductDetailsModal({
               {resolvedProduct?.name ?? product.name}
             </h3>
           </div>
-          <button
-            type="button"
-            aria-label="Close product details"
-            className="shrink-0 rounded-full p-2 text-[var(--gold)] transition hover:bg-[var(--popup-hover2)]"
-            onClick={onClose}
-          >
-            <X className="h-5 w-5" />
-          </button>
+          {isModalLayout && onClose ? (
+            <button
+              type="button"
+              aria-label="Close product details"
+              className="shrink-0 rounded-full p-2 text-[var(--gold)] transition hover:bg-[var(--popup-hover2)]"
+              onClick={onClose}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          ) : null}
         </div>
 
         <div className="flex-1 overflow-y-auto overscroll-contain">
@@ -1030,7 +1043,9 @@ export default function ProductDetailsModal({
                 onClick={() => {
                   if (resolvedProduct) {
                     onAddToCart(resolvedProduct);
-                    onClose();
+                    if (isModalLayout && onClose) {
+                      onClose();
+                    }
                   }
                 }}
               >

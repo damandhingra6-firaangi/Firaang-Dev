@@ -21,7 +21,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Firaangi",
+  title: "Firaang",
   description: "Luxury Clothing & Jewellery",
   icons: {
     icon: "/icon_v001.svg",

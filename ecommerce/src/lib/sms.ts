@@ -110,7 +110,7 @@ async function sendViaTwilio(input: SendOtpSmsInput) {
   const otpTemplate = readEnv("SMS_OTP_MESSAGE_TEMPLATE").trim();
   const bodyMessage = otpTemplate
     ? otpTemplate.replace("{{OTP}}", input.code)
-    : `Your Firaangi OTP is ${input.code}. It is valid for 5 minutes.`;
+    : `Your Firaang OTP is ${input.code}. It is valid for 5 minutes.`;
 
   const form = new URLSearchParams({
     To: input.phone,

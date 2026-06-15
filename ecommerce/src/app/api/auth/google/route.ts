@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     try {
       account = await upsertGoogleAccount({
         email: payload.email,
-        fullName: payload.name ?? payload.email.split("@")[0] ?? "Firaangi Shopper",
+        fullName: payload.name ?? payload.email.split("@")[0] ?? "Firaang Shopper",
         avatarUrl: payload.picture,
         googleSub: payload.sub,
       });

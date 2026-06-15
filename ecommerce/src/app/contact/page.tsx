@@ -5,8 +5,8 @@ import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
 
 export const metadata: Metadata = {
-  title: "Contact | Firaangi",
-  description: "Get in touch with the Firaangi team for orders, support, and collaborations.",
+  title: "Contact | Firaang",
+  description: "Get in touch with the Firaang team for orders, support, and collaborations.",
 };
 
 type ContactCard = {
@@ -20,7 +20,7 @@ type ContactCard = {
 const contactCards: ReadonlyArray<ContactCard> = [
   {
     title: "Store Address",
-    value: "Firaangi Studio, Chandigarh, India",
+    value: "Firaang Studio, Chandigarh, India",
     subtitle: "Visit by prior appointment",
     icon: MapPin,
   },
@@ -33,10 +33,10 @@ const contactCards: ReadonlyArray<ContactCard> = [
   },
   {
     title: "Email",
-    value: "support@firaangi.com",
+    value: "support@firaang.com",
     subtitle: "Support and order updates",
     icon: Mail,
-    href: "mailto:support@firaangi.com",
+    href: "mailto:support@firaang.com",
   },
   {
     title: "Working Hours",
@@ -108,11 +108,11 @@ export default function ContactPage() {
             </p>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <a href="mailto:support@firaangi.com?subject=Firaangi%20Support" className="gold-button w-full text-center sm:w-auto">
+              <a href="mailto:support@firaang.com?subject=Firaang%20Support" className="gold-button w-full text-center sm:w-auto">
                 Email Support
               </a>
               {/* <a href="tel:+919876543210" className="outline-button w-full text-center sm:w-auto">
-                Call Firaangi
+                Call Firaang
               </a> */}
             </div>
           </div>

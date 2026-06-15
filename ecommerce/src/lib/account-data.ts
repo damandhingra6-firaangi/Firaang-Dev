@@ -560,14 +560,14 @@ export async function upsertMobileAccount(input: { phone: string }) {
     };
   }
 
-  const syntheticEmail = `mobile.${input.phone.replace(/\D/g, "")}@firaangi.local`;
+  const syntheticEmail = `mobile.${input.phone.replace(/\D/g, "")}@Firaang.local`;
 
   await users.updateOne(
     { email: syntheticEmail },
     {
       $set: {
         email: syntheticEmail,
-        fullName: "Firaangi Shopper",
+        fullName: "Firaang Shopper",
         avatarUrl: "",
         phone: input.phone,
         authProvider: "mobile",

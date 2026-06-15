@@ -30,7 +30,7 @@ Optional:
 
 - TWILIO_MESSAGING_SERVICE_SID=MGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 - TWILIO_VERIFY_SERVICE_SID=VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-- SMS_OTP_MESSAGE_TEMPLATE=Your Firaangi OTP is {{OTP}}. Valid for 5 minutes.
+- SMS_OTP_MESSAGE_TEMPLATE=Your Firaang OTP is {{OTP}}. Valid for 5 minutes.
 
 Note:
 

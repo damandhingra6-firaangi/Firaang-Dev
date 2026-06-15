@@ -31,6 +31,14 @@
       "namedRegex": "^/api/coupons/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/product/[handle]",
+      "regex": "^/product/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPhandle": "nxtPhandle"
+      },
+      "namedRegex": "^/product/(?<nxtPhandle>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/shop/[category]",
       "regex": "^/shop/([^/]+?)(?:/)?$",
       "routeKeys": {

@@ -6,7 +6,6 @@ import { Heart, ShoppingBag } from "lucide-react";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { buildCategoryTree, matchesAudienceFilter, slugify } from "@/lib/product-taxonomy";
-import ProductDetailsModal from "@/components/ProductDetailsModal";
 import SafeImage from "@/components/SafeImage";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
@@ -30,7 +29,6 @@ export default function ShopListing({
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedSubCategory, setSelectedSubCategory] = useState(initialSubCategory);
   const [selectedAudience, setSelectedAudience] = useState(initialAudience);
-  const [selectedProduct, setSelectedProduct] = useState<GridProduct | null>(null);
   const urlSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wishlist = useShopStore((state) => state.wishlist);
   const toggleWishlist = useShopStore((state) => state.toggleWishlist);
@@ -231,7 +229,8 @@ export default function ShopListing({
   }, [deferredQuery, products, selectedAudience, selectedCategory, selectedSubCategory]);
 
   const handleOpenDetails = (product: GridProduct) => {
-    setSelectedProduct(product);
+    const routeKey = product.handle?.trim() || product.id;
+    router.push(`/product/${encodeURIComponent(routeKey)}`);
   };
 
   const handleToggleWishlist = (product: GridProduct) => {
@@ -240,16 +239,6 @@ export default function ShopListing({
 
   const handleAddToCart = (product: GridProduct) => {
     addToCart(product);
-    openCart();
-  };
-
-  const handleModalAddToCart = (product: GridProduct) => {
-    addToCart(product);
-  };
-
-  const handleModalBuyNow = (product: GridProduct) => {
-    addToCart(product);
-    setSelectedProduct(null);
     openCart();
   };
 
@@ -464,16 +453,6 @@ export default function ShopListing({
           ))}
         </div>
       )}
-
-      <ProductDetailsModal
-        product={selectedProduct}
-        isOpen={selectedProduct !== null}
-        isWishlisted={(product) => wishlistIds.has(product.id)}
-        onClose={() => setSelectedProduct(null)}
-        onToggleWishlist={handleToggleWishlist}
-        onAddToCart={handleModalAddToCart}
-        onBuyNow={handleModalBuyNow}
-      />
     </section>
   );
 }

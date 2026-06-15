@@ -1,8 +1,8 @@
 const testimonials = [
-  { quote: "The quality of Firaangi's clothing is unparalleled. Every piece feels like it was made just for me. Truly luxurious!", rating: 5, name: "Priya Sharma", city: "Mumbai" },
-  { quote: "The quality of Firaangi's clothing is unparalleled. Every piece feels like it was made just for me. Truly luxurious!", rating: 5, name: "Priya Sharma", city: "Mumbai" },
-  { quote: "The quality of Firaangi's clothing is unparalleled. Every piece feels like it was made just for me. Truly luxurious!", rating: 5, name: "Priya Sharma", city: "Mumbai" },
-  { quote: "The quality of Firaangi's clothing is unparalleled. Every piece feels like it was made just for me. Truly luxurious!", rating: 5, name: "Priya Sharma", city: "Mumbai" },
+  { quote: "The quality of Firaang's clothing is unparalleled. Every piece feels like it was made just for me. Truly luxurious!", rating: 5, name: "Priya Sharma", city: "Mumbai" },
+  { quote: "The quality of Firaang's clothing is unparalleled. Every piece feels like it was made just for me. Truly luxurious!", rating: 5, name: "Priya Sharma", city: "Mumbai" },
+  { quote: "The quality of Firaang's clothing is unparalleled. Every piece feels like it was made just for me. Truly luxurious!", rating: 5, name: "Priya Sharma", city: "Mumbai" },
+  { quote: "The quality of Firaang's clothing is unparalleled. Every piece feels like it was made just for me. Truly luxurious!", rating: 5, name: "Priya Sharma", city: "Mumbai" },
 ];
 
 export default function Testimonials() {

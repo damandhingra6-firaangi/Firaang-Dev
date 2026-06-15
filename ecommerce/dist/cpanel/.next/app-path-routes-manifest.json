@@ -38,6 +38,7 @@
   "/page": "/",
   "/pod-policy/page": "/pod-policy",
   "/privacy-policy/page": "/privacy-policy",
+  "/product/[handle]/page": "/product/[handle]",
   "/shop/[category]/[subCategory]/page": "/shop/[category]/[subCategory]",
   "/shop/[category]/page": "/shop/[category]",
   "/shop/page": "/shop",

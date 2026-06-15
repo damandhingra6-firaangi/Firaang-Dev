@@ -1,15 +1,15 @@
 import { Db, MongoClient, type MongoClientOptions } from "mongodb";
 
-const mongoDbName = process.env.MONGODB_DB_NAME ?? "firaangi";
+const mongoDbName = process.env.MONGODB_DB_NAME ?? "Firaang";
 
 type MongoGlobal = typeof globalThis & {
-  __firaangiMongoClientPromise?: Promise<MongoClient>;
+  __FiraangMongoClientPromise?: Promise<MongoClient>;
 };
 
 const globalForMongo = globalThis as MongoGlobal;
 
 function getMongoClientPromise() {
-  const existingPromise = globalForMongo.__firaangiMongoClientPromise;
+  const existingPromise = globalForMongo.__FiraangMongoClientPromise;
 
   if (existingPromise) {
     return existingPromise;
@@ -36,13 +36,13 @@ function getMongoClientPromise() {
     .connect()
     .catch((error) => {
       // Allow subsequent retries after a transient failure instead of caching a rejected promise.
-      if (globalForMongo.__firaangiMongoClientPromise === clientPromise) {
-        globalForMongo.__firaangiMongoClientPromise = undefined;
+      if (globalForMongo.__FiraangMongoClientPromise === clientPromise) {
+        globalForMongo.__FiraangMongoClientPromise = undefined;
       }
       throw error;
     });
 
-  globalForMongo.__firaangiMongoClientPromise = clientPromise;
+  globalForMongo.__FiraangMongoClientPromise = clientPromise;
 
   return clientPromise;
 }

@@ -11,10 +11,10 @@ This guide is tailored to this project and fixes production errors like: "Could 
 ## 2) Create MongoDB Atlas from scratch
 
 1. Create an account at MongoDB Atlas.
-2. Create a Project (example: Firaangi).
+2. Create a Project (example: Firaang).
 3. Create a Cluster using the free tier (M0).
 4. Create a Database User:
-   - Username: choose a dedicated app user (example: firaangi_app)
+   - Username: choose a dedicated app user (example: Firaang_app)
    - Password: strong password
    - Role: Read and write to any database (or least privilege for your db)
 5. Configure Network Access:
@@ -44,7 +44,7 @@ Important:
 ## 4) Database and collection design used by this project
 
 Database name:
-- firaangi (or value from MONGODB_DB_NAME)
+- Firaang (or value from MONGODB_DB_NAME)
 
 Collections:
 
@@ -64,7 +64,7 @@ The app auto-creates these indexes at runtime, but you can create them manually 
 
 Use mongosh and run:
 
-use firaangi
+use Firaang
 
 db.feedback.createIndex(
   { submittedAt: -1 },

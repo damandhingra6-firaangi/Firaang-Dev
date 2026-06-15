@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -206,7 +206,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
         key: effectiveRazorpayKey,
         amount: orderData.amount,
         currency: orderData.currency,
-        name: "Firaangi",
+        name: "Firaang",
         description: "Secure checkout",
         order_id: orderData.orderId,
         prefill: { name: shippingName.trim() || undefined },
@@ -429,9 +429,9 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
               {/* Delivery address */}
               <div className="rounded-2xl border border-[var(--gold)]/30 bg-[var(--popup-footer-bg)] p-4">
                 <p className="mb-2 text-[11px] uppercase tracking-[0.14em] text-[var(--gold)]">Delivering to</p>
-                <p className="text-sm font-medium text-[var(--popup-footer-text)]">{shippingName || "—"}</p>
+                <p className="text-sm font-medium text-[var(--popup-footer-text)]">{shippingName || "-"}</p>
                 <p className="mt-0.5 text-xs text-[var(--popup-muted)]">
-                  {shippingAddress}{shippingCity ? `, ${shippingCity}` : ""}, {shippingState} – {shippingPinCode}
+                  {shippingAddress}{shippingCity ? `, ${shippingCity}` : ""}, {shippingState} - {shippingPinCode}
                 </p>
               </div>
 
@@ -443,7 +443,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                     <div key={item.product.id} className="flex items-center gap-3">
                       <SafeImage src={item.product.img} alt={item.product.name} className="h-10 w-10 shrink-0 rounded-lg object-cover" />
                       <p className="flex-1 text-xs text-[var(--popup-footer-text)] line-clamp-1">{item.product.name}</p>
-                      <span className="text-xs text-[var(--popup-muted)]">×{item.quantity}</span>
+                      <span className="text-xs text-[var(--popup-muted)]">x{item.quantity}</span>
                       <span className="text-xs font-medium text-[var(--popup-footer-text)]">
                         {formatCurrency(convertAmount(item.product.priceAmount * item.quantity, "INR", displayCurrency), displayCurrency)}
                       </span>
@@ -493,12 +493,12 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                 </div>
                 <div className="flex justify-between text-sm text-[var(--popup-footer-text)]">
                   <span>Shipping {pricing.shippingStatus === "resolved" ? <span className="ml-1 text-[11px] text-[var(--popup-muted)]">({pricing.shippingLabel})</span> : null}</span>
-                  <span>{pricing.shippingStatus === "resolved" ? formatCurrency(convertAmount(pricing.shippingFee, "INR", displayCurrency), displayCurrency) : "—"}</span>
+                  <span>{pricing.shippingStatus === "resolved" ? formatCurrency(convertAmount(pricing.shippingFee, "INR", displayCurrency), displayCurrency) : "-"}</span>
                 </div>
                 {pricing.discountAmount > 0 ? (
                   <div className="flex justify-between text-sm text-emerald-300">
                     <span>Discount ({appliedCoupon?.code})</span>
-                    <span>−{formatCurrency(convertAmount(pricing.discountAmount, "INR", displayCurrency), displayCurrency)}</span>
+                    <span>-{formatCurrency(convertAmount(pricing.discountAmount, "INR", displayCurrency), displayCurrency)}</span>
                   </div>
                 ) : null}
                 <div className="flex justify-between border-t border-[var(--gold)]/20 pt-2.5 text-base font-semibold text-[#fff4ef]">
@@ -515,7 +515,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
 
               <div className="flex items-center justify-center gap-2 text-[11px] text-[var(--popup-muted)]">
                 <Package className="h-3.5 w-3.5" />
-                <span>Secured by Razorpay · 256-bit SSL encrypted</span>
+                <span>Secured by Razorpay - 256-bit SSL encrypted</span>
               </div>
             </div>
           )}
@@ -543,7 +543,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
           )}
           {step === "summary" && (
             <button type="button" disabled={isCheckingOut || !hasShippingDetails || pricing.shippingStatus !== "resolved"} onClick={() => void handleOnlineCheckout()} className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--gold)] px-5 py-4 text-base font-bold text-[#3b0810] transition hover:bg-[#f0c654] disabled:cursor-not-allowed disabled:opacity-50">
-              {isCheckingOut ? "Processing…" : <>Pay Securely{pricing.totalAmount > 0 ? ` · ${formatCurrency(convertAmount(pricing.totalAmount, "INR", displayCurrency), displayCurrency)}` : ""}</>}
+              {isCheckingOut ? "Processing..." : <>Pay Securely{pricing.totalAmount > 0 ? ` - ${formatCurrency(convertAmount(pricing.totalAmount, "INR", displayCurrency), displayCurrency)}` : ""}</>}
             </button>
           )}
         </div>

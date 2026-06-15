@@ -144,7 +144,7 @@ export default function TrackOrderPage() {
                 <button type="button" onClick={() => setLookupError("")} className="outline-button">
                   Try Again
                 </button>
-                <a href="mailto:support@firaangi.com?subject=Track%20Order" className="gold-button text-center">
+                <a href="mailto:support@firaang.com?subject=Track%20Order" className="gold-button text-center">
                   Contact Support
                 </a>
               </div>

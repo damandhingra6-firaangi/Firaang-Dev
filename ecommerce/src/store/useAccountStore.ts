@@ -68,7 +68,7 @@ export const useAccountStore = create<AccountState>()(
         })),
     }),
     {
-      name: "firaangi-account-store",
+      name: "Firaang-account-store",
       partialize: (state) => ({
         isLoading: false,
         isSignedIn: state.isSignedIn,
