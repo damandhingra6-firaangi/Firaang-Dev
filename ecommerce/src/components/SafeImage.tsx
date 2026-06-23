@@ -6,7 +6,7 @@ type SafeImageProps = ImgHTMLAttributes<HTMLImageElement> & {
   fallbackSrc?: string;
 };
 
-const DEFAULT_FALLBACK_SRC = "/images/image-fallback.svg";
+const DEFAULT_FALLBACK_SRC = "/FiraangLogoDesign-white.png";
 
 export default function SafeImage({
   src,

@@ -217,11 +217,16 @@ export default function Navbar() {
 
       <div className="border-y border-[color:var(--nav-border)]/60 bg-[var(--nav-bg)] text-[var(--nav-text)]">
         <div className="mx-auto flex max-w-[1380px] items-center justify-between px-4 py-3 md:px-6 md:py-3.5 lg:px-8 xl:px-10">
-        <Link href="/" className="shrink-0 xl:mr-6">
+        <Link href="/" className="shrink-0 xl:mr-6" aria-label="Firaang home">
           <SafeImage
-            src="/Firaangi Logo Design.svg"
+            src="/icon_v001.svg"
+            alt="Firaang Icon"
+            className="block h-8 w-8 object-contain sm:h-9 sm:w-9 md:hidden"
+          />
+          <SafeImage
+            src="/FiraangLogoDesign.png"
             alt="Firaang Logo"
-            className="h-[38px] w-auto md:h-[50px]"
+            className="hidden h-8 w-auto max-w-[170px] object-contain md:block md:h-9 md:max-w-[190px] lg:h-10 lg:max-w-[210px] xl:h-11 xl:max-w-[230px]"
           />
         </Link>
 
