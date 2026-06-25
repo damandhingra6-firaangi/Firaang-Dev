@@ -78,7 +78,7 @@ export default function PodPolicyPage() {
               <a href="mailto:support@firaang.com?subject=POD%20Support%20Request" className="gold-button w-full text-center sm:w-auto">
                 Email Support
               </a>
-              <a href="tel:+918556008254" className="outline-button w-full text-center sm:w-auto">
+              <a href="tel:+919878619783" className="outline-button w-full text-center sm:w-auto">
                 Call
               </a>
             </div>

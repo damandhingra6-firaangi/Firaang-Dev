@@ -26,10 +26,10 @@ const contactCards: ReadonlyArray<ContactCard> = [
   },
   {
     title: "Call",
-    value: "+91 85560 08254",
+    value: "+91 98786 19783",
     subtitle: "Mon to Sat, 11:00 AM to 8:00 PM",
     icon: Phone,
-    href: "tel:+918556008254",
+    href: "tel:+919878619783",
   },
   {
     title: "Email",
@@ -111,7 +111,7 @@ export default function ContactPage() {
               <a href="mailto:support@firaang.com?subject=Firaang%20Support" className="gold-button w-full text-center sm:w-auto">
                 Email Support
               </a>
-              {/* <a href="tel:+919876543210" className="outline-button w-full text-center sm:w-auto">
+              {/* <a href="tel:+919878619783" className="outline-button w-full text-center sm:w-auto">
                 Call Firaang
               </a> */}
             </div>

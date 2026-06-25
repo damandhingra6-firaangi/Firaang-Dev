@@ -125,7 +125,7 @@ export default function Newsletter() {
         <div className="grid gap-9 border-b border-[var(--footer-border)] pb-10 md:grid-cols-2 lg:grid-cols-[1.45fr_1fr_1fr_1fr_1.35fr]">
             {/* Brand */}
             <div>
-              <SafeImage src="/Firaangi Logo Design.svg" alt="Firaang" className="h-[52px] w-auto" />
+              <SafeImage src="/FiraangLogoDesign-white.png" alt="Firaang" className="h-[52px] w-auto" />
               <p className="mt-5 max-w-sm text-[16px] font-medium leading-[1.65] text-[var(--footer-links)]" style={{ fontFamily: "var(--font-poppins), sans-serif" }}>
                 Where fashion meets global elegance. Curated clothing and jewellery for the modern connoisseur.
               </p>
@@ -236,7 +236,7 @@ export default function Newsletter() {
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-[#3b0810]">
                     <Phone className="h-3.5 w-3.5" />
                   </span>
-                  <a href="tel:+918556008254" className="transition hover:text-[var(--gold)]">+91 85560 08254</a>
+                  <a href="tel:+919878619783" className="transition hover:text-[var(--gold)]">+91 98786 19783</a>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-[#3b0810]">
