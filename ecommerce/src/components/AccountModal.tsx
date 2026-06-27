@@ -12,7 +12,8 @@ type AccountView = "signin" | "profile" | "orders";
 type AccountModalProps = {
   isOpen: boolean;
   initialView: AccountView;
-  onClose: () => void;
+  onClose?: () => void;
+  mode?: "modal" | "page";
 };
 
 const CANCEL_REASONS = [
@@ -94,7 +95,8 @@ function isConfiguredGoogleClientId(value: string) {
   return /\.apps\.googleusercontent\.com$/i.test(clientId);
 }
 
-export default function AccountModal({ isOpen, initialView, onClose }: AccountModalProps) {
+export default function AccountModal({ isOpen, initialView, onClose, mode = "modal" }: AccountModalProps) {
+  const safeOnClose = onClose ?? (() => {});
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
   const isGoogleConfigured = isConfiguredGoogleClientId(googleClientId);
   const isLoading = useAccountStore((state) => state.isLoading);
@@ -141,8 +143,11 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
     return `${words[0][0] ?? ""}${words[1][0] ?? ""}`.toUpperCase();
   }, [profile.email, profile.fullName]);
 
+  const isModal = mode === "modal";
+  const isVisible = isModal ? isOpen : true;
+
   useEffect(() => {
-    if (!isOpen) {
+    if (!isVisible) {
       return;
     }
 
@@ -151,30 +156,30 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
     setOtpCode("");
     setDebugOtp("");
     setNormalizedOtpPhone("");
-  }, [initialView, isOpen]);
+  }, [initialView, isVisible]);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!isVisible) {
       return;
     }
 
     setProfileDraft(profile);
-  }, [isOpen, profile]);
+  }, [isVisible, profile]);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!isModal || !isVisible) {
       return;
     }
 
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        safeOnClose();
       }
     };
 
     document.addEventListener("keydown", onEscape);
     return () => document.removeEventListener("keydown", onEscape);
-  }, [isOpen, onClose]);
+  }, [isModal, isVisible, safeOnClose]);
 
   useEffect(() => {
     setAvatarLoadFailed(false);
@@ -376,7 +381,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
   };
 
   useEffect(() => {
-    if (!isOpen || activeView !== "signin" || isSignedIn || !isGoogleConfigured || !googleButtonRef.current) {
+    if (!isVisible || activeView !== "signin" || isSignedIn || !isGoogleConfigured || !googleButtonRef.current) {
       return;
     }
 
@@ -418,7 +423,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
     return () => {
       cancelled = true;
     };
-  }, [activeView, googleClientId, isGoogleConfigured, isOpen, isSignedIn]);
+  }, [activeView, googleClientId, isGoogleConfigured, isSignedIn, isVisible]);
 
   const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -482,14 +487,24 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
     }
   };
 
-  if (!isOpen) {
+  if (!isVisible) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-[120] overflow-y-auto bg-black/65 px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
+    <div
+      className={
+        isModal
+          ? "fixed inset-0 z-[120] overflow-y-auto bg-black/65 px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6"
+          : "relative z-10 overflow-visible px-0 py-0"
+      }
+    >
       <section
-        className="mx-auto my-1 flex w-full max-w-4xl flex-col overflow-hidden rounded-[30px] border border-[var(--gold)]/45 bg-[image:var(--popup-gradient)] shadow-[0_30px_80px_rgba(0,0,0,0.45)] max-h-[calc(100dvh-0.5rem)] sm:max-h-[calc(100dvh-1rem)]"
+        className={`mx-auto flex w-full flex-col overflow-hidden border border-[var(--gold)]/45 bg-[image:var(--popup-gradient)] ${
+          isModal
+            ? "my-1 max-w-4xl rounded-[30px] shadow-[0_30px_80px_rgba(0,0,0,0.45)] max-h-[calc(100dvh-0.5rem)] sm:max-h-[calc(100dvh-1rem)]"
+            : "max-w-6xl rounded-[20px] shadow-[0_18px_46px_rgba(0,0,0,0.14)]"
+        }`}
         onClick={(event) => event.stopPropagation()}
       >
         <header className="flex items-start justify-between border-b border-[var(--gold)]/20 px-5 py-5 md:px-7">
@@ -497,14 +512,16 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
             <p className="text-xs uppercase tracking-[0.24em] text-[var(--gold)]">Account</p>
             <h2 className="mt-2 text-2xl md:text-4xl">Your Space</h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close account panel"
-            className="rounded-full p-2 transition hover:bg-[var(--popup-hover2)]"
-          >
-            <X className="h-6 w-6" />
-          </button>
+          {isModal ? (
+            <button
+              type="button"
+              onClick={safeOnClose}
+              aria-label="Close account panel"
+              className="rounded-full p-2 transition hover:bg-[var(--popup-hover2)]"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          ) : null}
         </header>
 
         <div className="border-b border-[var(--gold)]/15 px-5 py-4 md:px-7">
@@ -526,7 +543,7 @@ export default function AccountModal({ isOpen, initialView, onClose }: AccountMo
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-7 md:py-6">
+        <div className={`min-h-0 flex-1 px-5 py-5 md:px-7 md:py-6 ${isModal ? "overflow-y-auto" : "overflow-visible"}`}>
           {activeView === "signin" ? (
             <div className="mx-auto w-full max-w-2xl space-y-4">
               <div className="rounded-[24px] border border-[var(--gold)]/20 bg-[var(--popup-card)] p-5 shadow-xl backdrop-blur md:p-6">

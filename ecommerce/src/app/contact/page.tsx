@@ -3,6 +3,7 @@ import { Clock3, Mail, MapPin, Phone } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
+import { COMPANY_MANUFACTURER_DETAILS } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "Contact | Firaang",
@@ -20,7 +21,7 @@ type ContactCard = {
 const contactCards: ReadonlyArray<ContactCard> = [
   {
     title: "Store Address",
-    value: "Firaang Studio, Chandigarh, India",
+    value: COMPANY_MANUFACTURER_DETAILS,
     subtitle: "Visit by prior appointment",
     icon: MapPin,
   },

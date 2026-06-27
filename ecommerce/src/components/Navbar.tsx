@@ -1,13 +1,11 @@
 "use client";
 
-// components/Navbar.tsx
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { Heart, ShoppingBag, User, ChevronDown, Menu, X } from "lucide-react";
-import AccountModal from "@/components/AccountModal";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Heart, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import AccountQuickActionsSheet from "@/components/AccountQuickActionsSheet";
-import CartDrawer from "./CartDrawer";
+import CartDrawer from "@/components/CartDrawer";
 import HeaderSearchPanel from "@/components/HeaderSearchPanel";
 import SafeImage from "@/components/SafeImage";
 import WishlistDrawer from "@/components/WishlistDrawer";
@@ -15,26 +13,79 @@ import { useAccountStore } from "@/store/useAccountStore";
 import { getCartCount, getWishlistItems, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
 
+type AccountView = "signin" | "profile" | "orders";
+
+const desktopNavItems = [
+  { label: "MEN", href: "/shop?audience=boys" },
+  { label: "WOMEN", href: "/shop?audience=girls" },
+  { label: "KIDS", href: "/shop?audience=unisex" },
+  { label: "GENZ", href: "/shop?category=t-shirts&subCategory=gen-z-t-shirts" },
+] as const;
+
+function buildShopFilterHref(categorySlug: string, subCategorySlug?: string) {
+  const params = new URLSearchParams();
+  params.set("category", categorySlug);
+
+  if (subCategorySlug) {
+    params.set("subCategory", subCategorySlug);
+  }
+
+  return `/shop?${params.toString()}`;
+}
+
+type CollectionItem = {
+  label: string;
+  categorySlug: string;
+  subCategorySlug?: string;
+  isNew?: boolean;
+};
+
+const collections: CollectionItem[] = [
+  { label: "Devotional", categorySlug: "t-shirts", subCategorySlug: "devotional" },
+  { label: "Mandala Magic", categorySlug: "t-shirts", subCategorySlug: "mandala-magic" },
+  { label: "Animal", categorySlug: "t-shirts", subCategorySlug: "animal" },
+  { label: "Games & Sports", categorySlug: "t-shirts", subCategorySlug: "games-sports" },
+  { label: "Anime Art", categorySlug: "t-shirts", subCategorySlug: "anime-art" },
+  { label: "Dark Art", categorySlug: "t-shirts", subCategorySlug: "dark-art" },
+  { label: "Abstract Art", categorySlug: "t-shirts", subCategorySlug: "abstract-art" },
+  { label: "Motivation", categorySlug: "t-shirts", subCategorySlug: "motivation" },
+  { label: "Yoga & Wellness", categorySlug: "t-shirts", subCategorySlug: "yoga-wellness" },
+  { label: "Gothic", categorySlug: "t-shirts", subCategorySlug: "gothic" },
+  { label: "Gen Z T-Shirts", categorySlug: "t-shirts", subCategorySlug: "gen-z-t-shirts", isNew: true },
+  { label: "Oversized T-Shirts", categorySlug: "t-shirts", subCategorySlug: "oversized-t-shirts" },
+  { label: "Graphic T-Shirts", categorySlug: "t-shirts", subCategorySlug: "graphic-t-shirts" },
+  { label: "Minimal T-Shirts", categorySlug: "t-shirts", subCategorySlug: "minimal-t-shirts" },
+  { label: "All Collections", categorySlug: "t-shirts" },
+];
+
+const mobileMenuItems = [
+  { label: "Men", href: "/shop?audience=boys" },
+  { label: "Women", href: "/shop?audience=girls" },
+  { label: "Kids", href: "/shop?audience=unisex" },
+  { label: "Collections", href: "/shop?category=t-shirts" },
+  { label: "GenZ", href: "/shop?category=t-shirts&subCategory=gen-z-t-shirts" },
+] as const;
+
+function getDisplayName(fullName: string, email: string, phone: string) {
+  const trimmedName = fullName.trim();
+  if (trimmedName) {
+    return trimmedName;
+  }
+
+  const trimmedEmail = email.trim();
+  if (trimmedEmail.includes("@")) {
+    return trimmedEmail.split("@")[0] || "User";
+  }
+
+  return phone.trim() || "User";
+}
+
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isAccountSheetOpen, setIsAccountSheetOpen] = useState(false);
-  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
-  const [activeAccountView, setActiveAccountView] = useState<"signin" | "profile" | "orders">("signin");
-  const globalAccountModalOpen = useUiStore((state) => state.isAccountModalOpen);
-  const closeAccountModal = useUiStore((state) => state.closeAccountModal);
-  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
-  const [isCollectionsOpen, setIsCollectionsOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobileCategoriesOpen, setIsMobileCategoriesOpen] = useState(false);
-  const [isMobileCollectionsOpen, setIsMobileCollectionsOpen] = useState(false);
-  const categoriesRef = useRef<HTMLDivElement | null>(null);
-  const collectionsRef = useRef<HTMLDivElement | null>(null);
-  const cart = useShopStore((state) => state.cart);
-  const wishlist = useShopStore((state) => state.wishlist);
-  const isSignedIn = useAccountStore((state) => state.isSignedIn);
-  const clearSession = useAccountStore((state) => state.clearSession);
-  const cartCount = getCartCount(cart);
-  const wishlistCount = getWishlistItems(wishlist).length;
+  const [isCollectionsOpen, setIsCollectionsOpen] = useState(false);
 
   const isCartOpen = useUiStore((state) => state.isCartOpen);
   const isWishlistOpen = useUiStore((state) => state.isWishlistOpen);
@@ -50,103 +101,34 @@ export default function Navbar() {
   const closeUserMenu = useUiStore((state) => state.closeUserMenu);
   const pushToast = useUiStore((state) => state.pushToast);
 
+  const cart = useShopStore((state) => state.cart);
+  const wishlist = useShopStore((state) => state.wishlist);
+  const isSignedIn = useAccountStore((state) => state.isSignedIn);
+  const profile = useAccountStore((state) => state.profile);
+  const clearSession = useAccountStore((state) => state.clearSession);
+
+  const cartCount = getCartCount(cart);
+  const wishlistCount = getWishlistItems(wishlist).length;
+
   const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const collectionsRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const handleOutside = (event: MouseEvent) => {
-      if (categoriesRef.current && !categoriesRef.current.contains(event.target as Node)) {
-        setIsCategoriesOpen(false);
-      }
-      if (collectionsRef.current && !collectionsRef.current.contains(event.target as Node)) {
-        setIsCollectionsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleOutside);
-    return () => document.removeEventListener("mousedown", handleOutside);
-  }, []);
+  const displayName = useMemo(
+    () => getDisplayName(profile.fullName, profile.email, profile.phone),
+    [profile.email, profile.fullName, profile.phone],
+  );
 
-  const navItems = [
-    { href: "/", label: "HOME" },
-    { href: "/about", label: "ABOUT" },
-    { href: "/contact", label: "CONTACT" },
-  ] as const;
-
-  const buildShopFilterHref = (categorySlug: string, subCategorySlug?: string) => {
-    const params = new URLSearchParams();
-    params.set("category", categorySlug);
-
-    if (subCategorySlug) {
-      params.set("subCategory", subCategorySlug);
-    }
-
-    return `/shop?${params.toString()}`;
-  };
-
-  const collections = [
-    { label: "Gen Z T-Shirts", categorySlug: "t-shirts", subCategorySlug: "gen-z-t-shirts", tag: "NEW" },
-    { label: "Devotional", categorySlug: "t-shirts", subCategorySlug: "devotional" },
-    { label: "Mandala Magic", categorySlug: "t-shirts", subCategorySlug: "mandala-magic" },
-    { label: "Animal", categorySlug: "t-shirts", subCategorySlug: "animal" },
-    { label: "Games & Sports", categorySlug: "t-shirts", subCategorySlug: "games-sports" },
-    { label: "Anime Art", categorySlug: "t-shirts", subCategorySlug: "anime-art" },
-    { label: "Dark Art", categorySlug: "t-shirts", subCategorySlug: "dark-art" },
-    { label: "Abstract Art", categorySlug: "t-shirts", subCategorySlug: "abstract-art" },
-    { label: "Motivation", categorySlug: "t-shirts", subCategorySlug: "motivation" },
-    { label: "Yoga & Wellness", categorySlug: "t-shirts", subCategorySlug: "yoga-wellness" },
-    { label: "Gothic", categorySlug: "t-shirts", subCategorySlug: "gothic" },
-    { label: "Oversized T-Shirts", categorySlug: "t-shirts", subCategorySlug: "oversized-t-shirts" },
-    { label: "Graphic T-Shirts", categorySlug: "t-shirts", subCategorySlug: "graphic-t-shirts" },
-    { label: "Minimal T-Shirts", categorySlug: "t-shirts", subCategorySlug: "minimal-t-shirts" },
-    { label: "All T-Shirts", categorySlug: "t-shirts" },
-  ] as const;
-
-  const mobileCollectionGroups = [
-    {
-      title: "Spiritual & Culture",
-      items: collections.filter((item) => ["Devotional", "Mandala Magic", "Motivation"].includes(item.label)),
-    },
-    {
-      title: "Wild & Playful",
-      items: collections.filter((item) => ["Animal", "Games & Sports", "Yoga & Wellness"].includes(item.label)),
-    },
-    {
-      title: "Art & Edge",
-      items: collections.filter((item) => ["Anime Art", "Dark Art", "Abstract Art", "Gothic"].includes(item.label)),
-    },
-    {
-      title: "Street & Essentials",
-      items: collections.filter((item) => ["Gen Z T-Shirts", "Oversized T-Shirts", "Graphic T-Shirts", "Minimal T-Shirts"].includes(item.label)),
-    },
-  ] as const;
-
-  const categories = [
-    { label: "Hoodies", slug: "hoodies", icon: "H" },
-    { label: "Sweatshirts", slug: "sweatshirts", icon: "S" },
-    { label: "T-Shirts", slug: "t-shirts", icon: "T" },
-    { label: "Half-Shirts", slug: "half-shirts", icon: "HS" },
-    { label: "Caps", slug: "caps", icon: "C" },
-  ] as const;
-
-  const isNavItemActive = (href: (typeof navItems)[number]["href"]) => {
-    if (href === "/") {
-      return pathname === "/";
-    }
-
-    return pathname.startsWith(href);
-  };
-
-  const desktopNavBaseClass =
-    "relative inline-flex items-center py-1 text-[var(--nav-text)] transition-colors duration-200 hover:text-[var(--nav-active)] after:absolute after:-bottom-1 after:left-0 after:h-px after:w-full after:origin-center after:scale-x-0 after:bg-[var(--gold)] after:transition-transform after:duration-300 hover:after:scale-x-100";
-
-  const desktopNavActiveClass = "text-[var(--nav-active)] after:scale-x-100";
-  const desktopIconButtonClass =
-    "relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--nav-text)] transition-colors hover:text-[var(--gold)]";
+  const firstName = useMemo(() => displayName.split(/\s+/)[0] || displayName, [displayName]);
+  const contactDetail = useMemo(() => profile.phone.trim() || profile.email.trim(), [profile.email, profile.phone]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       const targetNode = event.target as Node;
       if (userMenuRef.current && !userMenuRef.current.contains(targetNode)) {
         closeUserMenu();
+      }
+      if (collectionsRef.current && !collectionsRef.current.contains(targetNode)) {
+        setIsCollectionsOpen(false);
       }
     };
 
@@ -155,10 +137,10 @@ export default function Navbar() {
   }, [closeUserMenu]);
 
   useEffect(() => {
+    closeUserMenu();
+    setIsCollectionsOpen(false);
     setIsMobileMenuOpen(false);
-    setIsMobileCategoriesOpen(false);
-    setIsMobileCollectionsOpen(false);
-  }, [pathname]);
+  }, [closeUserMenu, pathname]);
 
   useEffect(() => {
     if (!isMobileMenuOpen) {
@@ -172,20 +154,12 @@ export default function Navbar() {
     };
   }, [isMobileMenuOpen]);
 
-  const openAccountModal = (view: "signin" | "profile" | "orders") => {
-    setActiveAccountView(view);
-    setIsAccountSheetOpen(false);
-    setIsAccountModalOpen(true);
+  const navigateToAccount = (view: AccountView) => {
+    const tab = view === "signin" ? "overview" : view;
     closeUserMenu();
+    setIsAccountSheetOpen(false);
+    router.push(`/account?tab=${tab}`);
   };
-
-  // sync global store trigger (e.g. from CartDrawer)
-  useEffect(() => {
-    if (globalAccountModalOpen) {
-      setActiveAccountView("signin");
-      setIsAccountModalOpen(true);
-    }
-  }, [globalAccountModalOpen]);
 
   const handleSignOut = async () => {
     try {
@@ -197,374 +171,296 @@ export default function Navbar() {
     } finally {
       clearSession();
       setIsAccountSheetOpen(false);
-      setIsAccountModalOpen(false);
       closeUserMenu();
       pushToast("Signed out", { variant: "info" });
+      router.push("/account?tab=overview");
     }
   };
 
-  const closeMobileMenu = () => {
-    setIsMobileMenuOpen(false);
-    setIsMobileCategoriesOpen(false);
-    setIsMobileCollectionsOpen(false);
+  const desktopNavLinkClass =
+    "relative inline-flex items-center py-1 text-[14px] font-semibold tracking-[0.08em] text-[var(--nav-text)] transition-colors duration-200 hover:text-[var(--nav-active)] after:absolute after:-bottom-2 after:left-0 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-[#ff3f6c] after:transition-transform after:duration-200 hover:after:scale-x-100";
+
+  const openWishlistFromMenu = () => {
+    openWishlist();
+    closeUserMenu();
   };
 
   return (
     <header className="fixed top-0 z-50 w-full">
-      <div className="bg-[var(--announcement-bg)] px-3 py-1 text-center text-[9px] font-medium uppercase tracking-[0.16em] text-[var(--announcement-fg)] md:py-1.5 md:text-[10px] md:tracking-[0.2em]">
-        {/* <span>Free Shipping Above INR 700</span> */}
-      </div>
+      <div className="bg-[var(--announcement-bg)] px-3 py-1 text-center text-[9px] font-medium uppercase tracking-[0.16em] text-[var(--announcement-fg)] md:py-1.5 md:text-[10px] md:tracking-[0.2em]" />
 
-      <div className="border-y border-[color:var(--nav-border)]/60 bg-[var(--nav-bg)] text-[var(--nav-text)]">
-        <div className="mx-auto flex max-w-[1380px] items-center justify-between px-4 py-3 md:px-6 md:py-3.5 lg:px-8 xl:px-10">
-        <Link href="/" className="shrink-0 xl:mr-6" aria-label="Firaang home">
-          <SafeImage
-            src="/icon_v001.svg"
-            alt="Firaang Icon"
-            className="block h-8 w-8 object-contain sm:h-9 sm:w-9 md:hidden"
-          />
-          <SafeImage
-            src="/FiraangLogoDesign.png"
-            alt="Firaang Logo"
-            className="hidden h-8 w-auto max-w-[170px] object-contain md:block md:h-9 md:max-w-[190px] lg:h-10 lg:max-w-[210px] xl:h-11 xl:max-w-[230px]"
-          />
-        </Link>
-
-        <nav className="hidden flex-1 items-center justify-center gap-6 text-[13px] font-medium tracking-[0.08em] lg:gap-7 xl:gap-8 xl:text-[14px] md:flex">
-          <Link
-            href="/"
-            className={`${desktopNavBaseClass} ${isNavItemActive("/") ? desktopNavActiveClass : ""}`}
-          >
-            HOME
-          </Link>
-
-          {/* Categories dropdown */}
-          <div className="relative" ref={categoriesRef}>
+      <div className="border-b border-[color:var(--nav-border)]/70 bg-[var(--nav-bg)] text-[var(--nav-text)]">
+        <div className="mx-auto flex h-[72px] w-full max-w-[1500px] items-center justify-between gap-3 px-3 sm:px-4 md:h-[78px] md:px-6 lg:px-8 xl:px-10">
+          <div className="flex min-w-0 items-center gap-3 md:gap-4 lg:gap-5 xl:gap-7">
             <button
               type="button"
-              onClick={() => {
-                setIsCategoriesOpen((prev) => !prev);
-                setIsCollectionsOpen(false);
-              }}
-              className={`${desktopNavBaseClass} gap-1 ${
-                pathname.startsWith("/shop") ? desktopNavActiveClass : ""
-              }`}
+              aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+              className="inline-flex rounded-full border border-[var(--nav-border)] p-2 text-[var(--nav-text)] md:hidden"
+              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
             >
-              CATEGORIES
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isCategoriesOpen ? "rotate-180" : ""}`} />
+              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
 
-            {isCategoriesOpen ? (
-              <div className="absolute left-1/2 top-[calc(100%+10px)] z-[110] w-52 -translate-x-1/2 overflow-hidden rounded-2xl border border-[var(--gold)]/30 bg-[var(--menu-bg)] shadow-[0_18px_36px_rgba(39,28,20,0.2)] backdrop-blur-md">
-                <div className="px-2 py-2">
-                  {categories.map((category) => (
-                    <Link
-                      key={category.label}
-                      href={buildShopFilterHref(category.slug)}
-                      onClick={() => setIsCategoriesOpen(false)}
-                      className="group flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm tracking-[0.06em] text-[var(--menu-text)] transition hover:bg-[var(--gold)]/10 hover:text-[var(--gold)]"
-                    >
-                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-[var(--gold)]/40 bg-[var(--gold)]/10 px-1 text-[10px] font-semibold text-[var(--gold)]">
-                        {category.icon}
-                      </span>
-                      {category.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          {/* Collections dropdown */}
-          <div className="relative" ref={collectionsRef}>
-            <button
-              type="button"
-              onClick={() => {
-                setIsCollectionsOpen((prev) => !prev);
-                setIsCategoriesOpen(false);
-              }}
-              className={`${desktopNavBaseClass} gap-1 ${
-                pathname.startsWith("/shop") ? desktopNavActiveClass : ""
-              }`}
-            >
-              COLLECTIONS
-              <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform duration-200 ${
-                  isCollectionsOpen ? "rotate-180" : ""
-                }`}
+            <Link href="/" className="shrink-0" aria-label="Firaang home">
+              <SafeImage
+                src="/icon_v001.svg"
+                alt="Firaang Icon"
+                className="block h-8 w-8 object-contain sm:h-9 sm:w-9 md:hidden"
               />
-            </button>
-
-            {isCollectionsOpen ? (
-              <div className="absolute left-1/2 top-[calc(100%+10px)] z-[110] w-56 -translate-x-1/2 overflow-hidden rounded-2xl border border-[var(--gold)]/30 bg-[var(--menu-bg)] shadow-[0_18px_36px_rgba(39,28,20,0.2)] backdrop-blur-md">
-                <div className="px-2 py-2">
-                  {collections.map((col) => (
-                    <Link
-                      key={col.label}
-                      href={buildShopFilterHref(col.categorySlug, "subCategorySlug" in col ? col.subCategorySlug : undefined)}
-                      onClick={() => setIsCollectionsOpen(false)}
-                      className="group flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm transition hover:bg-[var(--gold)]/10"
-                    >
-                      <span className="tracking-[0.06em] text-[var(--menu-text)] transition group-hover:text-[var(--gold)]">
-                        {col.label}
-                      </span>
-                      {"tag" in col && col.tag ? (
-                        <span className="rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#30070e]">
-                          {col.tag}
-                        </span>
-                      ) : null}
-                    </Link>
-                  ))}
-                </div>
-                <div className="border-t border-[var(--gold)]/20 px-4 py-2.5">
-                  <Link
-                    href="/shop"
-                    onClick={() => setIsCollectionsOpen(false)}
-                    className="block text-center text-[11px] uppercase tracking-[0.18em] text-[var(--gold)] transition hover:text-[#ffd980]"
-                  >
-                    View All Collections →
-                  </Link>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          {navItems.filter(i => i.href !== "/").map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={`${desktopNavBaseClass} ${isNavItemActive(item.href) ? desktopNavActiveClass : ""}`}
-            >
-              {item.label}
+              <SafeImage
+                src="/FiraangLogoDesign.png"
+                alt="Firaang Logo"
+                className="hidden h-9 w-auto max-w-[170px] object-contain md:block lg:h-10 lg:max-w-[190px]"
+              />
             </Link>
-          ))}
-        </nav>
 
-        <div className="flex shrink-0 items-center gap-2 md:gap-3" ref={userMenuRef}>
-          <button
-            type="button"
-            aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-            className="inline-flex rounded-full border border-[var(--gold)]/30 p-2 text-[var(--nav-text)] md:hidden"
-            onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-          >
-            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-          <span className="hidden h-6 w-px bg-[var(--gold)]/25 md:block" aria-hidden="true" />
-          {pathname.startsWith("/shop") ? (
-            <button type="button" aria-label="Open wishlist" className={desktopIconButtonClass} onClick={openWishlist}>
-              <Heart className="h-5 w-5" />
-              {wishlistCount > 0 ? (
-                <span className="absolute -right-2 -top-2 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[10px] font-semibold text-[#30070e]">
-                  {wishlistCount}
-                </span>
-              ) : null}
-            </button>
-          ) : null}
-          <button type="button" aria-label="Open cart" className={desktopIconButtonClass} onClick={openCart}>
-            <ShoppingBag className="h-5 w-5" />
-            {cartCount > 0 ? (
-              <span className="absolute -right-2 -top-2 rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[10px] font-semibold text-[#30070e]">
-                {cartCount}
-              </span>
-            ) : null}
-          </button>
-
-          {cartCount > 0 ? (
-            <Link
-              href="/checkout"
-              className="hidden rounded-full border border-[var(--gold)]/35 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--nav-text)] transition hover:border-[var(--gold)] hover:text-[var(--gold)] md:inline-flex"
-            >
-              Checkout
-            </Link>
-          ) : null}
-
-          <button
-            type="button"
-            aria-label="Open account"
-            className="relative md:hidden"
-            onClick={() => setIsAccountSheetOpen(true)}
-          >
-            <User className="h-5 w-5 cursor-pointer hover:text-[var(--gold)]" />
-          </button>
-
-          <button type="button" aria-label="User menu" className={`${desktopIconButtonClass} hidden md:inline-flex`} onClick={toggleUserMenu}>
-            <User className="h-5 w-5" />
-          </button>
-
-          {isUserMenuOpen ? (
-            <div className="absolute right-0 top-[78px] z-[101] hidden min-w-[220px] rounded-xl border border-[var(--gold)]/40 bg-[var(--panel-bg)] p-2 shadow-[0_16px_34px_rgba(39,28,20,0.18)] md:block">
-              <button
-                type="button"
-                onClick={() => openAccountModal("signin")}
-                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--panel-hover)]"
-              >
-                {isSignedIn ? "Switch Account" : "Login or Signup"}
-              </button>
-              <button
-                type="button"
-                onClick={() => openAccountModal("profile")}
-                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--panel-hover)]"
-              >
-                My Profile
-              </button>
-              <button
-                type="button"
-                onClick={() => openAccountModal("orders")}
-                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--panel-hover)]"
-              >
-                Orders
-              </button>
-              {isSignedIn ? (
-                <>
-                  <div className="my-1 border-t border-[var(--gold)]/25" />
-                  <button
-                    type="button"
-                    onClick={handleSignOut}
-                    className="block w-full rounded-md px-3 py-2 text-left text-sm text-[var(--menu-text)] hover:bg-[var(--panel-signout)]"
-                  >
-                    Sign Out
-                  </button>
-                </>
-              ) : null}
-            </div>
-          ) : null}
-
-          <Link href="/shop" className="nav-shop-button hidden md:inline-flex">
-            SHOP NOW
-          </Link>
-        </div>
-        </div>
-
-      </div>
-
-      {isMobileMenuOpen ? (
-        <div className="mobile-drawer-backdrop fixed inset-0 top-[74px] z-[90] bg-black/45 backdrop-blur-[2px] md:hidden" onClick={closeMobileMenu}>
-          <div
-            className="mobile-drawer-panel h-full w-[88vw] max-w-[360px] overflow-y-auto border-r border-[var(--gold)]/25 bg-[var(--menu-bg)] px-4 py-5 shadow-[0_30px_60px_rgba(0,0,0,0.5)]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-4 rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-card)] px-4 py-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-[var(--gold)]">Navigate Firaang</p>
-              <p className="mt-2 text-[22px] font-semibold leading-[1.1] text-[var(--popup-footer-text)]" style={{ fontFamily: "var(--font-playfair), serif" }}>
-                Explore Categories, collections, and signature edits.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Link
-                href="/"
-                onClick={closeMobileMenu}
-                className={`block rounded-xl px-3 py-3 text-sm font-medium tracking-[0.14em] ${pathname === "/" ? "bg-[var(--gold)]/12 text-[var(--gold)]" : "text-[var(--menu-text)]"}`}
-              >
-                HOME
-              </Link>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMobileCategoriesOpen((prev) => !prev);
-                  setIsMobileCollectionsOpen(false);
-                }}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium tracking-[0.14em] text-[var(--menu-text)]"
-              >
-                <span>CATEGORIES</span>
-                <ChevronDown className={`h-4 w-4 transition ${isMobileCategoriesOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {isMobileCategoriesOpen ? (
-                <div className="rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-2">
-                  {categories.map((category) => (
-                    <Link
-                      key={category.label}
-                      href={buildShopFilterHref(category.slug)}
-                      onClick={closeMobileMenu}
-                      className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm text-[var(--popup-footer-text)] transition hover:bg-[var(--gold)]/10 hover:text-[var(--gold)]"
-                    >
-                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-[var(--gold)]/40 bg-[var(--gold)]/10 px-1 text-[10px] font-semibold text-[var(--gold)]">
-                        {category.icon}
-                      </span>
-                      {category.label}
-                    </Link>
-                  ))}
-                </div>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMobileCollectionsOpen((prev) => !prev);
-                  setIsMobileCategoriesOpen(false);
-                }}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium tracking-[0.14em] text-[var(--menu-text)]"
-              >
-                <span>COLLECTIONS</span>
-                <ChevronDown className={`h-4 w-4 transition ${isMobileCollectionsOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {isMobileCollectionsOpen ? (
-                <div className="space-y-3 rounded-2xl border border-[var(--gold)]/20 bg-[var(--popup-inner)] p-3">
-                  {mobileCollectionGroups.map((group) => (
-                    <div key={group.title} className="rounded-xl border border-[var(--gold)]/15 bg-[var(--popup-card)] p-2.5">
-                      <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--gold)]">
-                        {group.title}
-                      </p>
-                      <div className="space-y-1">
-                        {group.items.map((col) => (
-                          <Link
-                            key={col.label}
-                            href={buildShopFilterHref(col.categorySlug, "subCategorySlug" in col ? col.subCategorySlug : undefined)}
-                            onClick={closeMobileMenu}
-                            className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm text-[var(--popup-footer-text)] transition hover:bg-[var(--gold)]/10 hover:text-[var(--gold)]"
-                          >
-                            <span>{col.label}</span>
-                            {"tag" in col && col.tag ? (
-                              <span className="rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#30070e]">
-                                {col.tag}
-                              </span>
-                            ) : null}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  <Link
-                    href={buildShopFilterHref("t-shirts")}
-                    onClick={closeMobileMenu}
-                    className="mt-1 block rounded-xl border border-[var(--gold)]/25 bg-[var(--gold)]/8 px-3 py-3 text-center text-sm font-medium tracking-[0.08em] text-[var(--gold)]"
-                  >
-                    View All T-Shirt Collections
-                  </Link>
-                </div>
-              ) : null}
-
-              {navItems.filter((item) => item.href !== "/").map((item) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  onClick={closeMobileMenu}
-                  className={`block rounded-xl px-3 py-3 text-sm font-medium tracking-[0.14em] ${isNavItemActive(item.href) ? "bg-[var(--gold)]/12 text-[var(--gold)]" : "text-[var(--menu-text)]"}`}
-                >
+            <nav className="hidden shrink-0 items-center gap-4 lg:flex xl:gap-6">
+              {desktopNavItems.slice(0, 3).map((item) => (
+                <Link key={item.label} href={item.href} className={desktopNavLinkClass}>
                   {item.label}
                 </Link>
               ))}
 
-              <Link
-                href="/shop"
-                onClick={closeMobileMenu}
-                className="mx-auto mt-2 inline-flex h-10 items-center justify-center rounded-[8px] border border-[var(--nav-cta-bg)] bg-[var(--nav-cta-bg)] px-5 text-xs font-semibold tracking-[0.08em] text-[var(--nav-cta-fg)] transition hover:bg-[var(--nav-cta-hover)] hover:border-[var(--nav-cta-hover)]"
-              >
-                SHOP NOW
-              </Link>
+              <div className="relative" ref={collectionsRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsCollectionsOpen((prev) => !prev)}
+                  className={`${desktopNavLinkClass} gap-1`}
+                >
+                  COLLECTIONS
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isCollectionsOpen ? "rotate-180" : ""}`} />
+                </button>
 
-              <Link
-                href="/checkout"
-                onClick={closeMobileMenu}
-                className="mt-2 block rounded-xl border border-[var(--gold)]/35 px-3 py-3 text-center text-sm font-medium tracking-[0.12em] text-[var(--menu-text)] transition hover:border-[var(--gold)] hover:text-[var(--gold)]"
-              >
-                CHECKOUT
-              </Link>
+                {isCollectionsOpen ? (
+                  <div className="absolute left-1/2 top-[calc(100%+10px)] z-[110] w-[560px] -translate-x-1/2 overflow-hidden rounded-md border border-[#e3e4e8] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.12)]">
+                    <div className="grid grid-cols-2 gap-1 p-2">
+                      {collections.map((collection) => (
+                        <Link
+                          key={collection.label}
+                          href={buildShopFilterHref(collection.categorySlug, collection.subCategorySlug)}
+                          onClick={() => setIsCollectionsOpen(false)}
+                          className="flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-[#282c3f] transition hover:bg-[#f7f7f9] hover:text-[#ff3f6c]"
+                        >
+                          <span>{collection.label}</span>
+                          {collection.isNew ? (
+                            <span className="rounded-full bg-[#ff3f6c] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
+                              New
+                            </span>
+                          ) : null}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
 
+              <Link href={desktopNavItems[3].href} className={desktopNavLinkClass}>
+                {desktopNavItems[3].label}
+              </Link>
+            </nav>
+          </div>
+
+          <button
+            type="button"
+            onClick={openSearch}
+            className="hidden h-11 w-[clamp(320px,34vw,560px)] flex-none items-center rounded-md border border-[#e8e9ec] bg-white px-4 text-left shadow-[0_2px_10px_rgba(40,44,63,0.06)] transition hover:border-[#d9dbe2] xl:flex"
+            aria-label="Search for products"
+          >
+            <Search className="h-4 w-4 text-[#63666d]" />
+            <span className="ml-3 truncate text-[16px] text-[#696e79]">Search for products, brands and more</span>
+          </button>
+
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3" ref={userMenuRef}>
+            <button
+              type="button"
+              onClick={openSearch}
+              aria-label="Open search"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--nav-text)] transition hover:bg-[#f4f4f4] xl:hidden"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleUserMenu}
+              aria-label="Open profile menu"
+              className="relative hidden min-w-[62px] flex-col items-center justify-center rounded-md px-1 py-1 text-[var(--nav-text)] transition hover:bg-[#f6f6f8] md:flex"
+            >
+              <User className="h-5 w-5" />
+              {isSignedIn ? (
+                <>
+                  <span className="mt-0.5 max-w-[68px] truncate text-[10px] font-medium leading-none text-[var(--nav-active)]">
+                    Hello {firstName}
+                  </span>
+                  <span className="mt-0.5 text-[11px] font-semibold leading-none">Profile</span>
+                </>
+              ) : (
+                <span className="mt-1 text-[12px] font-semibold leading-none">Profile</span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              aria-label="Open wishlist"
+              onClick={openWishlist}
+              className="relative hidden min-w-[62px] flex-col items-center justify-center rounded-md px-1 py-1 text-[var(--nav-text)] transition hover:bg-[#f6f6f8] md:flex"
+            >
+              <Heart className="h-5 w-5" />
+              <span className="mt-1 text-[12px] font-semibold leading-none">Wishlist</span>
+              {wishlistCount > 0 ? (
+                <span className="absolute right-0 top-0 rounded-full bg-[#ff3f6c] px-1.5 py-[1px] text-[10px] font-semibold text-white">
+                  {wishlistCount}
+                </span>
+              ) : null}
+            </button>
+
+            <button
+              type="button"
+              aria-label="Open bag"
+              onClick={openCart}
+              className="relative hidden min-w-[62px] flex-col items-center justify-center rounded-md px-1 py-1 text-[var(--nav-text)] transition hover:bg-[#f6f6f8] md:flex"
+            >
+              <ShoppingBag className="h-5 w-5" />
+              <span className="mt-1 text-[12px] font-semibold leading-none">Bag</span>
+              {cartCount > 0 ? (
+                <span className="absolute right-0 top-0 rounded-full bg-[#ff3f6c] px-1.5 py-[1px] text-[10px] font-semibold text-white">
+                  {cartCount}
+                </span>
+              ) : null}
+            </button>
+
+            <button
+              type="button"
+              aria-label="Open profile"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--nav-text)] transition hover:bg-[#f4f4f4] md:hidden"
+              onClick={() => setIsAccountSheetOpen(true)}
+            >
+              <User className="h-5 w-5" />
+            </button>
+
+            <button
+              type="button"
+              aria-label="Open wishlist"
+              onClick={openWishlist}
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--nav-text)] transition hover:bg-[#f4f4f4] md:hidden"
+            >
+              <Heart className="h-5 w-5" />
+              {wishlistCount > 0 ? (
+                <span className="absolute right-0 top-0 rounded-full bg-[#ff3f6c] px-1.5 py-[1px] text-[10px] font-semibold text-white">
+                  {wishlistCount}
+                </span>
+              ) : null}
+            </button>
+
+            <button
+              type="button"
+              aria-label="Open bag"
+              onClick={openCart}
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--nav-text)] transition hover:bg-[#f4f4f4] md:hidden"
+            >
+              <ShoppingBag className="h-5 w-5" />
+              {cartCount > 0 ? (
+                <span className="absolute right-0 top-0 rounded-full bg-[#ff3f6c] px-1.5 py-[1px] text-[10px] font-semibold text-white">
+                  {cartCount}
+                </span>
+              ) : null}
+            </button>
+
+            {isUserMenuOpen ? (
+              <div className="absolute right-0 top-[calc(100%+10px)] z-[101] hidden min-w-[260px] rounded-sm border border-[#e2e2e2] bg-white p-4 shadow-[0_8px_22px_rgba(0,0,0,0.14)] md:block">
+                {!isSignedIn ? (
+                  <>
+                    <h4 className="text-[29px] font-semibold leading-none text-[#282c3f]">Welcome</h4>
+                    <p className="mt-1 text-[14px] text-[#535766]">To access account and manage orders</p>
+                    <button
+                      type="button"
+                      onClick={() => navigateToAccount("signin")}
+                      className="mt-4 inline-flex w-full items-center justify-center border border-[#d4d5d9] px-3 py-2 text-[14px] font-semibold uppercase tracking-[0.04em] text-[#ff3f6c] transition hover:border-[#ff3f6c]/40"
+                    >
+                      Login / Sign Up
+                    </button>
+                    <div className="my-3 border-t border-[#eaeaec]" />
+                    <div className="space-y-2.5 text-[16px] text-[#282c3f]">
+                      <button type="button" onClick={() => navigateToAccount("orders")} className="block text-left hover:text-[#ff3f6c]">
+                        Orders
+                      </button>
+                      <button type="button" onClick={openWishlistFromMenu} className="block text-left hover:text-[#ff3f6c]">
+                        Wishlist
+                      </button>
+                      <Link href="/contact" className="block hover:text-[#ff3f6c]" onClick={closeUserMenu}>
+                        Contact Us
+                      </Link>
+                      <button type="button" onClick={() => navigateToAccount("profile")} className="block text-left hover:text-[#ff3f6c]">
+                        Saved Addresses
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h4 className="text-[28px] font-semibold leading-none text-[#282c3f]">Hello {firstName}</h4>
+                    {contactDetail ? <p className="mt-1 text-[14px] text-[#535766]">{contactDetail}</p> : null}
+                    <div className="my-3 border-t border-[#eaeaec]" />
+                    <div className="space-y-2.5 text-[16px] text-[#282c3f]">
+                      <button type="button" onClick={() => navigateToAccount("profile")} className="block text-left hover:text-[#ff3f6c]">
+                        My Profile
+                      </button>
+                      <button type="button" onClick={() => navigateToAccount("orders")} className="block text-left hover:text-[#ff3f6c]">
+                        Orders
+                      </button>
+                      <button type="button" onClick={openWishlistFromMenu} className="block text-left hover:text-[#ff3f6c]">
+                        Wishlist
+                      </button>
+                      <button type="button" onClick={() => navigateToAccount("profile")} className="block text-left hover:text-[#ff3f6c]">
+                        Saved Addresses
+                      </button>
+                      <button type="button" onClick={() => navigateToAccount("profile")} className="block text-left hover:text-[#ff3f6c]">
+                        Saved Payment Methods
+                      </button>
+                      <Link href="/contact" className="block hover:text-[#ff3f6c]" onClick={closeUserMenu}>
+                        Contact Us
+                      </Link>
+                    </div>
+                    <div className="my-3 border-t border-[#eaeaec]" />
+                    <button type="button" onClick={handleSignOut} className="text-[16px] text-[#282c3f] hover:text-[#ff3f6c]">
+                      Logout
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      {isMobileMenuOpen ? (
+        <div className="mobile-drawer-backdrop fixed inset-0 top-[72px] z-[90] bg-black/45 backdrop-blur-[2px] md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
+          <div
+            className="mobile-drawer-panel h-full w-[88vw] max-w-[340px] overflow-y-auto border-r border-[#e2e2e2] bg-white px-4 py-5"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                openSearch();
+                setIsMobileMenuOpen(false);
+              }}
+              className="mb-4 flex w-full items-center gap-3 rounded-md border border-[#e8e9ec] bg-white px-3 py-2 text-left text-[14px] text-[#696e79] shadow-[0_2px_10px_rgba(40,44,63,0.06)]"
+            >
+              <Search className="h-4 w-4" />
+              Search for products, brands and more
+            </button>
+
+            <div className="space-y-1">
+              {mobileMenuItems.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block rounded-md px-2 py-2 text-[15px] font-medium text-[#282c3f] hover:bg-[#f7f7f8]"
+                >
+                  {item.label}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
@@ -576,14 +472,12 @@ export default function Navbar() {
       <AccountQuickActionsSheet
         isOpen={isAccountSheetOpen}
         isSignedIn={isSignedIn}
+        displayName={displayName}
+        contactDetail={contactDetail}
         onClose={() => setIsAccountSheetOpen(false)}
-        onSelectView={openAccountModal}
+        onNavigateToAccount={navigateToAccount}
+        onOpenWishlist={openWishlist}
         onSignOut={handleSignOut}
-      />
-      <AccountModal
-        isOpen={isAccountModalOpen}
-        initialView={activeAccountView}
-        onClose={() => { setIsAccountModalOpen(false); closeAccountModal(); }}
       />
     </header>
   );

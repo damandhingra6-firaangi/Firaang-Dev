@@ -2,7 +2,7 @@ var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/ac
 R.c("server/chunks/src_lib_account-data_ts_0.o-_hj._.js")
 R.c("server/chunks/_00r-7hn._.js")
 R.c("server/chunks/[root-of-the-server]__0j8-xkl._.js")
-R.c("server/chunks/[root-of-the-server]__000sfqe._.js")
+R.c("server/chunks/[root-of-the-server]__0bz7o8e._.js")
 R.c("server/chunks/_next-internal_server_app_api_account_orders_cancel_route_actions_0ae9ugs.js")
 R.m(27242)
 module.exports=R.m(27242).exports

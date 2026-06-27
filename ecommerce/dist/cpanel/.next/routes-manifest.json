@@ -31,6 +31,14 @@
       "namedRegex": "^/api/coupons/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/api/products/[handle]/reviews",
+      "regex": "^/api/products/([^/]+?)/reviews(?:/)?$",
+      "routeKeys": {
+        "nxtPhandle": "nxtPhandle"
+      },
+      "namedRegex": "^/api/products/(?<nxtPhandle>[^/]+?)/reviews(?:/)?$"
+    },
+    {
       "page": "/product/[handle]",
       "regex": "^/product/([^/]+?)(?:/)?$",
       "routeKeys": {
@@ -80,6 +88,12 @@
       "regex": "^/about(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/about(?:/)?$"
+    },
+    {
+      "page": "/account",
+      "regex": "^/account(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/account(?:/)?$"
     },
     {
       "page": "/admin/coupons",
@@ -284,6 +298,12 @@
       "regex": "^/privacy\\-policy(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/privacy\\-policy(?:/)?$"
+    },
+    {
+      "page": "/profile",
+      "regex": "^/profile(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/profile(?:/)?$"
     },
     {
       "page": "/shop",

@@ -74,29 +74,29 @@ export default function HeaderSearchPanel({ isOpen, onClose }: HeaderSearchPanel
   }
 
   return (
-    <div className="fixed inset-0 z-[98] bg-black/60 px-4 py-24" onClick={onClose}>
+    <div className="fixed inset-0 z-[98] bg-black/45 px-4 py-20 md:py-24" onClick={onClose}>
       <div
-        className="mx-auto w-full max-w-2xl rounded-2xl border border-[var(--gold)]/50 bg-[#2b060b] p-4 shadow-2xl md:p-6"
+        className="mx-auto w-full max-w-3xl rounded-2xl border border-[#e5e7ee] bg-white p-4 shadow-[0_16px_42px_rgba(40,44,63,0.2)] md:p-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--gold)]/50 bg-[#3f0d14] px-3 py-2">
-          <Search className="h-4 w-4 text-[#eac26a]" />
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-[#d9dde7] bg-white px-3 py-2.5 shadow-[0_4px_12px_rgba(40,44,63,0.06)]">
+          <Search className="h-4 w-4 text-[#6a6f7a]" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search products..."
-            className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[#d5bdb9]"
+            placeholder="Search products, brands and more"
+            className="w-full bg-transparent text-sm text-[#1f2432] outline-none placeholder:text-[#8b90a0]"
             autoFocus
           />
-          <button type="button" onClick={onClose} aria-label="Close search" className="rounded-full p-1 hover:bg-[#58121a]">
+          <button type="button" onClick={onClose} aria-label="Close search" className="rounded-full p-1 text-[#757b8b] hover:bg-[#f1f3f8]">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {isLoading ? <p className="text-sm text-[#d5bdb9]">Loading products...</p> : null}
+        {isLoading ? <p className="text-sm text-[#696e79]">Loading products...</p> : null}
 
         {!isLoading && filteredProducts.length === 0 ? (
-          <p className="text-sm text-[#d5bdb9]">No products matched your search.</p>
+          <p className="text-sm text-[#696e79]">No products matched your search.</p>
         ) : null}
 
         <div className="space-y-2">
@@ -105,12 +105,12 @@ export default function HeaderSearchPanel({ isOpen, onClose }: HeaderSearchPanel
               href={`/shop?q=${encodeURIComponent(product.name)}`}
               key={product.id}
               onClick={onClose}
-              className="flex items-center gap-3 rounded-xl border border-transparent px-3 py-2 transition hover:border-[var(--gold)]/40 hover:bg-[#451018]"
+              className="flex items-center gap-3 rounded-xl border border-transparent px-3 py-2 transition hover:border-[#eceef4] hover:bg-[#f7f8fb]"
             >
               <SafeImage src={product.img} alt={product.name} className="h-12 w-12 rounded-lg object-cover" />
               <div>
-                <p className="text-sm font-medium">{product.name}</p>
-                <p className="text-xs text-[#eac26a]">
+                <p className="text-sm font-medium text-[#282c3f]">{product.name}</p>
+                <p className="text-xs text-[#3e4152]">
                   {formatCurrency(
                     convertAmount(product.priceAmount, toSupportedCurrency(product.currencyCode), displayCurrency),
                     displayCurrency,

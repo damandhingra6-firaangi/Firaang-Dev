@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { ChevronDown, Loader2, Mail, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
+import { COMPANY_MANUFACTURER_DETAILS } from "@/lib/company";
 import { newsletterSchema } from "@/lib/newsletter";
 import { useUiStore } from "@/store/useUiStore";
 import SafeImage from "@/components/SafeImage";
@@ -230,7 +231,7 @@ export default function Newsletter() {
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-[#3b0810]">
                     <MapPin className="h-3.5 w-3.5" />
                   </span>
-                  <span>Firaang Studio, Chandigarh, India</span>
+                  <span>{COMPANY_MANUFACTURER_DETAILS}</span>
                 </li>
                 <li className="flex items-start gap-3 border-b border-[var(--footer-contact-border)] pb-3">
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] text-[#3b0810]">

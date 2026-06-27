@@ -26,6 +26,7 @@ type AppliedCoupon = {
 };
 
 export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDrawerProps) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const router = useRouter();
   const cart = useShopStore((state) => state.cart);
   const removeFromCart = useShopStore((state) => state.removeFromCart);
@@ -37,14 +38,15 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const updateProfile = useAccountStore((state) => state.updateProfile);
   const pushToast = useUiStore((state) => state.pushToast);
   const displayCurrency = useUiStore((state) => state.currency);
-  const openAccountModal = useUiStore((state) => state.openAccountModal);
 
   const [step, setStep] = useState<CheckoutStep>("cart");
   const [shippingName, setShippingName] = useState("");
+  const [shippingEmail, setShippingEmail] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
   const [shippingCity, setShippingCity] = useState("");
   const [shippingState, setShippingState] = useState("");
   const [shippingPinCode, setShippingPinCode] = useState("");
+  const [shippingErrors, setShippingErrors] = useState<Partial<Record<"fullName" | "email" | "address" | "city" | "state" | "pinCode", string>>>({});
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
@@ -60,6 +62,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   useEffect(() => {
     if (!isOpen) return;
     setShippingName((cur) => cur || profile.fullName);
+    setShippingEmail((cur) => cur || profile.email);
     setShippingAddress((cur) => cur || profile.address);
     setShippingCity((cur) => cur || profile.city);
     setShippingState((cur) => cur || profile.state);
@@ -84,9 +87,35 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   });
 
   const hasShippingDetails =
+    shippingName.trim().length > 0 &&
+    emailRegex.test(shippingEmail.trim()) &&
     shippingAddress.trim().length > 0 &&
+    shippingCity.trim().length > 0 &&
     shippingState.trim().length > 0 &&
     /^\d{6}$/.test(shippingPinCode.trim());
+
+  const validateShippingDetails = () => {
+    const nextErrors: Partial<Record<"fullName" | "email" | "address" | "city" | "state" | "pinCode", string>> = {};
+
+    if (!shippingName.trim()) nextErrors.fullName = "Full name is required";
+    if (!shippingEmail.trim()) {
+      nextErrors.email = "Email address is required";
+    } else if (!emailRegex.test(shippingEmail.trim())) {
+      nextErrors.email = "Please enter a valid email address";
+    }
+    if (!shippingAddress.trim()) nextErrors.address = "Shipping address is required";
+    if (!shippingCity.trim()) nextErrors.city = "City / town is required";
+    if (!shippingState.trim()) nextErrors.state = "State is required";
+
+    if (!shippingPinCode.trim()) {
+      nextErrors.pinCode = "PIN code is required";
+    } else if (!/^\d{6}$/.test(shippingPinCode.trim())) {
+      nextErrors.pinCode = "PIN code must be 6 digits";
+    }
+
+    setShippingErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
 
   const stepLabels: Record<CheckoutStep, string> = {
     cart: `Your Cart (${cartCount})`,
@@ -149,7 +178,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
 
   const handleProceedToShipping = () => {
     if (cartItems.length === 0) { pushToast("Add items to cart before checkout", { variant: "warning" }); return; }
-    if (!isSignedIn) { pushToast("Sign in to proceed to checkout", { variant: "warning" }); openAccountModal(); return; }
+    if (!isSignedIn) { pushToast("Sign in to proceed to checkout", { variant: "warning" }); onClose(); router.push("/account?tab=overview"); return; }
     if (mode === "drawer") {
       onClose();
       router.push("/checkout");
@@ -159,8 +188,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   };
 
   const handleProceedToSummary = () => {
-    if (!shippingAddress.trim() || !shippingState.trim()) { pushToast("Enter your shipping address and state", { variant: "warning" }); return; }
-    if (!/^\d{6}$/.test(shippingPinCode.trim())) { pushToast("Enter a valid 6-digit PIN code", { variant: "warning" }); return; }
+    if (!validateShippingDetails()) { pushToast("Please fix shipping form errors", { variant: "warning" }); return; }
     setStep("summary");
   };
 
@@ -178,6 +206,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
         body: JSON.stringify({
           items: cartItems.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
           shippingName: shippingName.trim(),
+          shippingEmail: shippingEmail.trim(),
           shippingAddress: shippingAddress.trim(),
           shippingCity: shippingCity.trim(),
           shippingState: shippingState.trim(),
@@ -209,7 +238,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
         name: "Firaang",
         description: "Secure checkout",
         order_id: orderData.orderId,
-        prefill: { name: shippingName.trim() || undefined },
+        prefill: { name: shippingName.trim() || undefined, email: shippingEmail.trim() || undefined },
         theme: { color: "#D3A736" },
         modal: { ondismiss: () => { pushToast("Payment cancelled", { variant: "warning" }); } },
         handler: async (response) => {
@@ -236,6 +265,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
 
           updateProfile({
             fullName: shippingName.trim() || profile.fullName,
+            email: shippingEmail.trim() || profile.email,
             address: shippingAddress.trim(),
             city: shippingCity.trim(),
             state: shippingState.trim(),
@@ -333,7 +363,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                     <ShoppingBag className="mb-4 h-12 w-12 text-[var(--popup-muted)]" />
                     <p className="text-[var(--popup-muted)]">Your cart is empty.</p>
                     <p className="mt-2 text-xs text-[var(--popup-muted)]">Sign in to load your saved cart.</p>
-                    <button type="button" onClick={() => { onClose(); openAccountModal(); }} className="gold-button mt-5 px-6 py-2.5 text-sm">
+                    <button type="button" onClick={() => { onClose(); router.push("/account?tab=overview"); }} className="gold-button mt-5 px-6 py-2.5 text-sm">
                       Login / Sign Up
                     </button>
                   </div>
@@ -393,29 +423,39 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
           {step === "shipping" && (
             <div className="space-y-4 p-5">
               <div>
-                <label className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-[var(--popup-muted)]">Full Name</label>
-                <input type="text" value={shippingName} onChange={(e) => setShippingName(e.target.value)} placeholder="Your full name" className="w-full rounded-xl border border-[var(--gold)]/35 bg-[var(--popup-footer-bg)] px-4 py-3 text-sm text-[var(--popup-footer-text)] outline-none placeholder:text-[var(--popup-muted)] focus:border-[var(--gold)] transition" />
+                <label className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-[var(--popup-muted)]">Full Name <span className="text-red-400">*</span></label>
+                <input type="text" value={shippingName} onChange={(e) => { setShippingName(e.target.value); if (shippingErrors.fullName) setShippingErrors((prev) => ({ ...prev, fullName: "" })); }} placeholder="Your full name" className="w-full rounded-xl border border-[var(--gold)]/35 bg-[var(--popup-footer-bg)] px-4 py-3 text-sm text-[var(--popup-footer-text)] outline-none placeholder:text-[var(--popup-muted)] focus:border-[var(--gold)] transition" />
+                {shippingErrors.fullName ? <p className="mt-1.5 text-xs text-red-400">{shippingErrors.fullName}</p> : null}
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-[var(--popup-muted)]">Email Address <span className="text-red-400">*</span></label>
+                <input type="email" value={shippingEmail} onChange={(e) => { setShippingEmail(e.target.value); if (shippingErrors.email) setShippingErrors((prev) => ({ ...prev, email: "" })); }} placeholder="name@example.com" className="w-full rounded-xl border border-[var(--gold)]/35 bg-[var(--popup-footer-bg)] px-4 py-3 text-sm text-[var(--popup-footer-text)] outline-none placeholder:text-[var(--popup-muted)] focus:border-[var(--gold)] transition" />
+                {shippingErrors.email ? <p className="mt-1.5 text-xs text-red-400">{shippingErrors.email}</p> : null}
               </div>
               <div>
                 <label className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-[var(--popup-muted)]">Shipping Address <span className="text-red-400">*</span></label>
-                <textarea rows={3} value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder="House no., street, locality" className="w-full resize-none rounded-xl border border-[var(--gold)]/35 bg-[var(--popup-footer-bg)] px-4 py-3 text-sm text-[var(--popup-footer-text)] outline-none placeholder:text-[var(--popup-muted)] focus:border-[var(--gold)] transition" />
+                <textarea rows={3} value={shippingAddress} onChange={(e) => { setShippingAddress(e.target.value); if (shippingErrors.address) setShippingErrors((prev) => ({ ...prev, address: "" })); }} placeholder="House no., street, locality" className="w-full resize-none rounded-xl border border-[var(--gold)]/35 bg-[var(--popup-footer-bg)] px-4 py-3 text-sm text-[var(--popup-footer-text)] outline-none placeholder:text-[var(--popup-muted)] focus:border-[var(--gold)] transition" />
+                {shippingErrors.address ? <p className="mt-1.5 text-xs text-red-400">{shippingErrors.address}</p> : null}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-[var(--popup-muted)]">City / Town</label>
-                  <input type="text" value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder="City" className="w-full rounded-xl border border-[var(--gold)]/35 bg-[var(--popup-footer-bg)] px-4 py-3 text-sm text-[var(--popup-footer-text)] outline-none placeholder:text-[var(--popup-muted)] focus:border-[var(--gold)] transition" />
+                  <label className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-[var(--popup-muted)]">City / Town <span className="text-red-400">*</span></label>
+                  <input type="text" value={shippingCity} onChange={(e) => { setShippingCity(e.target.value); if (shippingErrors.city) setShippingErrors((prev) => ({ ...prev, city: "" })); }} placeholder="City" className="w-full rounded-xl border border-[var(--gold)]/35 bg-[var(--popup-footer-bg)] px-4 py-3 text-sm text-[var(--popup-footer-text)] outline-none placeholder:text-[var(--popup-muted)] focus:border-[var(--gold)] transition" />
+                  {shippingErrors.city ? <p className="mt-1.5 text-xs text-red-400">{shippingErrors.city}</p> : null}
                 </div>
                 <div>
                   <label className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-[var(--popup-muted)]">PIN Code <span className="text-red-400">*</span></label>
-                  <input type="text" inputMode="numeric" maxLength={6} value={shippingPinCode} onChange={(e) => setShippingPinCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit PIN" className="w-full rounded-xl border border-[var(--gold)]/35 bg-[var(--popup-footer-bg)] px-4 py-3 text-sm text-[var(--popup-footer-text)] outline-none placeholder:text-[var(--popup-muted)] focus:border-[var(--gold)] transition" />
+                  <input type="text" inputMode="numeric" maxLength={6} value={shippingPinCode} onChange={(e) => { setShippingPinCode(e.target.value.replace(/\D/g, "").slice(0, 6)); if (shippingErrors.pinCode) setShippingErrors((prev) => ({ ...prev, pinCode: "" })); }} placeholder="6-digit PIN" className="w-full rounded-xl border border-[var(--gold)]/35 bg-[var(--popup-footer-bg)] px-4 py-3 text-sm text-[var(--popup-footer-text)] outline-none placeholder:text-[var(--popup-muted)] focus:border-[var(--gold)] transition" />
+                  {shippingErrors.pinCode ? <p className="mt-1.5 text-xs text-red-400">{shippingErrors.pinCode}</p> : null}
                 </div>
               </div>
               <div>
                 <label className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-[var(--popup-muted)]">State <span className="text-red-400">*</span></label>
-                <select value={shippingState} onChange={(e) => setShippingState(e.target.value)} className="w-full rounded-xl border border-[var(--gold)]/35 bg-[var(--popup-footer-bg)] px-4 py-3 text-sm text-[var(--popup-footer-text)] outline-none focus:border-[var(--gold)] transition">
+                <select value={shippingState} onChange={(e) => { setShippingState(e.target.value); if (shippingErrors.state) setShippingErrors((prev) => ({ ...prev, state: "" })); }} className="w-full rounded-xl border border-[var(--gold)]/35 bg-[var(--popup-footer-bg)] px-4 py-3 text-sm text-[var(--popup-footer-text)] outline-none focus:border-[var(--gold)] transition">
                   <option value="">Select state</option>
                   {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
+                {shippingErrors.state ? <p className="mt-1.5 text-xs text-red-400">{shippingErrors.state}</p> : null}
               </div>
               {isSignedIn ? (
                 <p className="text-xs text-[var(--gold)]/70">This address will be saved to your profile for future purchases.</p>
@@ -537,7 +577,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
             </>
           )}
           {step === "shipping" && (
-            <button type="button" disabled={!shippingAddress.trim() || !shippingState.trim() || !/^\d{6}$/.test(shippingPinCode.trim())} onClick={handleProceedToSummary} className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--gold)] px-5 py-3.5 font-semibold text-[#3b0810] transition hover:bg-[#f0c654] disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" disabled={!hasShippingDetails} onClick={handleProceedToSummary} className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--gold)] px-5 py-3.5 font-semibold text-[#3b0810] transition hover:bg-[#f0c654] disabled:cursor-not-allowed disabled:opacity-50">
               Continue to Order Summary <ChevronRight className="h-4 w-4" />
             </button>
           )}

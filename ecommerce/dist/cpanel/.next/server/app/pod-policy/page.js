@@ -1,6 +1,6 @@
 var R=require("../../chunks/ssr/[turbopack]_runtime.js")("server/app/pod-policy/page.js")
-R.c("server/chunks/ssr/[root-of-the-server]__014ab~s._.js")
-R.c("server/chunks/ssr/node_modules_0sy8gnb._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0u4a7xt._.js")
+R.c("server/chunks/ssr/node_modules_next_dist_0jk5ehi._.js")
 R.c("server/chunks/ssr/node_modules_next_dist_esm_build_templates_app-page_0nkgcab.js")
 R.c("server/chunks/ssr/[root-of-the-server]__0weov2t._.js")
 R.c("server/chunks/ssr/node_modules_next_dist_03nkrli._.js")
