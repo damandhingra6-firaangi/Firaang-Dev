@@ -1,3 +1,0 @@
-module.exports=[83128,a=>{"use strict";var b=a.i(77776),c=a.i(95483),d=a.i(77204);async function e({params:a}){let{category:f}=await a,g=await (0,c.getStorefrontProducts)(40),h=g.length>0?g:b.fallbackProducts,i=(0,d.buildCategoryTree)(h),j=f.toLowerCase().replace(/-/g," "),k=i.find(a=>a.slug.toLowerCase()===j),l=k?.name??f,m=`${l}`,n=`Browse our collection of ${l.toLowerCase()}`;return{title:m,description:n,openGraph:{title:m,description:n,type:"website"}}}a.s(["default",0,function({children:a}){return a},"generateMetadata",0,e])},99352,a=>{a.n(a.i(83128))}];
-
-//# sourceMappingURL=src_app_shop_%5Bcategory%5D_layout_tsx_0e7a85s._.js.map
