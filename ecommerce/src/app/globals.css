@@ -10,17 +10,17 @@
   --gold: #cfa53a;
   --page-bg: #fdf9f6;
   --page-fg: #2f2b2a;
-  --announcement-bg: #b54847;
-  --announcement-fg: #fff4ed;
-  --nav-bg: #ffffff;
-  --nav-border: #e7dfd8;
-  --nav-text: #3f3a38;
+  --announcement-bg: #000000;
+  --announcement-fg: #ffffff;
+  --nav-bg: #fff8fa;
+  --nav-border: #edd9e1;
+  --nav-text: #1b1b1b;
   --menu-bg: #fffdfb;
   --menu-text: #4a4340;
   --panel-bg: #fffaf6;
   --panel-hover: #f2e8df;
   --panel-signout: #f8e6e1;
-  --nav-active: #ad4546;
+  --nav-active: #ed467a;
   --sale-bg: #f7ede7;
   --sale-border: #e6d2c5;
   --sale-text: #453e3b;
@@ -31,17 +31,17 @@
   --newsletter-input-ph: #a5867b;
   --newsletter-input-border: #e1c8bf;
   --newsletter-input-focus-bg: #fff9f5;
-  --footer-bg: #ad4747;
-  --footer-border: rgba(255, 236, 228, 0.2);
-  --footer-heading: #fff3ea;
-  --footer-links: #f7dfd4;
-  --footer-contact-border: rgba(255, 236, 228, 0.26);
-  --footer-bottom: #f0cec2;
-  --currency-bg: rgba(255, 240, 232, 0.16);
-  --currency-text: #fff3ea;
-  --currency-border: rgba(255, 236, 228, 0.3);
-  --currency-dropdown: #fff7f2;
-  --currency-option: #4e4744;
+  --footer-bg: #000000;
+  --footer-border: rgba(255, 255, 255, 0.1);
+  --footer-heading: #ffffff;
+  --footer-links: rgba(255, 255, 255, 0.74);
+  --footer-contact-border: rgba(255, 255, 255, 0.1);
+  --footer-bottom: rgba(255, 255, 255, 0.68);
+  --currency-bg: rgba(255, 255, 255, 0.08);
+  --currency-text: rgba(255, 255, 255, 0.82);
+  --currency-border: rgba(255, 255, 255, 0.14);
+  --currency-dropdown: #111111;
+  --currency-option: rgba(255, 255, 255, 0.82);
   --shop-input-bg: #fffdfb;
   --shop-input-text: #3f3a38;
   --shop-input-ph: #aa8f86;
@@ -73,10 +73,10 @@
   --popup-footer-bg: #fff8f2;
   --popup-footer-text: #342f2d;
   --popup-footer-inactive: #6f6460;
-  --ribbon-top-bg: #f2e5dc;
-  --ribbon-main-bg: #f9f1ea;
-  --ribbon-text: #4e4642;
-  --ribbon-subtext: #7d6f68;
+  --ribbon-top-bg: #ffffff;
+  --ribbon-main-bg: #ffffff;
+  --ribbon-text: #222222;
+  --ribbon-subtext: #666666;
   --arrivals-bg: #fdf8f3;
   --arrivals-muted: #80746d;
   --arrivals-card-bg: linear-gradient(to bottom, #fffefc, #f8eee7);
@@ -112,6 +112,10 @@ h4 {
   @apply mx-auto w-full max-w-7xl px-4 md:px-6;
 }
 
+.home-shell {
+  @apply mx-auto w-full max-w-[1440px] px-4 md:px-6;
+}
+
 .gold-button {
   @apply rounded-[8px] border border-[var(--gold)] bg-[var(--gold)] px-7 py-3 text-sm font-medium tracking-[0.04em] text-black transition duration-300 hover:bg-[#f0c654] hover:border-[#f0c654];
 }
@@ -145,16 +149,16 @@ h4 {
 }
 
 .hero-title {
-  color: #fef7f0;
-  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+  color: #ffffff;
+  text-shadow: 0 9px 22px rgba(0, 0, 0, 0.38);
 }
 
 .hero-overlay-primary {
-  background: linear-gradient(95deg, rgba(28, 19, 16, 0.72) 0%, rgba(69, 42, 35, 0.56) 42%, rgba(34, 23, 20, 0.52) 100%);
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.58) 0%, rgba(0, 0, 0, 0.42) 38%, rgba(0, 0, 0, 0.48) 100%);
 }
 
 .hero-overlay-glow {
-  background: radial-gradient(circle at 64% 38%, rgba(193, 146, 80, 0.22), transparent 42%);
+  background: radial-gradient(circle at 66% 36%, rgba(255, 178, 64, 0.15), transparent 42%);
 }
 
 @media (max-height: 500px) and (max-width: 900px) {

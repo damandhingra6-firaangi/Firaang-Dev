@@ -2,12 +2,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type TouchEventHandler } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Eye, Heart, ShoppingBag } from "lucide-react";
-import SafeImage from "@/components/SafeImage";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import ProductCard from "@/components/ProductCard";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
-import { getCartCount, getWishlistIds, useShopStore } from "@/store/useShopStore";
+import { getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
 
 type ProductGridProps = {
@@ -19,14 +20,13 @@ const INTERACTION_RESUME_DELAY_MS = 4200;
 
 export default function ProductGrid({ products }: ProductGridProps) {
   const [startIndex, setStartIndex] = useState(0);
-  const [cardsPerRow, setCardsPerRow] = useState(6);
-  const [rowCount, setRowCount] = useState(2);
+  const [cardsPerRow, setCardsPerRow] = useState(5);
+  const [rowCount, setRowCount] = useState(3);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [isAutoplayPaused, setIsAutoplayPaused] = useState(false);
   const resumeAutoplayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const wishlist = useShopStore((state) => state.wishlist);
-  const cart = useShopStore((state) => state.cart);
   const toggleWishlist = useShopStore((state) => state.toggleWishlist);
   const addToCart = useShopStore((state) => state.addToCart);
   const openCart = useUiStore((state) => state.openCart);
@@ -34,25 +34,24 @@ export default function ProductGrid({ products }: ProductGridProps) {
   const router = useRouter();
 
   const wishlistIds = getWishlistIds(wishlist);
-  const cartCount = getCartCount(cart);
 
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1536) {
-        setCardsPerRow(6);
-        setRowCount(2);
+        setCardsPerRow(5);
+        setRowCount(3);
         return;
       }
 
       if (window.innerWidth >= 1280) {
         setCardsPerRow(5);
-        setRowCount(2);
+        setRowCount(3);
         return;
       }
 
       if (window.innerWidth >= 1024) {
         setCardsPerRow(5);
-        setRowCount(2);
+        setRowCount(3);
         return;
       }
 
@@ -140,6 +139,11 @@ export default function ProductGrid({ products }: ProductGridProps) {
   const rows = Array.from({ length: rowCount }, (_, rowIndex) =>
     visibleProducts.slice(rowIndex * cardsPerRow, rowIndex * cardsPerRow + cardsPerRow),
   );
+  const rowStyles = [
+    { backgroundColor: "#F4FCFF", borderColor: "#00BDFF" },
+    { backgroundColor: "#F9F4FF", borderColor: "#7616FA" },
+    { backgroundColor: "#F6FFFC", borderColor: "#0ACF83" },
+  ];
 
   const goToPrev = () => {
     if (!hasMultipleProducts) {
@@ -246,36 +250,28 @@ export default function ProductGrid({ products }: ProductGridProps) {
   };
 
   return (
-    <section className="bg-[var(--arrivals-bg)] py-12 md:py-14 xl:py-16">
-      <div className="mx-auto w-full max-w-[1680px] px-2 sm:px-3 md:px-4 lg:px-6">
-        <h2 className="mb-2 text-center text-3xl md:text-4xl">New Arrivals</h2>
-        <p className="text-center text-[11px] uppercase tracking-[0.12em] text-[var(--gold)]">
-          Fresh Finds for the Season
-        </p>
-        <img
-          src="/GoldenArrow.svg"
-          alt="Decorative golden divider"
-          className="mx-auto mb-8 mt-3 w-[156px]"
-        />
+    <section className="bg-white py-12 md:py-14 xl:py-16">
+      <div className="home-shell">
+        <div className="mb-7 flex items-end justify-between gap-5 md:mb-9">
+          <div>
+            <p className="font-sans text-[11px] font-semibold uppercase tracking-[0.06em] text-[#2f2f2f] md:text-[12px]">
+              FRESH FINDS FOR THE SEASON
+            </p>
+            <h2 className="mt-1 font-sans text-[40px] font-semibold leading-[1.06] tracking-[-0.01em] text-[#000000] md:text-[52px]">
+              New Arrivals
+            </h2>
+          </div>
 
-        <div className="mb-4 flex justify-end md:mb-5">
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--gold)] px-4 py-2 text-sm text-[var(--arrivals-card-title)] transition hover:bg-[var(--arrivals-hover)]"
-            onClick={openCart}
-            aria-label="Open cart"
+          <Link
+            href="/shop"
+            className="inline-flex h-[40px] min-w-[132px] items-center justify-center rounded-[5px] border border-[#5a5a5a] px-6 font-sans text-[14px] font-medium uppercase tracking-[0.02em] text-[#353535] transition hover:bg-white md:text-[15px]"
           >
-            <ShoppingBag className="h-4 w-4 text-[var(--gold)]" />
-            Cart ({cartCount})
-          </button>
+            VIEW ALL
+          </Link>
         </div>
 
-        <div
-          className="relative"
-          onMouseEnter={() => pauseAutoplay(0)}
-          onMouseLeave={() => pauseAutoplay(120)}
-        >
-        {showNavigation ? (
+        <div className="relative" onMouseEnter={() => pauseAutoplay(0)} onMouseLeave={() => pauseAutoplay(120)}>
+          {showNavigation ? (
           <>
             <button
               type="button"
@@ -298,104 +294,51 @@ export default function ProductGrid({ products }: ProductGridProps) {
         ) : null}
 
         <div
-          className="space-y-3 md:space-y-4"
+          className="space-y-3 md:space-y-3.5"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
           {rows.map((row, rowIndex) => (
             <div
               key={`product-row-${rowIndex}`}
-              className="grid gap-2.5 sm:gap-3 md:gap-4"
+              className="grid gap-2.5 sm:gap-3 md:gap-3.5"
               style={{ gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))` }}
             >
-              {row.map((p, productIndex) => (
-                <article
-                  key={`${p.id}-${rowIndex}-${productIndex}`}
-                  className="group overflow-hidden rounded-[18px] border border-[var(--gold)]/65 bg-[image:var(--arrivals-card-bg)] shadow-[0_10px_28px_rgba(0,0,0,0.18)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(0,0,0,0.26)]"
-                  onClick={() => handleOpenDetails(p)}
-                >
-                  <div className="relative overflow-hidden">
-                    <SafeImage
-                      src={p.img}
-                      alt={p.name}
-                      className="h-[190px] w-full object-cover transition duration-500 group-hover:scale-105 sm:h-[220px] md:h-[240px] lg:h-[250px]"
-                    />
-                    <div
-                      className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100"
-                      style={{ background: "var(--card-hover-overlay)" }}
-                    />
+              {row.map((p, productIndex) => {
+                const currentPrice = formatCurrency(
+                  convertAmount(p.priceAmount, toSupportedCurrency(p.currencyCode), displayCurrency),
+                  displayCurrency,
+                );
 
-                    <div className="absolute inset-x-2 bottom-2 flex translate-y-2 items-center justify-center gap-2 opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-                      <button
-                        type="button"
-                        aria-label={`Quick view ${p.name}`}
-                        className="inline-flex h-9 items-center justify-center rounded-full bg-[var(--gold)] px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#3b0810]"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleOpenDetails(p);
-                        }}
-                      >
-                        <Eye className="mr-1.5 h-3.5 w-3.5" />
-                        Quick View
-                      </button>
+                const oldPrice = p.oldPrice
+                  ? formatCurrency(
+                      convertAmount(
+                        Number.parseFloat(p.oldPrice.replace(/[^\d.]/g, "")) || p.priceAmount,
+                        toSupportedCurrency(p.currencyCode),
+                        displayCurrency,
+                      ),
+                      displayCurrency,
+                    )
+                  : undefined;
 
-                      <button
-                        type="button"
-                        aria-label={`Add ${p.name} to wishlist`}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--gold)] bg-[var(--arrivals-action-bg)] text-[var(--arrivals-card-title)]"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleToggleWishlist(p);
-                        }}
-                      >
-                        <Heart
-                          className={`h-4 w-4 ${wishlistIds.has(p.id) ? "fill-[var(--gold)] text-[var(--gold)]" : ""}`}
-                        />
-                      </button>
-
-                      <button
-                        type="button"
-                        aria-label={`Add ${p.name} to cart`}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--gold)] bg-[var(--arrivals-action-bg)] text-[var(--arrivals-card-title)]"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleAddToCart(p);
-                        }}
-                      >
-                        <ShoppingBag className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 p-3 md:p-3.5">
-                    <h3 className="line-clamp-2 min-h-[40px] text-[15px] font-semibold leading-[1.28] text-[var(--arrivals-card-title)] md:min-h-[44px] md:text-[16px]">
-                      {p.name}
-                    </h3>
-
-                    <div className="flex items-end gap-2 md:gap-2.5">
-                      <p className="text-[31px] leading-none text-[var(--arrivals-price)] md:text-[33px]">
-                        {formatCurrency(
-                          convertAmount(p.priceAmount, toSupportedCurrency(p.currencyCode), displayCurrency),
-                          displayCurrency,
-                        )}
-                      </p>
-
-                      {p.oldPrice ? (
-                        <p className="mb-0.5 text-[13px] text-[var(--arrivals-old-price)] line-through md:text-[14px]">
-                          {formatCurrency(
-                            convertAmount(
-                              Number.parseFloat(p.oldPrice.replace(/[^\d.]/g, "")) || p.priceAmount,
-                              toSupportedCurrency(p.currencyCode),
-                              displayCurrency,
-                            ),
-                            displayCurrency,
-                          )}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                </article>
-              ))}
+                return (
+                  <ProductCard
+                    key={`${p.id}-${rowIndex}-${productIndex}`}
+                    title={p.name}
+                    image={p.img}
+                    currentPrice={currentPrice}
+                    oldPrice={oldPrice}
+                    isNew={p.tags?.some((tag) => /\bnew\b/i.test(tag))}
+                    borderColor={rowStyles[rowIndex % rowStyles.length].borderColor}
+                    backgroundColor={rowStyles[rowIndex % rowStyles.length].backgroundColor}
+                    isWishlisted={wishlistIds.has(p.id)}
+                    onOpenDetails={() => handleOpenDetails(p)}
+                    onQuickView={() => handleOpenDetails(p)}
+                    onToggleWishlist={() => handleToggleWishlist(p)}
+                    onAddToCart={() => handleAddToCart(p)}
+                  />
+                );
+              })}
             </div>
           ))}
         </div>

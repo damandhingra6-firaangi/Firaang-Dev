@@ -18,7 +18,7 @@ type AccountView = "signin" | "profile" | "orders";
 const desktopNavItems = [
   { label: "MEN", href: "/shop?audience=boys" },
   { label: "WOMEN", href: "/shop?audience=girls" },
-  { label: "KIDS", href: "/shop?audience=unisex" },
+  { label: "KIDS", href: "/shop?category=accessories" },
   { label: "GENZ", href: "/shop?category=t-shirts&subCategory=gen-z-t-shirts" },
 ] as const;
 
@@ -61,7 +61,7 @@ const collections: CollectionItem[] = [
 const mobileMenuItems = [
   { label: "Men", href: "/shop?audience=boys" },
   { label: "Women", href: "/shop?audience=girls" },
-  { label: "Kids", href: "/shop?audience=unisex" },
+  { label: "Kids", href: "/shop?category=accessories" },
   { label: "Collections", href: "/shop?category=t-shirts" },
   { label: "GenZ", href: "/shop?category=t-shirts&subCategory=gen-z-t-shirts" },
 ] as const;
@@ -178,7 +178,7 @@ export default function Navbar() {
   };
 
   const desktopNavLinkClass =
-    "relative inline-flex items-center py-1 text-[14px] font-semibold tracking-[0.08em] text-[var(--nav-text)] transition-colors duration-200 hover:text-[var(--nav-active)] after:absolute after:-bottom-2 after:left-0 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-[#ff3f6c] after:transition-transform after:duration-200 hover:after:scale-x-100";
+    "relative inline-flex items-center py-1 text-[16px] font-semibold leading-none tracking-normal text-[var(--nav-text)] transition-colors duration-200 hover:text-[var(--nav-active)] after:absolute after:-bottom-[9px] after:left-0 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-[#ed467a] after:transition-transform after:duration-200 hover:after:scale-x-100";
 
   const openWishlistFromMenu = () => {
     openWishlist();
@@ -187,11 +187,17 @@ export default function Navbar() {
 
   return (
     <header className="fixed top-0 z-50 w-full">
-      <div className="bg-[var(--announcement-bg)] px-3 py-1 text-center text-[9px] font-medium uppercase tracking-[0.16em] text-[var(--announcement-fg)] md:py-1.5 md:text-[10px] md:tracking-[0.2em]" />
+      <div className="bg-[var(--announcement-bg)] px-3 py-1 text-center text-[9px] font-medium uppercase tracking-[0.16em] text-[var(--announcement-fg)] md:py-1.5 md:text-[10px] md:tracking-[0.2em]">
+        <div className="home-shell flex items-center justify-center gap-4">
+          {/* <span className="text-[9px] md:text-[10px]">&#8249;</span>
+          <span>Free Shipping On Order Above $25 Shop Now</span>
+          <span className="text-[9px] md:text-[10px]">&#8250;</span> */}
+        </div>
+      </div>
 
       <div className="border-b border-[color:var(--nav-border)]/70 bg-[var(--nav-bg)] text-[var(--nav-text)]">
-        <div className="mx-auto flex h-[72px] w-full max-w-[1500px] items-center justify-between gap-3 px-3 sm:px-4 md:h-[78px] md:px-6 lg:px-8 xl:px-10">
-          <div className="flex min-w-0 items-center gap-3 md:gap-4 lg:gap-5 xl:gap-7">
+        <div className="home-shell flex h-[68px] items-center justify-between gap-3 md:h-[72px]">
+          <div className="flex min-w-0 items-center gap-3 md:gap-5 lg:gap-6 xl:gap-8">
             <button
               type="button"
               aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -208,13 +214,13 @@ export default function Navbar() {
                 className="block h-8 w-8 object-contain sm:h-9 sm:w-9 md:hidden"
               />
               <SafeImage
-                src="/FiraangLogoDesign.png"
+                src="/FiraangLogoDesign-black.svg"
                 alt="Firaang Logo"
-                className="hidden h-9 w-auto max-w-[170px] object-contain md:block lg:h-10 lg:max-w-[190px]"
+                className="hidden h-10 w-auto max-w-[216px] object-contain md:block"
               />
             </Link>
 
-            <nav className="hidden shrink-0 items-center gap-4 lg:flex xl:gap-6">
+            <nav className="hidden shrink-0 items-center gap-5 lg:flex xl:gap-7">
               {desktopNavItems.slice(0, 3).map((item) => (
                 <Link key={item.label} href={item.href} className={desktopNavLinkClass}>
                   {item.label}
@@ -263,14 +269,16 @@ export default function Navbar() {
           <button
             type="button"
             onClick={openSearch}
-            className="hidden h-11 w-[clamp(320px,34vw,560px)] flex-none items-center rounded-md border border-[#e8e9ec] bg-white px-4 text-left shadow-[0_2px_10px_rgba(40,44,63,0.06)] transition hover:border-[#d9dbe2] xl:flex"
+            className="hidden h-12 w-[clamp(300px,42vw,668px)] min-w-0 flex-1 items-center rounded-[5px] border border-[#ed467a]/50 bg-[#fff8fa] px-4 text-left transition hover:border-[#ed467a] xl:flex"
             aria-label="Search for products"
           >
-            <Search className="h-4 w-4 text-[#63666d]" />
-            <span className="ml-3 truncate text-[16px] text-[#696e79]">Search for products, brands and more</span>
+            <Search className="h-[17px] w-[17px] shrink-0 text-[#666666]" />
+            <span className="ml-3 min-w-0 flex-1 truncate text-[15px] font-medium leading-[1.1] text-[#666666]">
+              Search for products, brands and more
+            </span>
           </button>
 
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3" ref={userMenuRef}>
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5 md:gap-4" ref={userMenuRef}>
             <button
               type="button"
               onClick={openSearch}
@@ -284,18 +292,18 @@ export default function Navbar() {
               type="button"
               onClick={toggleUserMenu}
               aria-label="Open profile menu"
-              className="relative hidden min-w-[62px] flex-col items-center justify-center rounded-md px-1 py-1 text-[var(--nav-text)] transition hover:bg-[#f6f6f8] md:flex"
+              className="relative hidden min-w-[56px] flex-col items-center justify-center rounded-md px-1 py-1 text-[var(--nav-text)] transition hover:bg-[#fff1f6] md:flex"
             >
-              <User className="h-5 w-5" />
+              <User className="h-[18px] w-[18px]" />
               {isSignedIn ? (
                 <>
                   <span className="mt-0.5 max-w-[68px] truncate text-[10px] font-medium leading-none text-[var(--nav-active)]">
                     Hello {firstName}
                   </span>
-                  <span className="mt-0.5 text-[11px] font-semibold leading-none">Profile</span>
+                  <span className="mt-1 text-[12px] font-semibold leading-none">Profile</span>
                 </>
               ) : (
-                <span className="mt-1 text-[12px] font-semibold leading-none">Profile</span>
+                <span className="mt-1 text-[13px] font-semibold leading-none">Profile</span>
               )}
             </button>
 
@@ -303,10 +311,10 @@ export default function Navbar() {
               type="button"
               aria-label="Open wishlist"
               onClick={openWishlist}
-              className="relative hidden min-w-[62px] flex-col items-center justify-center rounded-md px-1 py-1 text-[var(--nav-text)] transition hover:bg-[#f6f6f8] md:flex"
+              className="relative hidden min-w-[56px] flex-col items-center justify-center rounded-md px-1 py-1 text-[var(--nav-text)] transition hover:bg-[#fff1f6] md:flex"
             >
-              <Heart className="h-5 w-5" />
-              <span className="mt-1 text-[12px] font-semibold leading-none">Wishlist</span>
+              <Heart className="h-[18px] w-[18px]" />
+              <span className="mt-1 text-[13px] font-semibold leading-none">Wishlist</span>
               {wishlistCount > 0 ? (
                 <span className="absolute right-0 top-0 rounded-full bg-[#ff3f6c] px-1.5 py-[1px] text-[10px] font-semibold text-white">
                   {wishlistCount}
@@ -318,10 +326,10 @@ export default function Navbar() {
               type="button"
               aria-label="Open bag"
               onClick={openCart}
-              className="relative hidden min-w-[62px] flex-col items-center justify-center rounded-md px-1 py-1 text-[var(--nav-text)] transition hover:bg-[#f6f6f8] md:flex"
+              className="relative hidden min-w-[56px] flex-col items-center justify-center rounded-md px-1 py-1 text-[var(--nav-text)] transition hover:bg-[#fff1f6] md:flex"
             >
-              <ShoppingBag className="h-5 w-5" />
-              <span className="mt-1 text-[12px] font-semibold leading-none">Bag</span>
+              <ShoppingBag className="h-[18px] w-[18px]" />
+              <span className="mt-1 text-[13px] font-semibold leading-none">Bag</span>
               {cartCount > 0 ? (
                 <span className="absolute right-0 top-0 rounded-full bg-[#ff3f6c] px-1.5 py-[1px] text-[10px] font-semibold text-white">
                   {cartCount}

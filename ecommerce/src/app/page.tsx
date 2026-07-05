@@ -29,7 +29,7 @@ export default async function Home() {
       <Navbar />
       <Hero />
       <RedRibbon />
-      {/* <Category /> */}
+      <Category />
       <ProductGrid products={products} />
       {/* <SaleBanner /> */}
       {/* <CuratedCollection /> */}

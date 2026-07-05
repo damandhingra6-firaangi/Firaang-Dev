@@ -25,20 +25,22 @@ const ribbonItems = [
 
 export default function RedRibbon() {
   return (
-    <section>
-      <div className="flex items-center justify-center gap-3 bg-[var(--ribbon-top-bg)] py-3 text-[var(--ribbon-text)]">
-        <span className="text-xs opacity-85">◆</span>
-        <span className="text-sm text-[var(--gold)]">◆</span>
-        <span className="text-xs opacity-85">◆</span>
-      </div>
-      <div className="bg-[var(--ribbon-main-bg)] py-7">
-        <div className="section-shell grid gap-6 md:grid-cols-2 xl:grid-cols-4 xl:gap-8">
+    <section className="border-t border-[#ececef] bg-white">
+      <div className="home-shell py-7 sm:py-8">
+        <div className="grid gap-y-6 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-7 xl:grid-cols-4 xl:gap-x-10">
           {ribbonItems.map(({ title, subtitle, iconSrc }) => (
-            <div key={title} className="flex items-center gap-4 text-[var(--ribbon-text)]">
-              <SafeImage src={iconSrc} alt={title} className="h-11 w-11 shrink-0 object-contain" />
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.05em]">{title}</p>
-                <p className="text-sm text-[var(--ribbon-subtext)]">{subtitle}</p>
+            <div
+              key={title}
+              className="mx-auto flex w-full max-w-[300px] items-center gap-3 text-[var(--ribbon-text)] sm:max-w-none sm:justify-start sm:gap-4"
+            >
+              <SafeImage src={iconSrc} alt={title} className="h-12 w-12 shrink-0 object-contain sm:h-11 sm:w-11 lg:h-12 lg:w-12" />
+              <div className="min-w-0 text-left">
+                <p className="font-sans text-[13px] font-semibold leading-[1.15] text-[#1f1f1f] sm:text-[12px] lg:text-[13px]">
+                  {title}
+                </p>
+                <p className="mt-0.5 font-sans text-[10px] font-medium leading-[1.2] text-[var(--ribbon-subtext)] sm:text-[10px] lg:text-[10px]">
+                  {subtitle}
+                </p>
               </div>
             </div>
           ))}
