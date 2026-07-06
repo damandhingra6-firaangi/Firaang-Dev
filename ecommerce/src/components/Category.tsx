@@ -100,7 +100,7 @@ export default function Category() {
                 <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-5 text-white md:p-6">
                   <div>
                     <p className="font-sans text-[38px] font-semibold leading-[0.95] tracking-[-0.02em] sm:text-[30px] sm:leading-[1] sm:tracking-[-0.01em] md:text-[35px]">{category.name}</p>
-                    <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.04em] text-white/80">{category.count}</p>
+                    {/* <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.04em] text-white/80">{category.count}</p> */}
                   </div>
 
                   <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition duration-300 group-hover:bg-[#ED467A] group-hover:scale-110 group-hover:shadow-[0_0_0_3px_rgba(237,70,122,0.35)] group-hover:text-white">

@@ -18,9 +18,9 @@ const instagramGallery = ["/insta1.svg", "/inst2.svg", "/insta3.svg", "/insta4.s
 
 const socialLinks = [
   { label: "Instagram", href: "https://www.instagram.com/firaang" },
-  { label: "Facebook", href: "https://www.facebook.com/firaang" },
+  { label: "Facebook", href: "https://www.facebook.com/share/18urRNaaEq" },
 //   { label: "X", href: "https://www.x.com/firaang" },
-  { label: "YouTube", href: "https://www.youtube.com/firaang" },
+  { label: "YouTube", href: "https://www.youtube.com/@Firaang-m5r" },
 ] as const;
 
 function InstagramMark({ className }: { className?: string }) {
