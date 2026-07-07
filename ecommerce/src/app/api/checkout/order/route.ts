@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createPendingOrderForSessionToken, saveShippingAddressForSessionToken } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
-import { calculateCheckoutPricing, computeCouponDiscount } from "@/lib/checkout-config";
+import { calculateCheckoutPricing, computeCouponDiscount, estimateOrderWeightKg, type ShippingMethod } from "@/lib/checkout-config";
 import { getRazorpayClient } from "@/lib/razorpay";
 import { resolveCheckoutItems } from "@/lib/products";
 import { getActiveCouponByCode } from "@/lib/coupon-store";
@@ -17,6 +17,7 @@ type CreateOrderRequest = {
   shippingCity?: string;
   shippingState?: string;
   shippingPinCode?: string;
+  shippingMethod?: ShippingMethod;
   couponCode?: string;
 };
 
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
     const shippingCity = body.shippingCity?.trim() ?? "";
     const shippingState = body.shippingState?.trim() ?? "";
     const shippingPinCode = body.shippingPinCode?.trim() ?? "";
+    const shippingMethod: ShippingMethod = body.shippingMethod === "air" ? "air" : "surface";
     const couponCode = body.couponCode?.trim().toUpperCase() ?? "";
 
     if (rawItems.length === 0) {
@@ -86,9 +88,15 @@ export async function POST(request: Request) {
       };
     }
 
+    const orderWeightKg = estimateOrderWeightKg(
+      items.map((item) => ({ quantity: item.quantity, tags: item.product.tags })),
+    );
+
     const pricing = calculateCheckoutPricing({
       subtotalAmount,
       shippingState,
+      shippingMethod,
+      orderWeightKg,
       validatedCoupon,
     });
 
@@ -111,6 +119,8 @@ export async function POST(request: Request) {
       notes: {
         itemCount: String(items.length),
         shippingState,
+        shippingMethod,
+        orderWeightKg: String(orderWeightKg),
         shippingFee: String(pricing.shippingFee),
         discountAmount: String(pricing.discountAmount),
         couponCode: validatedCoupon?.code ?? "",

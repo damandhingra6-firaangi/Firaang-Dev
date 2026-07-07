@@ -10,7 +10,7 @@ const categories = [
     name: "Hoodies",
     count: "50 Products",
     img: "/Hoodies.jpg",
-    href: "/shop?category=hoodies",
+    href: "/shop?category=accessories",
   },
   {
     name: "Sweatshirts",

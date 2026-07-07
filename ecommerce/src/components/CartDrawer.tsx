@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ChevronRight, Minus, Package, Plus, ShoppingBag, Tag, Trash2, X } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
-import { INDIAN_STATES, calculateCheckoutPricing } from "@/lib/checkout-config";
+import { INDIAN_STATES, calculateCheckoutPricing, type ShippingMethod } from "@/lib/checkout-config";
 import { convertAmount, formatCurrency } from "@/lib/currency";
 import { getCartCount, getCartItems, getCartSubtotal, useShopStore } from "@/store/useShopStore";
 import { useAccountStore } from "@/store/useAccountStore";
@@ -46,6 +46,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const [shippingCity, setShippingCity] = useState("");
   const [shippingState, setShippingState] = useState("");
   const [shippingPinCode, setShippingPinCode] = useState("");
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("surface");
   const [shippingErrors, setShippingErrors] = useState<Partial<Record<"fullName" | "email" | "address" | "city" | "state" | "pinCode", string>>>({});
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
@@ -83,6 +84,11 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const pricing = calculateCheckoutPricing({
     subtotalAmount: subtotal,
     shippingState,
+    shippingMethod,
+    lineItems: cartItems.map((item) => ({
+      quantity: item.quantity,
+      tags: item.product.tags,
+    })),
     validatedCoupon: appliedCoupon,
   });
 
@@ -211,6 +217,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
           shippingCity: shippingCity.trim(),
           shippingState: shippingState.trim(),
           shippingPinCode: shippingPinCode.trim(),
+          shippingMethod,
           couponCode: appliedCoupon?.code || undefined,
         }),
       });
@@ -457,6 +464,13 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                 </select>
                 {shippingErrors.state ? <p className="mt-1.5 text-xs text-red-400">{shippingErrors.state}</p> : null}
               </div>
+              <div>
+                <label className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-[var(--popup-muted)]">Shipping Method</label>
+                <select value={shippingMethod} onChange={(e) => setShippingMethod(e.target.value as ShippingMethod)} className="w-full rounded-xl border border-[var(--gold)]/35 bg-[var(--popup-footer-bg)] px-4 py-3 text-sm text-[var(--popup-footer-text)] outline-none focus:border-[var(--gold)] transition">
+                  <option value="surface">Surface Shipping</option>
+                  <option value="air">Air Shipping</option>
+                </select>
+              </div>
               {isSignedIn ? (
                 <p className="text-xs text-[var(--gold)]/70">This address will be saved to your profile for future purchases.</p>
               ) : null}
@@ -473,6 +487,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                 <p className="mt-0.5 text-xs text-[var(--popup-muted)]">
                   {shippingAddress}{shippingCity ? `, ${shippingCity}` : ""}, {shippingState} - {shippingPinCode}
                 </p>
+                <p className="mt-1 text-xs text-[var(--popup-muted)]">Method: {shippingMethod === "air" ? "Air Shipping" : "Surface Shipping"}</p>
               </div>
 
               {/* Items */}

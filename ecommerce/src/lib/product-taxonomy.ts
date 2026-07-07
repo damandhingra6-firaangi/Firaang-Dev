@@ -54,11 +54,6 @@ const CATEGORY_TAG_OVERRIDES: CategoryTagOverride[] = [
     match: [/\bhalf[-_\s]?shirts?\b/i, /\bcategory\s*[:=]\s*half[-_\s]?shirts?\b/i],
   },
   {
-    category: "T-Shirts",
-    subCategoryFallback: "Classic T-Shirts",
-    match: [/\bt[-_\s]?shirts?\b/i, /\bcategory\s*[:=]\s*t[-_\s]?shirts?\b/i],
-  },
-  {
     category: "Hoodies",
     subCategoryFallback: "All Hoodies",
     match: [/\bhoodies?\b/i, /\bcategory\s*[:=]\s*hoodies?\b/i],
@@ -66,7 +61,12 @@ const CATEGORY_TAG_OVERRIDES: CategoryTagOverride[] = [
   {
     category: "Sweatshirts",
     subCategoryFallback: "All Sweatshirts",
-    match: [/\bsweat[-_\s]?shirts?\b/i, /\bcategory\s*[:=]\s*sweat[-_\s]?shirts?\b/i],
+    match: [/\bsweat[-_\s]?shirts?\b/i, /\bcrew[-_\s]?necks?\b/i, /\bpullovers?\b/i, /\bcategory\s*[:=]\s*sweat[-_\s]?shirts?\b/i],
+  },
+  {
+    category: "T-Shirts",
+    subCategoryFallback: "Classic T-Shirts",
+    match: [/\bt[-_\s]?shirts?\b/i, /\bcategory\s*[:=]\s*t[-_\s]?shirts?\b/i],
   },
   {
     category: "Caps",
@@ -79,22 +79,22 @@ const CATEGORY_RULES: CategoryRule[] = [
   {
     category: "Half-Shirts",
     subCategoryFallback: "All Half-Shirts",
-    match: [/half[-\s]?shirt/i, /short[-\s]?sleeve[-\s]?shirt/i, /half[-\s]?sleeve/i],
+    match: [/\bhalf[-\s]?shirt\b/i, /\bshort[-\s]?sleeve[-\s]?shirt\b/i, /\bhalf[-\s]?sleeve\b/i],
   },
   {
     category: "Hoodies",
     subCategoryFallback: "All Hoodies",
-    match: [/hoodie/i],
+    match: [/\bhoodie\b/i],
   },
   {
     category: "Sweatshirts",
     subCategoryFallback: "All Sweatshirts",
-    match: [/sweat[-\s]?shirt/i],
+    match: [/\bsweat[-\s]?shirt\b/i, /\bcrewneck\b/i, /\bcrew[-\s]neck\b/i, /\bfleece\b/i, /\bpullover\b/i],
   },
   {
     category: "T-Shirts",
     subCategoryFallback: "Classic T-Shirts",
-    match: [/t[-\s]?shirt/i, /tee/i],
+    match: [/\bt[-\s]?shirt\b/i, /\btee\b/i],
   },
   {
     category: "Caps",
@@ -167,15 +167,23 @@ export function deriveProductTaxonomy(input: {
   tags?: string[];
 }): TaxonomyResult {
   const tags = input.tags ?? [];
-  const haystack = [input.title, input.productType ?? "", ...tags].join(" ");
+  // Match title alone first so a broad productType like "Hoodies & Sweatshirts" cannot
+  // hijack a product whose title clearly indicates a different category
+  // (e.g. "Oversize Crewneck Sweatshirt" → Sweatshirts, not Hoodies).
+  const fullHaystack = [input.title, input.productType ?? "", ...tags].join(" ");
 
   const categoryFromTag = CATEGORY_TAG_OVERRIDES.find((override) =>
     tags.some((tag) => override.match.some((pattern) => pattern.test(tag)))
   );
 
+  const categoryFromTitle = CATEGORY_RULES.find((rule) =>
+    rule.match.some((pattern) => pattern.test(input.title))
+  );
+
   const categoryRule =
     categoryFromTag ??
-    CATEGORY_RULES.find((rule) => rule.match.some((pattern) => pattern.test(haystack))) ?? {
+    categoryFromTitle ??
+    CATEGORY_RULES.find((rule) => rule.match.some((pattern) => pattern.test(fullHaystack))) ?? {
       category: input.productType?.trim() || "Catalog",
       subCategoryFallback: "All",
       match: [],
@@ -190,7 +198,7 @@ export function deriveProductTaxonomy(input: {
   // If no tag match, fall back to matching against the full haystack
   if (!subCategoryRule) {
     subCategoryRule = subCategoryRulesForCategory.find((rule) =>
-      rule.match.some((pattern) => pattern.test(haystack))
+      rule.match.some((pattern) => pattern.test(fullHaystack))
     );
   }
 

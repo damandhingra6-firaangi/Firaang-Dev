@@ -27,8 +27,17 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     );
   }
 
-  const storefrontProducts = await getStorefrontProducts(40);
+  const storefrontProducts = await getStorefrontProducts(250);
   const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
+  
+  // DEBUG: Log category distribution
+  const sweatshirtProducts = products.filter(p => p.category === 'Sweatshirts');
+  console.log(`[SHOP] Total products: ${products.length}, Sweatshirts: ${sweatshirtProducts.length}`);
+  if (sweatshirtProducts.length > 0) {
+    sweatshirtProducts.forEach(p => {
+      console.log(`  - ${p.name}`);
+    });
+  }
 
   return (
     <main>

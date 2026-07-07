@@ -609,6 +609,11 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
         productType: node.productType,
         tags: node.tags,
       });
+      
+      // DEBUG: Log sweatshirt products
+      if (node.title.toLowerCase().includes('sweatshirt') || node.title.toLowerCase().includes('crewneck')) {
+        console.log(`[SHOPIFY] Product: "${node.title}" → Category: "${taxonomy.category}", productType: "${node.productType}", tags: [${node.tags?.join(', ')}]`);
+      }
       const basePriceAmount = convertAmount(
         Number.parseFloat(node.priceRange.minVariantPrice.amount),
         toSupportedCurrency(node.priceRange.minVariantPrice.currencyCode),

@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { createPendingOrderForSessionToken } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
-import { COD_FEE_INR, COD_MAX_SUBTOTAL_INR } from "@/lib/checkout-config";
+import { calculateCheckoutPricing, estimateOrderWeightKg } from "@/lib/checkout-config";
 import { resolveCheckoutItems } from "@/lib/products";
 import { syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
 
@@ -11,6 +11,8 @@ type CreateCodOrderRequest = {
     productId?: string;
     quantity?: number;
   }>;
+  shippingState?: string;
+  shippingMethod?: "surface" | "air";
 };
 
 export async function POST(request: Request) {
@@ -18,6 +20,8 @@ export async function POST(request: Request) {
     const sessionToken = await getAccountSessionTokenFromCookies();
     const body = (await request.json()) as CreateCodOrderRequest;
     const rawItems = body.items ?? [];
+    const shippingState = body.shippingState?.trim() ?? "";
+    const shippingMethod = body.shippingMethod ?? "surface";
 
     if (rawItems.length === 0) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
@@ -38,16 +42,20 @@ export async function POST(request: Request) {
 
     const subtotalAmount = Math.round(totalPaise / 100);
 
-    if (subtotalAmount > COD_MAX_SUBTOTAL_INR) {
-      return NextResponse.json(
-        { error: `COD is available only up to ${COD_MAX_SUBTOTAL_INR} INR subtotal` },
-        { status: 400 },
-      );
-    }
+    const orderWeightKg = estimateOrderWeightKg(
+      items.map((item) => ({ quantity: item.quantity, tags: item.product.tags })),
+    );
+    const pricing = calculateCheckoutPricing({
+      subtotalAmount,
+      shippingState,
+      shippingMethod,
+      orderWeightKg,
+      paymentMethod: "cod",
+    });
 
     const orderId = `cod_${Date.now()}_${randomBytes(3).toString("hex")}`;
-    const codFee = COD_FEE_INR;
-    const totalAmount = subtotalAmount + codFee;
+    const codFee = pricing.codFee;
+    const totalAmount = pricing.totalAmount;
 
     const savedOrder = sessionToken
       ? await createPendingOrderForSessionToken(sessionToken, {
@@ -76,6 +84,7 @@ export async function POST(request: Request) {
       placed: true,
       orderId,
       subtotalAmount,
+      shippingFee: pricing.shippingFee,
       codFee,
       amount: totalAmount,
       currencyCode,
