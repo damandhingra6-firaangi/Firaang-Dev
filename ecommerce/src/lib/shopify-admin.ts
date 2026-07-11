@@ -129,6 +129,20 @@ type ShopifyRestDraftCompleteResponse = {
   errors?: unknown;
 };
 
+function getShopifyCustomerEmail(customer: { email: string; authProvider: "google" | "email" | "mobile" } | null) {
+  if (!customer || customer.authProvider === "mobile") {
+    return undefined;
+  }
+
+  const email = customer.email.trim();
+
+  if (!email || email.toLowerCase().endsWith(".local")) {
+    return undefined;
+  }
+
+  return email;
+}
+
 const DRAFT_ORDER_SCOPE_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let cachedShopifyAdminToken:
@@ -809,7 +823,7 @@ export async function syncPaidOrderToShopify(orderId: string) {
   }
 
   const customerName = orderWithCustomer.order.shippingName ?? orderWithCustomer.customer?.fullName ?? "Firaang Customer";
-  const customerEmail = orderWithCustomer.customer?.email;
+  const customerEmail = getShopifyCustomerEmail(orderWithCustomer.customer);
   const { firstName, lastName } = splitCustomerName(customerName);
   let skipDraftOrderFlow = false;
 
