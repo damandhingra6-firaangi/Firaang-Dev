@@ -40,11 +40,11 @@ export default function ProductCard({
       style={{ borderColor: borderColor ?? "#8CCAD7", backgroundColor: backgroundColor ?? "#ffffff" }}
       onClick={onOpenDetails}
     >
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden bg-[#f3f3f3]">
         <SafeImage
           src={image}
           alt={title}
-          className="h-[176px] w-full object-cover transition duration-500 group-hover:scale-[1.03] sm:h-[210px] md:h-[226px] lg:h-[238px]"
+          className="h-[176px] w-full object-cover object-top transition duration-500 group-hover:scale-[1.03] sm:h-[210px] md:h-[226px] lg:h-[238px]"
         />
         <div
           className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100"

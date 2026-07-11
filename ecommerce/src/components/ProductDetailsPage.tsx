@@ -855,7 +855,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
                     <SafeImage
                       src={activeMedia?.src ?? product.img}
                       alt={activeMedia?.label ?? product.name}
-                      className={`h-full w-full object-cover transition duration-300 ${zoomed ? "scale-[1.25]" : "scale-100 group-hover:scale-[1.05]"}`}
+                      className={`h-full w-full object-contain transition duration-300 ${zoomed ? "scale-[1.25]" : "scale-100 group-hover:scale-[1.05]"}`}
                       loading="eager"
                     />
                   )}

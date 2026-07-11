@@ -131,7 +131,7 @@ export default function ShopListing({
   const [query, setQuery] = useState(() => initialQuery);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedSubCategory, setSelectedSubCategory] = useState(initialSubCategory);
-  const [selectedAudience] = useState(initialAudience);
+  const [selectedAudience, setSelectedAudience] = useState(initialAudience);
   const [selectedSort, setSelectedSort] = useState<SortOption>("recommended");
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
@@ -191,7 +191,8 @@ export default function ShopListing({
   useEffect(() => {
     setSelectedCategory((prev) => (prev === initialCategory ? prev : initialCategory));
     setSelectedSubCategory((prev) => (prev === initialSubCategory ? prev : initialSubCategory));
-  }, [initialCategory, initialSubCategory]);
+    setSelectedAudience((prev) => (prev === initialAudience ? prev : initialAudience));
+  }, [initialCategory, initialSubCategory, initialAudience]);
 
   useEffect(() => {
     if (urlSyncTimeoutRef.current) {

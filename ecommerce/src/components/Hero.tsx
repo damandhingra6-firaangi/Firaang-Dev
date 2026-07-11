@@ -48,12 +48,12 @@ export default function Hero() {
       <SafeImage
         src={activeSlide.mobileImage ?? activeSlide.image}
         alt={activeSlide.alt}
-        className="absolute left-0 top-0 h-full w-full object-cover object-[50%_4%] max-[374px]:object-[50%_2%] min-[375px]:object-[50%_3%] min-[390px]:object-[50%_4%] min-[414px]:object-[50%_6%] md:hidden"
+        className="absolute left-0 top-0 h-full w-full object-cover object-[50%_15%] max-[374px]:object-[50%_12%] min-[375px]:object-[50%_14%] min-[390px]:object-[50%_15%] min-[414px]:object-[50%_18%] md:hidden"
       />
       <SafeImage
         src={activeSlide.image}
         alt={activeSlide.alt}
-        className="absolute left-0 top-0 hidden h-full w-full object-cover object-[50%_3%] md:block lg:object-[50%_7%] xl:object-[50%_10%]"
+        className="absolute left-0 top-0 hidden h-full w-full object-cover object-[50%_20%] md:block lg:object-[50%_22%] xl:object-[50%_25%]"
       />
 
       <div className="hero-overlay-primary absolute inset-0" />
