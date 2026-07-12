@@ -11,6 +11,22 @@ $distRoot = Join-Path $projectRoot "dist"
 $packageRoot = Join-Path $distRoot "cpanel"
 $archivePath = Join-Path $distRoot "cpanel-deploy.zip"
 
+# Always package from a fresh production build to avoid stale .next artifacts.
+if (Test-Path $nextRoot) {
+  Remove-Item $nextRoot -Recurse -Force
+}
+
+Push-Location $projectRoot
+try {
+  npm run build
+  if ($LASTEXITCODE -ne 0) {
+    throw "Build failed while preparing cPanel package."
+  }
+}
+finally {
+  Pop-Location
+}
+
 if (-not (Test-Path $nextRoot)) {
   throw "Build output was not found. Run 'npm run build' before packaging for cPanel."
 }
