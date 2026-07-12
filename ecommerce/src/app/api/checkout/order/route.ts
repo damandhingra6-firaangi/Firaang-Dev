@@ -13,6 +13,7 @@ type CreateOrderRequest = {
     quantity?: number;
   }>;
   shippingName?: string;
+  shippingEmail?: string;
   shippingAddress?: string;
   shippingCity?: string;
   shippingState?: string;
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as CreateOrderRequest;
     const rawItems = body.items ?? [];
     const shippingName = body.shippingName?.trim() ?? "";
+    const shippingEmail = body.shippingEmail?.trim() ?? "";
     const shippingAddress = body.shippingAddress?.trim() ?? "";
     const shippingCity = body.shippingCity?.trim() ?? "";
     const shippingState = body.shippingState?.trim() ?? "";
@@ -40,6 +42,10 @@ export async function POST(request: Request) {
 
     if (!shippingAddress || !shippingState) {
       return NextResponse.json({ error: "Shipping address, state, and PIN code are required" }, { status: 400 });
+    }
+
+    if (!shippingEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingEmail)) {
+      return NextResponse.json({ error: "A valid shipping email is required" }, { status: 400 });
     }
 
     if (shippingPinCode && !/^\d{6}$/.test(shippingPinCode)) {
@@ -132,6 +138,10 @@ export async function POST(request: Request) {
 
     const totalAmount = Math.round(Number(order.amount) / 100);
 
+    if (!sessionToken) {
+      return NextResponse.json({ error: "Sign in required to place an order" }, { status: 401 });
+    }
+
     let persistedOrder = null;
 
     // Save shipping address to user's profile so it's available for future purchases
@@ -151,8 +161,19 @@ export async function POST(request: Request) {
       persistedOrder = await createPendingOrderForSessionToken(sessionToken, {
         orderId: order.id,
         totalAmount,
+        subtotalAmount: pricing.subtotalAmount,
+        shippingFee: pricing.shippingFee,
+        taxAmount: 0,
+        discountAmount: pricing.discountAmount,
+        codFee: pricing.codFee,
+        shippingLabel: pricing.shippingLabel,
+        shippingMethod: pricing.shippingMethod,
+        orderWeightKg,
+        couponCode: validatedCoupon?.code,
+        couponLabel: validatedCoupon?.label,
         currencyCode: order.currency,
         shippingName,
+        shippingEmail,
         shippingAddress,
         shippingCity,
         shippingState,

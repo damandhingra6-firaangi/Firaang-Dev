@@ -16,6 +16,17 @@ type AdminOrderRecord = {
   id: string;
   createdAt: string;
   totalAmount: number;
+  subtotalAmount?: number;
+  shippingFee?: number;
+  taxAmount?: number;
+  discountAmount?: number;
+  codFee?: number;
+  shippingLabel?: string;
+  shippingMethod?: "surface" | "air";
+  couponCode?: string;
+  couponLabel?: string;
+  orderConfirmationEmailStatus?: "pending" | "sent";
+  orderConfirmationEmailSentAt?: string;
   currencyCode: string;
   status: "paid" | "pending" | "failed" | "cancelled";
   paymentMethod: "online" | "cod";
@@ -378,8 +389,14 @@ export default function OrderAdminDashboard() {
                     <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${badgeClass(order.status)}`}>{order.status}</span>
                     <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${badgeClass(order.fulfillmentStatus)}`}>{order.fulfillmentStatus ?? "unfulfilled"}</span>
                     <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${badgeClass(order.shopifySyncStatus)}`}>{order.shopifySyncStatus ?? "pending"}</span>
-                              <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${badgeClass(order.inventorySyncStatus)}`}>{order.inventorySyncStatus ?? "pending"}</span>
+                    <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${badgeClass(order.inventorySyncStatus)}`}>{order.inventorySyncStatus ?? "pending"}</span>
+                    <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${badgeClass(order.orderConfirmationEmailStatus ?? "pending")}`}>
+                      email {order.orderConfirmationEmailStatus ?? "pending"}
+                    </span>
                   </div>
+                  {order.orderConfirmationEmailSentAt ? (
+                    <p className="mt-2 text-xs text-[var(--popup-muted)]">Email sent: {formatDateTime(order.orderConfirmationEmailSentAt)}</p>
+                  ) : null}
                 </div>
               </div>
 
@@ -398,6 +415,30 @@ export default function OrderAdminDashboard() {
               <div className="mt-5 grid gap-4 lg:grid-cols-2">
                 <div className="space-y-3 rounded-2xl border border-[var(--gold)]/15 bg-[var(--popup-inner)] p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--gold)]">Payment</p>
+                  <div className="rounded-xl border border-white/10 bg-black/10 px-3 py-2.5 text-xs text-[var(--popup-muted)]">
+                    <div className="flex items-center justify-between gap-3">
+                      <span>Subtotal</span>
+                      <span className="text-[var(--popup-footer-text)]">{formatCurrency(order.subtotalAmount ?? Math.max(0, order.totalAmount - (order.shippingFee ?? 0)), order.currencyCode)}</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-3">
+                      <span>Shipping{order.shippingLabel ? ` (${order.shippingLabel})` : ""}</span>
+                      <span className="text-[var(--popup-footer-text)]">{formatCurrency(order.shippingFee ?? 0, order.currencyCode)}</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-3">
+                      <span>Tax</span>
+                      <span className="text-[var(--popup-footer-text)]">{formatCurrency(order.taxAmount ?? 0, order.currencyCode)}</span>
+                    </div>
+                    {(order.discountAmount ?? 0) > 0 ? (
+                      <div className="mt-1 flex items-center justify-between gap-3">
+                        <span>Discount{order.couponCode ? ` (${order.couponCode})` : ""}</span>
+                        <span className="text-emerald-300">-{formatCurrency(order.discountAmount ?? 0, order.currencyCode)}</span>
+                      </div>
+                    ) : null}
+                    <div className="mt-2 border-t border-white/10 pt-2 flex items-center justify-between gap-3">
+                      <span className="text-[var(--popup-footer-text)]">Total Paid</span>
+                      <span className="text-[var(--popup-footer-text)]">{formatCurrency(order.totalAmount, order.currencyCode)}</span>
+                    </div>
+                  </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="text-xs uppercase tracking-[0.1em] text-[var(--popup-muted)]">
                       Status

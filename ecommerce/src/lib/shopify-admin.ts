@@ -460,6 +460,12 @@ async function createPaidOrderViaRest(input: {
   orderId: string;
   paymentMethod: string;
   currencyCode?: string;
+  shippingFee?: number;
+  taxAmount?: number;
+  discountAmount?: number;
+  shippingLabel?: string;
+  shippingMethod?: "surface" | "air";
+  couponCode?: string;
   lineItems: Array<{ title: string; quantity: number; price: string }>;
   shippingAddress?: {
     firstName: string;
@@ -489,13 +495,45 @@ async function createPaidOrderViaRest(input: {
           send_receipt: false,
           send_fulfillment_receipt: false,
           currency: input.currencyCode,
+          taxes_included: false,
           note: `Firaang order ${input.orderId}`,
           tags: ["Firaang", "paid", input.paymentMethod, input.orderId].join(","),
           line_items: input.lineItems.map((item) => ({
             title: item.title,
             quantity: item.quantity,
             price: item.price,
+            taxable: false,
+            tax_lines: [],
           })),
+          tax_lines:
+            (input.taxAmount ?? 0) > 0
+              ? [
+                  {
+                    title: "Tax",
+                    price: (input.taxAmount ?? 0).toFixed(2),
+                    rate: 0,
+                  },
+                ]
+              : [],
+          shipping_lines: [
+            {
+              title: input.shippingLabel || "Shipping",
+              code: input.shippingMethod || "surface",
+              price: (input.shippingFee ?? 0).toFixed(2),
+              source: "Firaang",
+              tax_lines: [],
+            },
+          ],
+          discount_codes:
+            (input.discountAmount ?? 0) > 0
+              ? [
+                  {
+                    code: input.couponCode || "FIRAANG",
+                    amount: (input.discountAmount ?? 0).toFixed(2),
+                    type: "fixed_amount",
+                  },
+                ]
+              : [],
           shipping_address: input.shippingAddress,
         },
       }),
@@ -823,18 +861,8 @@ export async function syncPaidOrderToShopify(orderId: string) {
   }
 
   const customerName = orderWithCustomer.order.shippingName ?? orderWithCustomer.customer?.fullName ?? "Firaang Customer";
-  const customerEmail = getShopifyCustomerEmail(orderWithCustomer.customer);
+  const customerEmail = getShopifyCustomerEmail(orderWithCustomer.customer) ?? orderWithCustomer.order.shippingEmail;
   const { firstName, lastName } = splitCustomerName(customerName);
-  let skipDraftOrderFlow = false;
-
-  try {
-    const scopeCheck = await checkDraftOrderScopeReadiness();
-    if (!scopeCheck.hasRequiredScope) {
-      skipDraftOrderFlow = true;
-    }
-  } catch {
-    // Ignore scope introspection failures and let mutation return the canonical Shopify error.
-  }
 
   const lineItems = orderWithCustomer.order.items.map((item) => ({
     title: item.name,
@@ -855,133 +883,22 @@ export async function syncPaidOrderToShopify(orderId: string) {
       }
     : undefined;
 
-  if (skipDraftOrderFlow) {
-    return createPaidOrderViaRest({
-      customerEmail,
-      orderId: orderWithCustomer.order.id,
-      paymentMethod: orderWithCustomer.order.paymentMethod,
-      currencyCode: orderWithCustomer.order.currencyCode,
-      lineItems: lineItems.map((item) => ({
-        title: item.title,
-        quantity: item.quantity,
-        price: item.originalUnitPrice,
-      })),
-      shippingAddress,
-    });
-  }
-
-  const createResult = await runShopifyAdminMutation<ShopifyDraftOrderResponse>(
-    `mutation DraftOrderCreate($input: DraftOrderInput!) {
-      draftOrderCreate(input: $input) {
-        draftOrder {
-          id
-          name
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }`,
-    {
-      input: {
-        email: customerEmail,
-        note: `Firaang order ${orderWithCustomer.order.id}`,
-        tags: ["Firaang", "paid", orderWithCustomer.order.paymentMethod, orderWithCustomer.order.id],
-        lineItems,
-        shippingAddress,
-      },
-    },
-  );
-
-  const createErrors = createResult.data?.draftOrderCreate?.userErrors ?? [];
-  const draftOrder = createResult.data?.draftOrderCreate?.draftOrder;
-
-  if (createErrors.length > 0 || !draftOrder) {
-    const message = createErrors.map((item) => item.message).join("; ") || createResult.errors?.[0]?.message || "Unknown Shopify admin error";
-    if (isDraftOrderPermissionError(message)) {
-      const fallbackResult = await createPaidOrderViaRest({
-        customerEmail,
-        orderId: orderWithCustomer.order.id,
-        paymentMethod: orderWithCustomer.order.paymentMethod,
-        currencyCode: orderWithCustomer.order.currencyCode,
-        lineItems: lineItems.map((item) => ({
-          title: item.title,
-          quantity: item.quantity,
-          price: item.originalUnitPrice,
-        })),
-        shippingAddress,
-      });
-
-      if (fallbackResult.status === "synced") {
-        return fallbackResult;
-      }
-
-      return {
-        status: "failed" as const,
-        reason: `${formatDraftOrderPermissionError(message)}; REST_FALLBACK_FAILED: ${fallbackResult.reason}`,
-      };
-    }
-    return { status: "failed" as const, reason: message };
-  }
-
-  try {
-    const completeResult = await runShopifyAdminMutation<ShopifyDraftOrderResponse>(
-      `mutation DraftOrderComplete($id: ID!, $paymentPending: Boolean!) {
-        draftOrderComplete(id: $id, paymentPending: $paymentPending) {
-          draftOrder {
-            id
-            name
-          }
-          order {
-            id
-            name
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }`,
-      {
-        id: draftOrder.id,
-        paymentPending: false,
-      },
-    );
-
-    const completeErrors = completeResult.data?.draftOrderComplete?.userErrors ?? [];
-    const completedOrderId = completeResult.data?.draftOrderComplete?.order?.id ?? "";
-
-    if (completeErrors.length === 0 && completedOrderId) {
-      return {
-        status: "synced" as const,
-        shopifyOrderId: completedOrderId,
-      };
-    }
-
-    const restFallback = await completeDraftOrderViaRest(draftOrder.id, false);
-
-    if (restFallback.status === "synced") {
-      return restFallback;
-    }
-
-    return {
-      status: "failed" as const,
-      reason: `${completeErrors.map((item) => item.message).join("; ") || "Shopify draft order completion failed"}; REST_COMPLETE_FALLBACK_FAILED: ${restFallback.reason}`,
-      shopifyOrderId: draftOrder.id,
-    };
-  } catch (error) {
-    const restFallback = await completeDraftOrderViaRest(draftOrder.id, false);
-
-    if (restFallback.status === "synced") {
-      return restFallback;
-    }
-
-    const errorMessage = error instanceof Error ? error.message : "Unknown Shopify draft complete exception";
-    return {
-      status: "failed" as const,
-      reason: `${errorMessage}; REST_COMPLETE_FALLBACK_FAILED: ${restFallback.reason}`,
-      shopifyOrderId: draftOrder.id,
-    };
-  }
+  return createPaidOrderViaRest({
+    customerEmail,
+    orderId: orderWithCustomer.order.id,
+    paymentMethod: orderWithCustomer.order.paymentMethod,
+    currencyCode: orderWithCustomer.order.currencyCode,
+    shippingFee: orderWithCustomer.order.shippingFee,
+    taxAmount: orderWithCustomer.order.taxAmount,
+    discountAmount: orderWithCustomer.order.discountAmount,
+    shippingLabel: orderWithCustomer.order.shippingLabel,
+    shippingMethod: orderWithCustomer.order.shippingMethod,
+    couponCode: orderWithCustomer.order.couponCode,
+    lineItems: lineItems.map((item) => ({
+      title: item.title,
+      quantity: item.quantity,
+      price: item.originalUnitPrice,
+    })),
+    shippingAddress,
+  });
 }

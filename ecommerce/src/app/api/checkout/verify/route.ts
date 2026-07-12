@@ -3,7 +3,9 @@ import { NextResponse } from "next/server";
 import { markOrderPaidForSessionToken } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 import { attachShopifySyncResultToOrder } from "@/lib/account-data";
+import { claimOrderConfirmationEmailSend, markOrderConfirmationEmailSent, releaseOrderConfirmationEmailClaim } from "@/lib/account-data";
 import { syncPaidOrderToShopify, syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
+import { notifyOrderPaid } from "@/lib/order-notifications";
 
 type VerifyPaymentRequest = {
   razorpay_order_id?: string;
@@ -75,6 +77,43 @@ export async function POST(request: Request) {
         await syncShopifyInventoryForOrder(orderId, "reserve").catch((error) => {
           console.error("Shopify inventory reserve sync failed during verification", error);
         });
+      }
+
+      const claimed = await claimOrderConfirmationEmailSend(savedOrder.id);
+
+      if (claimed) {
+        try {
+          await notifyOrderPaid({
+            orderId: savedOrder.id,
+            customerName: savedOrder.shippingName,
+            customerEmail: savedOrder.shippingEmail,
+            totalAmount: savedOrder.totalAmount,
+            currencyCode: savedOrder.currencyCode,
+            subtotalAmount: savedOrder.subtotalAmount,
+            shippingFee: savedOrder.shippingFee,
+            taxAmount: savedOrder.taxAmount,
+            discountAmount: savedOrder.discountAmount,
+            shippingMethod: savedOrder.shippingMethod,
+            shippingAddress: {
+              name: savedOrder.shippingName,
+              email: savedOrder.shippingEmail,
+              line1: savedOrder.shippingAddress,
+              city: savedOrder.shippingCity,
+              state: savedOrder.shippingState,
+              pinCode: savedOrder.shippingPinCode,
+            },
+            items: savedOrder.items.map((item) => ({
+              name: item.name,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              lineTotal: item.lineTotal,
+            })),
+          });
+          await markOrderConfirmationEmailSent(savedOrder.id);
+        } catch (error) {
+          await releaseOrderConfirmationEmailClaim(savedOrder.id);
+          console.error("Order confirmation email failed during verification", error);
+        }
       }
     }
 

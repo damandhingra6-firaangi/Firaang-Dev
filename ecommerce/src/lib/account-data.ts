@@ -45,6 +45,18 @@ export type AccountOrder = {
   id: string;
   createdAt: string;
   totalAmount: number;
+  subtotalAmount?: number;
+  shippingFee?: number;
+  taxAmount?: number;
+  discountAmount?: number;
+  codFee?: number;
+  shippingLabel?: string;
+  shippingMethod?: "surface" | "air";
+  orderWeightKg?: number;
+  couponCode?: string;
+  couponLabel?: string;
+  orderConfirmationEmailStatus?: "pending" | "sent";
+  orderConfirmationEmailSentAt?: string;
   currencyCode: string;
   status: "paid" | "pending" | "failed" | "cancelled";
   paymentMethod: "online" | "cod";
@@ -71,6 +83,7 @@ export type AccountOrder = {
   events?: AccountOrderEvent[];
   items: AccountOrderItem[];
   shippingName?: string;
+  shippingEmail?: string;
   shippingAddress?: string;
   shippingCity?: string;
   shippingState?: string;
@@ -138,6 +151,18 @@ type AccountOrderDocument = {
   orderId: string;
   paymentId?: string;
   totalAmount: number;
+  subtotalAmount?: number;
+  shippingFee?: number;
+  taxAmount?: number;
+  discountAmount?: number;
+  codFee?: number;
+  shippingLabel?: string;
+  shippingMethod?: "surface" | "air";
+  orderWeightKg?: number;
+  couponCode?: string;
+  couponLabel?: string;
+  orderConfirmationEmailStatus?: "pending" | "sent";
+  orderConfirmationEmailSentAt?: Date;
   currencyCode: string;
   status: "paid" | "pending" | "failed" | "cancelled";
   paymentMethod?: "online" | "cod";
@@ -165,6 +190,7 @@ type AccountOrderDocument = {
   createdAt: Date;
   updatedAt: Date;
   shippingName?: string;
+  shippingEmail?: string;
   shippingAddress?: string;
   shippingCity?: string;
   shippingState?: string;
@@ -282,6 +308,18 @@ function mapOrder(document: AccountOrderDocument): AccountOrder {
     id: document.orderId,
     createdAt: document.createdAt.toISOString(),
     totalAmount: document.totalAmount,
+    subtotalAmount: document.subtotalAmount,
+    shippingFee: document.shippingFee,
+    taxAmount: document.taxAmount,
+    discountAmount: document.discountAmount,
+    codFee: document.codFee,
+    shippingLabel: document.shippingLabel,
+    shippingMethod: document.shippingMethod,
+    orderWeightKg: document.orderWeightKg,
+    couponCode: document.couponCode,
+    couponLabel: document.couponLabel,
+    orderConfirmationEmailStatus: document.orderConfirmationEmailStatus,
+    orderConfirmationEmailSentAt: document.orderConfirmationEmailSentAt?.toISOString(),
     currencyCode: document.currencyCode,
     status: document.status,
     paymentMethod: document.paymentMethod ?? "online",
@@ -312,6 +350,7 @@ function mapOrder(document: AccountOrderDocument): AccountOrder {
     })),
     items: document.items,
     shippingName: document.shippingName,
+    shippingEmail: document.shippingEmail,
     shippingAddress: document.shippingAddress,
     shippingCity: document.shippingCity,
     shippingState: document.shippingState,
@@ -739,10 +778,21 @@ export async function createPendingOrderForSessionToken(
   input: {
     orderId: string;
     totalAmount: number;
+    subtotalAmount?: number;
+    shippingFee?: number;
+    taxAmount?: number;
+    discountAmount?: number;
+    codFee?: number;
+    shippingLabel?: string;
+    shippingMethod?: "surface" | "air";
+    orderWeightKg?: number;
+    couponCode?: string;
+    couponLabel?: string;
     currencyCode: string;
     paymentMethod?: "online" | "cod";
     items: AccountOrderItem[];
     shippingName?: string;
+    shippingEmail?: string;
     shippingAddress?: string;
     shippingCity?: string;
     shippingState?: string;
@@ -769,6 +819,16 @@ export async function createPendingOrderForSessionToken(
       $set: {
         userId: session.userId,
         totalAmount: input.totalAmount,
+        subtotalAmount: input.subtotalAmount,
+        shippingFee: input.shippingFee,
+        taxAmount: input.taxAmount,
+        discountAmount: input.discountAmount,
+        codFee: input.codFee,
+        shippingLabel: input.shippingLabel,
+        shippingMethod: input.shippingMethod,
+        orderWeightKg: input.orderWeightKg,
+        couponCode: input.couponCode,
+        couponLabel: input.couponLabel,
         currencyCode: input.currencyCode,
         paymentMethod: input.paymentMethod ?? "online",
         paymentGateway: isOnlinePayment ? "razorpay" : undefined,
@@ -778,6 +838,7 @@ export async function createPendingOrderForSessionToken(
         status: "pending",
         fulfillmentStatus: "unfulfilled",
         shippingName: input.shippingName,
+        shippingEmail: input.shippingEmail,
         shippingAddress: input.shippingAddress,
         shippingCity: input.shippingCity,
         shippingState: input.shippingState,
@@ -1029,6 +1090,56 @@ export async function attachShopifySyncResultToOrder(input: {
   }
 
   return order;
+}
+
+export async function claimOrderConfirmationEmailSend(orderId: string) {
+  const { orders } = await getCollections();
+
+  const result = await orders.updateOne(
+    {
+      orderId,
+      orderConfirmationEmailStatus: { $nin: ["pending", "sent"] },
+    },
+    {
+      $set: {
+        orderConfirmationEmailStatus: "pending",
+        updatedAt: new Date(),
+      },
+    },
+  );
+
+  return result.modifiedCount === 1;
+}
+
+export async function markOrderConfirmationEmailSent(orderId: string) {
+  const { orders } = await getCollections();
+
+  await orders.updateOne(
+    { orderId },
+    {
+      $set: {
+        orderConfirmationEmailStatus: "sent",
+        orderConfirmationEmailSentAt: new Date(),
+        updatedAt: new Date(),
+      },
+    },
+  );
+}
+
+export async function releaseOrderConfirmationEmailClaim(orderId: string) {
+  const { orders } = await getCollections();
+
+  await orders.updateOne(
+    { orderId, orderConfirmationEmailStatus: "pending" },
+    {
+      $unset: {
+        orderConfirmationEmailStatus: "",
+      },
+      $set: {
+        updatedAt: new Date(),
+      },
+    },
+  );
 }
 
 export async function markOrderPaidForSessionToken(token: string, input: { orderId: string; paymentId: string }) {

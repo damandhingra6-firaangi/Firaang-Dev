@@ -2,11 +2,14 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import {
   attachShopifySyncResultToOrder,
+  claimOrderConfirmationEmailSend,
   findOrderWithCustomerByOrderId,
   findOrderWithCustomerByPaymentId,
+  markOrderConfirmationEmailSent,
   markOrderFailedByOrderId,
   markOrderPaidByOrderId,
   markOrderRefundedByOrderId,
+  releaseOrderConfirmationEmailClaim,
 } from "@/lib/account-data";
 import { notifyOrderPaid, notifyRefundProcessed } from "@/lib/order-notifications";
 import { syncPaidOrderToShopify } from "@/lib/shopify-admin";
@@ -112,15 +115,42 @@ export async function POST(request: Request) {
         });
       }
 
-      await notifyOrderPaid({
-        orderId,
-        customerName: pendingOrder?.customer?.fullName ?? paidOrder.shippingName,
-        customerEmail: pendingOrder?.customer?.email,
-        totalAmount: paidOrder.totalAmount,
-        currencyCode: paidOrder.currencyCode,
-      }).catch((error) => {
-        console.error("Paid order notification failed", error);
-      });
+      const claimed = await claimOrderConfirmationEmailSend(paidOrder.id);
+
+      if (claimed) {
+        try {
+          await notifyOrderPaid({
+            orderId: paidOrder.id,
+            customerName: pendingOrder?.customer?.fullName ?? paidOrder.shippingName,
+            customerEmail: pendingOrder?.customer?.email ?? paidOrder.shippingEmail,
+            totalAmount: paidOrder.totalAmount,
+            currencyCode: paidOrder.currencyCode,
+            subtotalAmount: paidOrder.subtotalAmount,
+            shippingFee: paidOrder.shippingFee,
+            taxAmount: paidOrder.taxAmount,
+            discountAmount: paidOrder.discountAmount,
+            shippingMethod: paidOrder.shippingMethod,
+            shippingAddress: {
+              name: paidOrder.shippingName,
+              email: paidOrder.shippingEmail,
+              line1: paidOrder.shippingAddress,
+              city: paidOrder.shippingCity,
+              state: paidOrder.shippingState,
+              pinCode: paidOrder.shippingPinCode,
+            },
+            items: paidOrder.items.map((item) => ({
+              name: item.name,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              lineTotal: item.lineTotal,
+            })),
+          });
+          await markOrderConfirmationEmailSent(paidOrder.id);
+        } catch (error) {
+          await releaseOrderConfirmationEmailClaim(paidOrder.id);
+          console.error("Paid order notification failed", error);
+        }
+      }
 
       return NextResponse.json({ ok: true, event: eventName, orderId });
     }

@@ -17,7 +17,7 @@ const CURRENCY_ICON_MAP: Record<"INR" | "USD" | "AED", string> = {
 const instagramGallery = ["/insta1.svg", "/inst2.svg", "/insta3.svg", "/insta4.svg", "/insta5.svg"];
 
 const socialLinks = [
-  { label: "Instagram", href: "https://www.instagram.com/firaang" },
+  { label: "Instagram", href: "https://www.instagram.com/fir.aang" },
   { label: "Facebook", href: "https://www.facebook.com/share/18urRNaaEq" },
 //   { label: "X", href: "https://www.x.com/firaang" },
   { label: "YouTube", href: "https://www.youtube.com/@Firaang-m5r" },
@@ -195,7 +195,7 @@ export default function Newsletter() {
             {instagramGallery.map((image, index) => (
               <Link
                 key={`${image}-${index}`}
-                href="https://www.instagram.com/firaang"
+                href="https://www.instagram.com/fir.aang"
                 target="_blank"
                 rel="noreferrer"
                 aria-label={`Open Instagram image ${index + 1}`}

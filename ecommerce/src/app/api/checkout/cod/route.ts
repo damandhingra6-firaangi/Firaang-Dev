@@ -27,6 +27,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
+    if (!sessionToken) {
+      return NextResponse.json({ error: "Sign in required to place an order" }, { status: 401 });
+    }
+
     const checkoutItems = rawItems
       .map((item) => ({
         productId: item.productId ?? "",
@@ -61,6 +65,14 @@ export async function POST(request: Request) {
       ? await createPendingOrderForSessionToken(sessionToken, {
           orderId,
           totalAmount,
+          subtotalAmount: pricing.subtotalAmount,
+          shippingFee: pricing.shippingFee,
+          taxAmount: 0,
+          discountAmount: pricing.discountAmount,
+          codFee: pricing.codFee,
+          shippingLabel: pricing.shippingLabel,
+          shippingMethod: pricing.shippingMethod,
+          orderWeightKg,
           currencyCode,
           paymentMethod: "cod",
           items: items.map((item) => ({
