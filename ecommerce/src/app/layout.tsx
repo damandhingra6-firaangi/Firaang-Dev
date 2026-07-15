@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { Playfair_Display, Poppins } from "next/font/google";
 import AccountSessionBootstrap from "@/components/AccountSessionBootstrap";
@@ -41,7 +42,9 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <AccountSessionBootstrap />
-        <AnalyticsTracker />
+        <Suspense>
+          <AnalyticsTracker />
+        </Suspense>
         {children}
         <ToastViewport />
       </body>
