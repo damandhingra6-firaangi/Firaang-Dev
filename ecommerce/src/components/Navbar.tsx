@@ -137,10 +137,13 @@ export default function Navbar() {
   }, [closeUserMenu]);
 
   useEffect(() => {
+    closeCart();
+    closeWishlist();
+    closeSearch();
     closeUserMenu();
     setIsCollectionsOpen(false);
     setIsMobileMenuOpen(false);
-  }, [closeUserMenu, pathname]);
+  }, [closeCart, closeSearch, closeUserMenu, closeWishlist, pathname]);
 
   useEffect(() => {
     if (!isMobileMenuOpen) {

@@ -234,33 +234,33 @@ function DetailLine({ icon, label, value }: { icon: ReactNode; label: string; va
 
 function InfoCard({ title, text }: { title: string; text: string }) {
   return (
-    <div className="rounded-2xl bg-white p-4">
-      <p className="text-sm font-semibold text-[var(--page-fg)]">{title}</p>
-      <p className="mt-1 text-sm leading-6 text-[#675d56]">{text}</p>
+    <div className="rounded-2xl bg-white p-4 md:p-4">
+      <p className="text-[15px] font-semibold leading-6 text-[var(--page-fg)] md:text-sm">{title}</p>
+      <p className="mt-1 text-sm leading-6 text-[#675d56] break-words md:text-sm">{text}</p>
     </div>
   );
 }
 
 function SectionShell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
-    <details className="group rounded-[28px] border border-[#eaded3] bg-[rgba(255,252,248,0.94)] p-5 shadow-[0_12px_36px_rgba(97,52,27,0.04)]" open>
+    <details className="group w-full max-w-full rounded-3xl border border-[#eaded3] bg-[rgba(255,252,248,0.94)] p-4 shadow-[0_12px_36px_rgba(97,52,27,0.04)] md:rounded-[28px] md:p-5" open>
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-[var(--page-fg)]">{title}</h2>
-          {subtitle ? <p className="mt-1 text-sm text-[#6f625b]">{subtitle}</p> : null}
+        <div className="min-w-0">
+          <h2 className="text-[1.9rem] font-semibold leading-tight text-[var(--page-fg)] md:text-2xl">{title}</h2>
+          {subtitle ? <p className="mt-1 text-[13px] leading-6 text-[#6f625b] md:text-sm">{subtitle}</p> : null}
         </div>
-        <ChevronDown className="h-5 w-5 text-[#8e7f75] transition group-open:rotate-180" />
+        <ChevronDown className="h-5 w-5 shrink-0 text-[#8e7f75] transition group-open:rotate-180" />
       </summary>
-      <div className="mt-5">{children}</div>
+      <div className="mt-4 md:mt-5">{children}</div>
     </details>
   );
 }
 
 function SpecCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#eaded3] bg-white p-4">
+    <div className="rounded-2xl border border-[#eaded3] bg-white p-4 md:p-4">
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8e7f75]">{label}</p>
-      <p className="mt-2 text-sm leading-6 text-[#4d4540]">{value}</p>
+      <p className="mt-2 text-sm leading-7 text-[#4d4540] break-words">{value}</p>
     </div>
   );
 }
@@ -782,7 +782,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   ];
 
   return (
-    <section className="section-shell pb-16 pt-6 md:pb-20 md:pt-8">
+    <section className="section-shell w-full max-w-full overflow-x-clip pb-16 pt-6 md:pb-20 md:pt-8">
       <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-[#8f8179] md:mb-6">
         <Link href="/" className="transition hover:text-[var(--secondary)]">
           Home
@@ -811,8 +811,8 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
         <span className="text-[var(--page-fg)]">{product.name}</span>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] xl:gap-12">
-        <div className="space-y-5">
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] xl:gap-12">
+        <div className="min-w-0 space-y-5">
           <div className="rounded-[30px] border border-white/70 bg-[rgba(255,252,248,0.92)] p-3 shadow-[0_18px_60px_rgba(97,52,27,0.08)] backdrop-blur md:p-4">
             <div className="grid gap-3 md:grid-cols-[88px_minmax(0,1fr)] md:gap-4">
               <div className="hidden md:flex md:flex-col md:gap-3">
@@ -920,7 +920,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
           </div>
         </div>
 
-        <div className="space-y-6 rounded-[30px] border border-white/80 bg-[rgba(255,253,250,0.96)] p-5 shadow-[0_18px_60px_rgba(97,52,27,0.08)] md:p-6 lg:sticky lg:top-28 lg:self-start">
+        <div className="min-w-0 space-y-6 rounded-[30px] border border-white/80 bg-[rgba(255,253,250,0.96)] p-5 shadow-[0_18px_60px_rgba(97,52,27,0.08)] md:p-6 lg:sticky lg:top-28 lg:self-start">
           <div className="flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-2 rounded-full bg-[#f2e6dc] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7e5a45]">
               {getBrand(product)}
@@ -1061,14 +1061,14 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
         </div>
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-6">
+      <div className="mt-10 grid gap-7 lg:mt-8 lg:gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-6">
           <SectionShell title="Product Details" subtitle="All essential product information at a glance.">
             <div className="grid gap-3 md:grid-cols-2">
               {specs.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-[#eaded3] bg-white p-4">
+                <div key={item.label} className="rounded-2xl border border-[#eaded3] bg-white p-4 md:p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8e7f75]">{item.label}</p>
-                  <p className="mt-2 text-sm leading-6 text-[#4d4540]">{item.value}</p>
+                  <p className="mt-2 text-sm leading-7 text-[#4d4540] break-words">{item.value}</p>
                 </div>
               ))}
             </div>
@@ -1086,7 +1086,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
 
           <SectionShell title="Ratings & Reviews" subtitle="Average rating, distribution, and customer opinions.">
             <div className="grid gap-5 lg:grid-cols-[240px_1fr]">
-              <div className="rounded-3xl border border-[#eaded3] bg-white p-5 text-center">
+              <div className="rounded-3xl border border-[#eaded3] bg-white p-4 text-center md:p-5">
                 <p className="text-5xl font-semibold text-[var(--page-fg)]">{averageRating.toFixed(1)}</p>
                 <div className="mt-3 flex items-center justify-center gap-1">{renderStars(averageRating)}</div>
                 <p className="mt-3 text-sm text-[#685d57]">{reviewSource.length.toLocaleString()} reviews</p>
@@ -1106,7 +1106,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
                 </button>
               </div>
 
-              <div className="space-y-3 rounded-3xl border border-[#eaded3] bg-white p-5">
+              <div className="space-y-3 rounded-3xl border border-[#eaded3] bg-white p-4 md:p-5">
                 {reviewDistribution.map((item) => (
                   <div key={item.rating} className="flex items-center gap-3 text-sm">
                     <div className="flex w-14 items-center gap-1 text-[#625751]">
@@ -1124,8 +1124,8 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
 
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {reviewSource.map((review) => (
-                <article key={review.id} className="rounded-3xl border border-[#eaded3] bg-white p-5">
-                  <div className="flex items-start justify-between gap-3">
+                <article key={review.id} className="rounded-3xl border border-[#eaded3] bg-white p-4 md:p-5">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                     <div>
                       <p className="font-semibold text-[var(--page-fg)]">{review.reviewerName || "Verified buyer"}</p>
                       <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[#8f7f74]">{review.verifiedPurchase ? "Verified purchase" : "Customer review"}</p>
@@ -1133,13 +1133,13 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
                     <div className="flex items-center gap-1">{renderStars(review.rating)}</div>
                   </div>
                   <p className="mt-4 text-sm font-semibold text-[#352f2c]">{review.title ?? "Customer review"}</p>
-                  <p className="mt-2 text-sm leading-6 text-[#5d534d]">{review.message}</p>
+                  <p className="mt-2 text-sm leading-7 text-[#5d534d] break-words">{review.message}</p>
                   <p className="mt-4 text-xs text-[#998981]">{formatRelativeDate(review.createdAt)}</p>
                 </article>
               ))}
             </div>
 
-            <form id="product-review-form" className="mt-6 rounded-3xl border border-[#eaded3] bg-[#fffaf7] p-5" onSubmit={handleReviewSubmit}>
+            <form id="product-review-form" className="mt-6 rounded-3xl border border-[#eaded3] bg-[#fffaf7] p-4 md:p-5" onSubmit={handleReviewSubmit}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8e7f75]">Write a review</p>
@@ -1216,11 +1216,11 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
           </SectionShell>
 
           <SectionShell title="Product Description" subtitle="A richer look at the fit, finish, and styling context.">
-            <p className="max-w-3xl text-sm leading-7 text-[#4f4641]">{product.description}</p>
+            <p className="max-w-3xl text-sm leading-7 text-[#4f4641] break-words">{product.description}</p>
           </SectionShell>
         </div>
 
-        <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+        <aside className="min-w-0 space-y-6 lg:sticky lg:top-28 lg:self-start">
           <RelatedRail title="Similar Products" items={similarProducts} currencyCode={displayCurrency} />
           <RelatedRail title="You May Also Like" items={alsoLikeProducts} currencyCode={displayCurrency} />
           <RelatedRail title="Frequently Bought Together" items={frequentlyBoughtTogether} currencyCode={displayCurrency} compact />

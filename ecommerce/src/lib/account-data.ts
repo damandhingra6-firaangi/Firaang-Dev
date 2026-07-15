@@ -105,7 +105,7 @@ export type AccountOrderWithCustomer = {
 };
 
 type AccountUserDocument = {
-  email: string;
+  email?: string;
   fullName: string;
   avatarUrl?: string;
   phone?: string;
@@ -292,7 +292,7 @@ function verifyPassword(password: string, storedHash: string) {
 function mapProfile(document: AccountUserDocument): AccountProfile {
   return {
     fullName: document.fullName ?? "",
-    email: document.email,
+    email: document.email ?? "",
     avatarUrl: document.avatarUrl ?? "",
     phone: document.phone ?? "",
     address: document.address ?? "",
@@ -301,6 +301,38 @@ function mapProfile(document: AccountUserDocument): AccountProfile {
     pinCode: document.pinCode ?? "",
     authProvider: document.authProvider,
   };
+}
+
+function isSyntheticMobilePlaceholderEmail(email: string | undefined) {
+  if (!email) {
+    return false;
+  }
+
+  return /^mobile\.\d+@firaang\.local$/i.test(email.trim());
+}
+
+async function ensureUsersEmailIndex(users: Collection<AccountUserDocument>) {
+  const indexes = await users.indexes();
+  const legacyIndex = indexes.find((index) => index.name === "user_email_unique");
+
+  if (legacyIndex) {
+    await users.dropIndex("user_email_unique");
+  }
+
+  await users.createIndex(
+    { email: 1 },
+    {
+      name: "user_email_unique_non_empty",
+      unique: true,
+      partialFilterExpression: {
+        email: {
+          $exists: true,
+          $type: "string",
+          $gt: "",
+        },
+      },
+    },
+  );
 }
 
 function mapOrder(document: AccountOrderDocument): AccountOrder {
@@ -369,7 +401,7 @@ async function getCollections() {
 
   if (!ensureAccountIndexesPromise) {
     ensureAccountIndexesPromise = Promise.all([
-      users.createIndex({ email: 1 }, { name: "user_email_unique", unique: true }),
+      ensureUsersEmailIndex(users),
       users.createIndex({ googleSub: 1 }, { name: "user_google_sub_unique", unique: true }),
       sessions.createIndex({ tokenHash: 1 }, { name: "session_token_hash_unique", unique: true }),
       sessions.createIndex({ expiresAt: 1 }, { name: "session_expires_ttl", expireAfterSeconds: 0 }),
@@ -578,6 +610,7 @@ export async function upsertMobileAccount(input: { phone: string }) {
   const existingByPhone = await users.findOne({ phone: input.phone });
 
   if (existingByPhone) {
+    const shouldUnsetSyntheticEmail = isSyntheticMobilePlaceholderEmail(existingByPhone.email);
     await users.updateOne(
       { _id: existingByPhone._id },
       {
@@ -585,6 +618,7 @@ export async function upsertMobileAccount(input: { phone: string }) {
           lastSignedInAt: now,
           updatedAt: now,
         },
+        ...(shouldUnsetSyntheticEmail ? { $unset: { email: "" } } : {}),
       },
     );
 
@@ -600,13 +634,10 @@ export async function upsertMobileAccount(input: { phone: string }) {
     };
   }
 
-  const syntheticEmail = `mobile.${input.phone.replace(/\D/g, "")}@Firaang.local`;
-
   await users.updateOne(
-    { email: syntheticEmail },
+    { phone: input.phone },
     {
       $set: {
-        email: syntheticEmail,
         fullName: "Firaang Shopper",
         avatarUrl: "",
         phone: input.phone,
@@ -626,7 +657,7 @@ export async function upsertMobileAccount(input: { phone: string }) {
     { upsert: true },
   );
 
-  const user = await users.findOne({ email: syntheticEmail });
+  const user = await users.findOne({ phone: input.phone });
 
   if (!user) {
     throw new Error("FAILED_TO_CREATE_MOBILE_ACCOUNT");
@@ -720,7 +751,7 @@ export async function getAccountSnapshotBySessionToken(token: string): Promise<A
 
 export async function updateAccountProfileBySessionToken(
   token: string,
-  updates: Partial<Omit<AccountProfile, "email" | "authProvider">>,
+  updates: Partial<Omit<AccountProfile, "authProvider">>,
 ): Promise<AccountProfile | null> {
   const { users, sessions } = await getCollections();
   const session = await sessions.findOne({ tokenHash: hashSessionToken(token) });
@@ -734,6 +765,7 @@ export async function updateAccountProfileBySessionToken(
     {
       $set: {
         fullName: updates.fullName,
+        email: updates.email ? normalizeEmail(updates.email) : "",
         avatarUrl: updates.avatarUrl,
         phone: updates.phone,
         address: updates.address,
@@ -1288,7 +1320,7 @@ export async function findOrderWithCustomerByOrderId(orderId: string): Promise<A
     order: mapOrder(orderDocument),
     customer: customer
       ? {
-          email: customer.email,
+          email: customer.email ?? "",
           fullName: customer.fullName,
           authProvider: customer.authProvider,
         }
@@ -1316,7 +1348,7 @@ export async function findOrderWithCustomerByPaymentId(paymentId: string): Promi
     order: mapOrder(orderDocument),
     customer: customer
       ? {
-          email: customer.email,
+          email: customer.email ?? "",
           fullName: customer.fullName,
           authProvider: customer.authProvider,
         }
@@ -1343,7 +1375,7 @@ export async function listOrdersForAdmin(limit = 100) {
       ...mapped,
       customer: customer
         ? {
-            email: customer.email,
+            email: customer.email ?? "",
             fullName: customer.fullName,
             authProvider: customer.authProvider,
           }

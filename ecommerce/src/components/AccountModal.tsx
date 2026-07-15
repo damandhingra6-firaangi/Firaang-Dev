@@ -24,6 +24,13 @@ const CANCEL_REASONS = [
   "Other",
 ] as const;
 
+type ProfileFormErrors = {
+  fullName?: string;
+  email?: string;
+};
+
+const profileEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function formatCurrency(value: number, currencyCode: string) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -126,6 +133,7 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
   const [cancelTargetOrderId, setCancelTargetOrderId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState<(typeof CANCEL_REASONS)[number]>(CANCEL_REASONS[0]);
   const [cancelReasonDetail, setCancelReasonDetail] = useState("");
+  const [profileErrors, setProfileErrors] = useState<ProfileFormErrors>({});
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
   const profileInitials = useMemo(() => {
@@ -164,6 +172,7 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
     }
 
     setProfileDraft(profile);
+    setProfileErrors({});
   }, [isVisible, profile]);
 
   useEffect(() => {
@@ -428,10 +437,27 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
   const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!profileDraft.fullName.trim()) {
-      pushToast("Please add your full name", { variant: "warning" });
+    const trimmedFullName = profileDraft.fullName.trim();
+    const trimmedEmail = profileDraft.email.trim();
+    const nextErrors: ProfileFormErrors = {};
+
+    if (!trimmedFullName) {
+      nextErrors.fullName = "Full name is required.";
+    }
+
+    if (!trimmedEmail) {
+      nextErrors.email = "Email is required.";
+    } else if (!profileEmailRegex.test(trimmedEmail)) {
+      nextErrors.email = "Please enter a valid email address.";
+    }
+
+    if (nextErrors.fullName || nextErrors.email) {
+      setProfileErrors(nextErrors);
+      pushToast(nextErrors.email ?? nextErrors.fullName ?? "Please complete required fields", { variant: "warning" });
       return;
     }
+
+    setProfileErrors({});
 
     setIsSavingProfile(true);
 
@@ -442,7 +468,8 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fullName: profileDraft.fullName.trim(),
+          fullName: trimmedFullName,
+          email: trimmedEmail,
           avatarUrl: profileDraft.avatarUrl.trim(),
           phone: profileDraft.phone.trim(),
           address: profileDraft.address.trim(),
@@ -472,6 +499,10 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
       setIsSavingProfile(false);
     }
   };
+
+  const trimmedProfileEmail = profileDraft.email.trim();
+  const profileEmailLooksValid = trimmedProfileEmail.length > 0 && profileEmailRegex.test(trimmedProfileEmail);
+  const canSaveProfile = profileDraft.fullName.trim().length > 0 && profileEmailLooksValid && !isSavingProfile;
 
   const handleSignOut = async () => {
     try {
@@ -680,7 +711,7 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
                     )}
                     <div>
                       <p className="text-lg font-semibold text-[var(--popup-footer-text)]">{profile.fullName || "Firaang Shopper"}</p>
-                      <p className="text-sm text-[var(--popup-subtext)]">{profile.email}</p>
+                      <p className="text-sm text-[var(--popup-subtext)]">{profile.email || "Add your email to complete your profile"}</p>
                       <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[var(--gold)]">Signed in with {profile.authProvider}</p>
                     </div>
                   </div>
@@ -699,14 +730,33 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
                   <input
                     type="text"
                     value={profileDraft.fullName}
-                    onChange={(event) => setProfileDraft((prev) => ({ ...prev, fullName: event.target.value }))}
+                    onChange={(event) => {
+                      setProfileDraft((prev) => ({ ...prev, fullName: event.target.value }));
+                      if (profileErrors.fullName) {
+                        setProfileErrors((prev) => ({ ...prev, fullName: undefined }));
+                      }
+                    }}
                     className="w-full rounded-xl border border-[var(--gold)]/30 bg-[var(--popup-input)] px-4 py-3 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
                   />
+                  {profileErrors.fullName ? <p className="mt-1 text-xs text-[#c65353]">{profileErrors.fullName}</p> : null}
                 </label>
 
                 <label>
                   <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[var(--popup-label)]">Email</span>
-                  <input type="email" value={profile.email} disabled className="w-full rounded-xl border border-[var(--gold)]/20 bg-[var(--popup-input-deep)] px-4 py-3 text-sm text-[var(--popup-muted)] outline-none" />
+                  <input
+                    type="email"
+                    value={profileDraft.email}
+                    onChange={(event) => {
+                      setProfileDraft((prev) => ({ ...prev, email: event.target.value }));
+                      if (profileErrors.email) {
+                        setProfileErrors((prev) => ({ ...prev, email: undefined }));
+                      }
+                    }}
+                    required
+                    placeholder="name@example.com"
+                    className="w-full rounded-xl border border-[var(--gold)]/30 bg-[var(--popup-input)] px-4 py-3 text-sm text-[var(--popup-input-text)] outline-none transition focus:border-[var(--gold)]"
+                  />
+                  {profileErrors.email ? <p className="mt-1 text-xs text-[#c65353]">{profileErrors.email}</p> : null}
                 </label>
 
                 <label>
@@ -760,7 +810,7 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
                 </label>
 
                 <div className="md:col-span-2 flex justify-end">
-                  <button type="submit" className="gold-button min-w-[180px]" disabled={isSavingProfile}>
+                  <button type="submit" className="gold-button min-w-[180px]" disabled={!canSaveProfile}>
                     {isSavingProfile ? "Saving..." : "Save Profile"}
                   </button>
                 </div>

@@ -308,6 +308,10 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const prevStep = stepBack[step];
   const STEPS: CheckoutStep[] = ["cart", "shipping", "summary"];
 
+  if (mode === "drawer" && !isOpen) {
+    return null;
+  }
+
   return (
     <>
       {mode === "drawer" ? (

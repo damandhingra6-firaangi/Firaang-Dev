@@ -5,6 +5,7 @@ import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 
 const accountProfileSchema = z.object({
   fullName: z.string().trim().min(1).max(120),
+  email: z.string().trim().min(1, "Email is required.").email("Please enter a valid email address.").max(160),
   avatarUrl: z.string().trim().max(500).optional().or(z.literal("")),
   phone: z.string().trim().max(40).optional().or(z.literal("")),
   address: z.string().trim().max(300).optional().or(z.literal("")),

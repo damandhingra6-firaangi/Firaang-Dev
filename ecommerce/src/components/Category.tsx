@@ -7,12 +7,6 @@ import SafeImage from "@/components/SafeImage";
 
 const categories = [
   {
-    name: "Hoodies",
-    count: "50 Products",
-    img: "/Hoodies.jpg",
-    href: "/shop?category=accessories",
-  },
-  {
     name: "Sweatshirts",
     count: "85 Products",
     img: "/Sweatshirts.png",
@@ -23,6 +17,12 @@ const categories = [
     count: "80 Products",
     img: "/T-shirts.png",
     href: "/shop?category=t-shirts",
+  },
+  {
+    name: "Hoodies",
+    count: "50 Products",
+    img: "/Hoodies.jpg",
+    href: "/shop?category=accessories",
   },
   {
     name: "Cap",
