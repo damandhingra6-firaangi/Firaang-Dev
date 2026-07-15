@@ -2,10 +2,19 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { markOrderPaidForSessionToken } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
+import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { attachShopifySyncResultToOrder } from "@/lib/account-data";
 import { claimOrderConfirmationEmailSend, markOrderConfirmationEmailSent, releaseOrderConfirmationEmailClaim } from "@/lib/account-data";
 import { syncPaidOrderToShopify, syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
 import { notifyOrderPaid } from "@/lib/order-notifications";
+
+function parseCookieValue(cookieHeader: string, name: string) {
+  return cookieHeader
+    .split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${name}=`))
+    ?.split("=")[1];
+}
 
 type VerifyPaymentRequest = {
   razorpay_order_id?: string;
@@ -116,6 +125,40 @@ export async function POST(request: Request) {
         }
       }
     }
+
+    const cookieHeader = request.headers.get("cookie") ?? "";
+    const attribution = parseAttributionCookie(parseCookieValue(cookieHeader, "Firaang_analytics_attr"));
+    const geo = parseGeoFromRequestHeaders(request.headers);
+
+    await trackAnalyticsEvent({
+      eventName: "order_paid",
+      visitorId: parseCookieValue(cookieHeader, "Firaang_analytics_vid") ?? "server-anonymous",
+      sessionId: parseCookieValue(cookieHeader, "Firaang_analytics_sid") ?? `paid-${Date.now()}`,
+      pagePath: "/checkout",
+      pageType: "checkout",
+      referrerUrl: request.headers.get("referer") ?? undefined,
+      source: attribution.source,
+      campaign: attribution.campaign,
+      medium: attribution.medium,
+      term: attribution.term,
+      content: attribution.content,
+      gclid: attribution.gclid,
+      fbclid: attribution.fbclid,
+      msclkid: attribution.msclkid,
+      ttclid: attribution.ttclid,
+      country: geo.country,
+      region: geo.region,
+      city: geo.city,
+      userAgent: request.headers.get("user-agent") ?? "",
+      orderId,
+      orderAmount: savedOrder?.totalAmount,
+      currencyCode: savedOrder?.currencyCode,
+      metadata: {
+        paymentMethod: savedOrder?.paymentMethod ?? "online",
+      },
+    }).catch(() => {
+      // Payment verification should not fail due to analytics.
+    });
 
     return NextResponse.json({
       verified: true,

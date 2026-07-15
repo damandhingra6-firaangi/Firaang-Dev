@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { GridProduct } from "@/lib/catalog";
+import { trackClientEvent } from "@/lib/analytics-client";
 
 type CartItem = {
   product: GridProduct;
@@ -41,6 +42,18 @@ export const useShopStore = create<ShopState>()(
         set((state) => {
           const existing = state.cart[product.id];
 
+          void trackClientEvent({
+            eventName: "add_to_cart",
+            pageType: "product",
+            productId: product.id,
+            productHandle: product.handle,
+            productName: product.name,
+            metadata: {
+              quantityAdded: 1,
+              resultingQuantity: existing ? existing.quantity + 1 : 1,
+            },
+          });
+
           return {
             cart: {
               ...state.cart,
@@ -62,6 +75,19 @@ export const useShopStore = create<ShopState>()(
           const existing = state.cart[product.id];
           const nextWishlist = { ...state.wishlist };
           delete nextWishlist[product.id];
+
+          void trackClientEvent({
+            eventName: "add_to_cart",
+            pageType: "collection",
+            productId: product.id,
+            productHandle: product.handle,
+            productName: product.name,
+            metadata: {
+              source: "wishlist",
+              quantityAdded: 1,
+              resultingQuantity: existing ? existing.quantity + 1 : 1,
+            },
+          });
 
           return {
             wishlist: nextWishlist,

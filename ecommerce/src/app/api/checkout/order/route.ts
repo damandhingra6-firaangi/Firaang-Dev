@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
 import { createPendingOrderForSessionToken, saveShippingAddressForSessionToken } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
+import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { calculateCheckoutPricing, computeCouponDiscount, estimateOrderWeightKg, type ShippingMethod } from "@/lib/checkout-config";
 import { getRazorpayClient } from "@/lib/razorpay";
 import { resolveCheckoutItems } from "@/lib/products";
 import { getActiveCouponByCode } from "@/lib/coupon-store";
 import { syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
+
+function parseCookieValue(cookieHeader: string, name: string) {
+  return cookieHeader
+    .split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${name}=`))
+    ?.split("=")[1];
+}
 
 type CreateOrderRequest = {
   items?: Array<{
@@ -194,6 +203,40 @@ export async function POST(request: Request) {
         });
       }
     }
+
+    const cookieHeader = request.headers.get("cookie") ?? "";
+    const attribution = parseAttributionCookie(parseCookieValue(cookieHeader, "Firaang_analytics_attr"));
+    const geo = parseGeoFromRequestHeaders(request.headers);
+
+    await trackAnalyticsEvent({
+      eventName: "order_created",
+      visitorId: parseCookieValue(cookieHeader, "Firaang_analytics_vid") ?? "server-anonymous",
+      sessionId: parseCookieValue(cookieHeader, "Firaang_analytics_sid") ?? `order-${Date.now()}`,
+      pagePath: "/checkout",
+      pageType: "checkout",
+      referrerUrl: request.headers.get("referer") ?? undefined,
+      source: attribution.source,
+      campaign: attribution.campaign,
+      medium: attribution.medium,
+      term: attribution.term,
+      content: attribution.content,
+      gclid: attribution.gclid,
+      fbclid: attribution.fbclid,
+      msclkid: attribution.msclkid,
+      ttclid: attribution.ttclid,
+      country: geo.country,
+      region: geo.region,
+      city: geo.city,
+      userAgent: request.headers.get("user-agent") ?? "",
+      orderId: order.id,
+      orderAmount: totalAmount,
+      currencyCode: order.currency,
+      metadata: {
+        paymentMethod: "online",
+      },
+    }).catch(() => {
+      // Order creation should not fail due to analytics.
+    });
 
     return NextResponse.json({
       orderId: order.id,
