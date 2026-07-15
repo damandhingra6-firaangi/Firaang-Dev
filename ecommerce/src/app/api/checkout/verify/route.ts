@@ -103,6 +103,12 @@ export async function POST(request: Request) {
             taxAmount: savedOrder.taxAmount,
             discountAmount: savedOrder.discountAmount,
             shippingMethod: savedOrder.shippingMethod,
+            paymentStatus: savedOrder.paymentStatus,
+            paymentMethod: savedOrder.paymentMethod,
+            orderDate: savedOrder.createdAt,
+            estimatedDeliveryDate: savedOrder.deliveredAt,
+            viewOrderUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.firaang.com"}/track-order?orderId=${encodeURIComponent(savedOrder.id)}`,
+            continueShoppingUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.firaang.com",
             shippingAddress: {
               name: savedOrder.shippingName,
               email: savedOrder.shippingEmail,
@@ -116,6 +122,7 @@ export async function POST(request: Request) {
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               lineTotal: item.lineTotal,
+              image: item.image,
             })),
           });
           await markOrderConfirmationEmailSent(savedOrder.id);

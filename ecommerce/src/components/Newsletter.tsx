@@ -4,7 +4,14 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { ChevronDown, Mail, MapPin, Phone } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
-import { COMPANY_MANUFACTURER_DETAILS } from "@/lib/company";
+import {
+  BRAND_LOGO_LIGHT,
+  COMPANY_MANUFACTURER_DETAILS,
+  COMPANY_SOCIAL_LINKS,
+  COMPANY_SUPPORT_EMAIL,
+  COMPANY_SUPPORT_PHONE,
+  COMPANY_SUPPORT_PHONE_TEL,
+} from "@/lib/company";
 import { newsletterSchema } from "@/lib/newsletter";
 import { useUiStore } from "@/store/useUiStore";
 
@@ -17,10 +24,10 @@ const CURRENCY_ICON_MAP: Record<"INR" | "USD" | "AED", string> = {
 const instagramGallery = ["/insta1.svg", "/inst2.svg", "/insta3.svg", "/insta4.svg", "/insta5.svg"];
 
 const socialLinks = [
-  { label: "Instagram", href: "https://www.instagram.com/fir.aang" },
-  { label: "Facebook", href: "https://www.facebook.com/share/18urRNaaEq" },
+  { label: "Instagram", href: COMPANY_SOCIAL_LINKS.instagram },
+  { label: "Facebook", href: COMPANY_SOCIAL_LINKS.facebook },
 //   { label: "X", href: "https://www.x.com/firaang" },
-  { label: "YouTube", href: "https://www.youtube.com/@Firaang-m5r" },
+  { label: "YouTube", href: COMPANY_SOCIAL_LINKS.youtube },
 ] as const;
 
 function InstagramMark({ className }: { className?: string }) {
@@ -195,7 +202,7 @@ export default function Newsletter() {
             {instagramGallery.map((image, index) => (
               <Link
                 key={`${image}-${index}`}
-                href="https://www.instagram.com/fir.aang"
+                href={COMPANY_SOCIAL_LINKS.instagram}
                 target="_blank"
                 rel="noreferrer"
                 aria-label={`Open Instagram image ${index + 1}`}
@@ -230,7 +237,7 @@ export default function Newsletter() {
         <div className="home-shell relative">
           <div className="grid gap-10 border-b border-white/10 pb-10 md:grid-cols-2 lg:grid-cols-[1.55fr_0.9fr_0.9fr_0.9fr_1.25fr]">
             <div className="max-w-[360px]">
-              <SafeImage src="/FiraangLogoDesign-white.svg" alt="Firaang" className="h-[48px] w-auto" />
+              <SafeImage src={BRAND_LOGO_LIGHT} alt="Firaang" className="h-[48px] w-auto" />
               {/* <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
                 Where fashion meets global elegance. Curated clothing and jewellery for the modern connoisseur.
               </p> */}
@@ -298,13 +305,13 @@ export default function Newsletter() {
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-400/15 text-sky-300">
                     <Phone className="h-3.5 w-3.5" />
                   </span>
-                  <a href="tel:+919878619783" className="transition hover:text-white">+91 98786 19783</a>
+                  <a href={`tel:${COMPANY_SUPPORT_PHONE_TEL}`} className="transition hover:text-white">{COMPANY_SUPPORT_PHONE}</a>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pink-400/15 text-pink-300">
                     <Mail className="h-3.5 w-3.5" />
                   </span>
-                  <a href="mailto:support@firaang.com" className="transition hover:text-white">support@firaang.com</a>
+                  <a href={`mailto:${COMPANY_SUPPORT_EMAIL}`} className="transition hover:text-white">{COMPANY_SUPPORT_EMAIL}</a>
                 </li>
               </ul>
             </div>
