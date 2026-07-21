@@ -3,6 +3,10 @@ import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/curren
 import { deriveProductTaxonomy } from "@/lib/product-taxonomy";
 
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
+const SHOPIFY_PRODUCTS_REVALIDATE_SECONDS = Math.max(
+  60,
+  Number.parseInt(process.env.SHOPIFY_PRODUCTS_REVALIDATE_SECONDS ?? "300", 10) || 300,
+);
 
 type MoneyV2 = {
   amount: string;
@@ -97,6 +101,25 @@ type ShopifyProductEdge = NonNullable<
   NonNullable<NonNullable<ShopifyProductsResponse["data"]>["products"]>["edges"]
 >[number];
 
+type ShopifyProductNode = ShopifyProductEdge["node"];
+
+type ShopifyCollectionProductsResponse = {
+  data?: {
+    collection?: {
+      products?: {
+        pageInfo?: {
+          hasNextPage: boolean;
+          endCursor: string | null;
+        };
+        edges?: Array<{
+          cursor?: string;
+          node: ShopifyProductNode;
+        }>;
+      };
+    } | null;
+  };
+};
+
 const productsQuery = `#graphql
   query GetHomeProducts($first: Int!, $after: String) {
     products(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
@@ -187,6 +210,108 @@ const productsQuery = `#graphql
                 selectedOptions {
                   name
                   value
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const collectionProductsQuery = `#graphql
+  query GetCollectionProducts($handle: String!, $first: Int!, $after: String) {
+    collection(handle: $handle) {
+      products(first: $first, after: $after, sortKey: CREATED, reverse: true) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        edges {
+          cursor
+          node {
+            id
+            handle
+            title
+            productType
+            tags
+            description
+            featuredImage {
+              url
+              altText
+            }
+            images(first: 20) {
+              nodes {
+                url
+                altText
+              }
+            }
+            media(first: 20) {
+              nodes {
+                __typename
+                ... on MediaImage {
+                  image {
+                    url
+                    altText
+                  }
+                }
+                ... on Video {
+                  previewImage {
+                    url
+                    altText
+                  }
+                  sources {
+                    url
+                    mimeType
+                  }
+                }
+              }
+            }
+            priceRange {
+              minVariantPrice {
+                amount
+                currencyCode
+              }
+            }
+            compareAtPriceRange {
+              minVariantPrice {
+                amount
+                currencyCode
+              }
+            }
+            options {
+              name
+              values
+            }
+            sizeChartJson: metafield(namespace: "custom", key: "size_chart_json") {
+              value
+            }
+            sizeChart: metafield(namespace: "custom", key: "size_chart") {
+              value
+            }
+            variants(first: 250) {
+              edges {
+                node {
+                  id
+                  title
+                  availableForSale
+                  image {
+                    url
+                    altText
+                  }
+                  price {
+                    amount
+                    currencyCode
+                  }
+                  compareAtPrice {
+                    amount
+                    currencyCode
+                  }
+                  selectedOptions {
+                    name
+                    value
+                  }
                 }
               }
             }
@@ -542,7 +667,10 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
           query: productsQuery,
           variables: { first: Math.min(pageSize, safeLimit - productEdges.length), after: cursor },
         }),
-        cache: "no-store",
+        next: {
+          revalidate: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
+          tags: ["shopify-products"],
+        },
       });
 
       if (!response.ok) {
@@ -562,139 +690,201 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
       }
     }
 
-    return productEdges.slice(0, safeLimit).map(({ node }) => {
-      const imageUrl = node.featuredImage?.url ?? "/cat1.jpg";
-      const productMedia = (node.media?.nodes ?? []).reduce<ProductMedia[]>((acc, mediaNode) => {
-        if (mediaNode.__typename === "Video") {
-          const sources = mediaNode.sources ?? [];
-          const selectedSource =
-            sources.find((source) => source.mimeType.toLowerCase().includes("mp4")) ??
-            sources[0];
-
-          if (selectedSource?.url) {
-            acc.push({
-              type: "video",
-              src: selectedSource.url,
-              thumbnail: mediaNode.previewImage?.url ?? undefined,
-              alt: mediaNode.previewImage?.altText ?? node.title,
-            });
-          }
-
-          return acc;
-        }
-
-        if (mediaNode.__typename === "MediaImage" && mediaNode.image?.url) {
-          acc.push({
-            type: "image",
-            src: mediaNode.image.url,
-            alt: mediaNode.image.altText ?? node.title,
-          });
-        }
-
-        return acc;
-      }, []);
-      const allProductImages = Array.from(
-        new Set(
-          [
-            imageUrl,
-            ...productMedia.filter((media) => media.type === "image").map((media) => media.src),
-            ...(node.images?.nodes ?? []).map((image) => image.url),
-            ...((node.variants?.edges ?? []).map(({ node: variantNode }) => variantNode.image?.url).filter(Boolean) as string[]),
-          ].filter(Boolean)
-        )
-      );
-      const sizeChart = parseSizeChart(node.sizeChartJson?.value) ?? parseSizeChart(node.sizeChart?.value);
-      const taxonomy = deriveProductTaxonomy({
-        title: node.title,
-        productType: node.productType,
-        tags: node.tags,
-      });
-      
-      // DEBUG: Log sweatshirt products
-      if (node.title.toLowerCase().includes('sweatshirt') || node.title.toLowerCase().includes('crewneck')) {
-        console.log(`[SHOPIFY] Product: "${node.title}" → Category: "${taxonomy.category}", productType: "${node.productType}", tags: [${node.tags?.join(', ')}]`);
-      }
-      const basePriceAmount = convertAmount(
-        Number.parseFloat(node.priceRange.minVariantPrice.amount),
-        toSupportedCurrency(node.priceRange.minVariantPrice.currencyCode),
-        "INR",
-      );
-      const compareAtAmount = convertAmount(
-        Number.parseFloat(node.compareAtPriceRange.minVariantPrice.amount),
-        toSupportedCurrency(node.compareAtPriceRange.minVariantPrice.currencyCode),
-        "INR",
-      );
-      const resolvedCompareAtAmount =
-        compareAtAmount > basePriceAmount ? compareAtAmount : getInflatedCompareAtAmount(basePriceAmount);
-
-      return {
-        id: node.id,
-        handle: node.handle,
-        tags: node.tags,
-        category: taxonomy.category,
-        categorySlug: taxonomy.categorySlug,
-        subCategory: taxonomy.subCategory,
-        subCategorySlug: taxonomy.subCategorySlug,
-        audience: taxonomy.audience,
-        audienceSlug: taxonomy.audienceSlug,
-        name: node.title,
-        price: formatCurrency(basePriceAmount, "INR"),
-        priceAmount: basePriceAmount,
-        currencyCode: "INR",
-        oldPrice: formatCurrency(resolvedCompareAtAmount, "INR"),
-        img: imageUrl,
-        galleryImages: allProductImages,
-        productMedia,
-        description:
-          node.description?.trim() ||
-          "Discover premium craftsmanship and modern elegance in this signature piece.",
-        optionGroups: (node.options ?? []).map((option) => ({
-          name: option.name,
-          values: option.values,
-        })),
-        sizeChart,
-        variants: (node.variants?.edges ?? [])
-          .map(({ node: variantNode }) => {
-            const variantImage = variantNode.image?.url ?? imageUrl;
-
-            if (!variantImage) {
-              return null;
-            }
-
-            const variantPriceAmount = convertAmount(
-              Number.parseFloat(variantNode.price.amount),
-              toSupportedCurrency(variantNode.price.currencyCode),
-              "INR",
-            );
-            const variantCompareAtAmount = variantNode.compareAtPrice
-              ? convertAmount(
-                  Number.parseFloat(variantNode.compareAtPrice.amount),
-                  toSupportedCurrency(variantNode.compareAtPrice.currencyCode),
-                  "INR",
-                )
-              : 0;
-            const resolvedVariantCompareAtAmount =
-              variantCompareAtAmount > variantPriceAmount
-                ? variantCompareAtAmount
-                : getInflatedCompareAtAmount(variantPriceAmount);
-
-            return {
-              id: variantNode.id,
-              name: variantNode.title,
-              availableForSale: variantNode.availableForSale,
-              img: variantImage,
-              price: formatCurrency(variantPriceAmount, "INR"),
-              priceAmount: variantPriceAmount,
-              currencyCode: "INR",
-              oldPrice: formatCurrency(resolvedVariantCompareAtAmount, "INR"),
-              options: variantNode.selectedOptions,
-            };
-          })
-          .filter((variant): variant is NonNullable<typeof variant> => variant !== null),
-      } satisfies GridProduct;
-      });
+    return productEdges.slice(0, safeLimit).map(({ node }) => mapStorefrontProductNode(node));
   } catch (error) {
     console.error("Shopify fetch failed", error);
+    return [];
+  }
+}
+
+function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
+  const imageUrl = node.featuredImage?.url ?? "/cat1.jpg";
+  const productMedia = (node.media?.nodes ?? []).reduce<ProductMedia[]>((acc, mediaNode) => {
+    if (mediaNode.__typename === "Video") {
+      const sources = mediaNode.sources ?? [];
+      const selectedSource =
+        sources.find((source) => source.mimeType.toLowerCase().includes("mp4")) ??
+        sources[0];
+
+      if (selectedSource?.url) {
+        acc.push({
+          type: "video",
+          src: selectedSource.url,
+          thumbnail: mediaNode.previewImage?.url ?? undefined,
+          alt: mediaNode.previewImage?.altText ?? node.title,
+        });
+      }
+
+      return acc;
+    }
+
+    if (mediaNode.__typename === "MediaImage" && mediaNode.image?.url) {
+      acc.push({
+        type: "image",
+        src: mediaNode.image.url,
+        alt: mediaNode.image.altText ?? node.title,
+      });
+    }
+
+    return acc;
+  }, []);
+
+  const allProductImages = Array.from(
+    new Set(
+      [
+        imageUrl,
+        ...productMedia.filter((media) => media.type === "image").map((media) => media.src),
+        ...(node.images?.nodes ?? []).map((image) => image.url),
+        ...((node.variants?.edges ?? []).map(({ node: variantNode }) => variantNode.image?.url).filter(Boolean) as string[]),
+      ].filter(Boolean)
+    )
+  );
+
+  const sizeChart = parseSizeChart(node.sizeChartJson?.value) ?? parseSizeChart(node.sizeChart?.value);
+  const taxonomy = deriveProductTaxonomy({
+    title: node.title,
+    productType: node.productType,
+    tags: node.tags,
+  });
+  const basePriceAmount = convertAmount(
+    Number.parseFloat(node.priceRange.minVariantPrice.amount),
+    toSupportedCurrency(node.priceRange.minVariantPrice.currencyCode),
+    "INR",
+  );
+  const compareAtAmount = convertAmount(
+    Number.parseFloat(node.compareAtPriceRange.minVariantPrice.amount),
+    toSupportedCurrency(node.compareAtPriceRange.minVariantPrice.currencyCode),
+    "INR",
+  );
+  const resolvedCompareAtAmount =
+    compareAtAmount > basePriceAmount ? compareAtAmount : getInflatedCompareAtAmount(basePriceAmount);
+
+  return {
+    id: node.id,
+    handle: node.handle,
+    tags: node.tags,
+    category: taxonomy.category,
+    categorySlug: taxonomy.categorySlug,
+    subCategory: taxonomy.subCategory,
+    subCategorySlug: taxonomy.subCategorySlug,
+    audience: taxonomy.audience,
+    audienceSlug: taxonomy.audienceSlug,
+    name: node.title,
+    price: formatCurrency(basePriceAmount, "INR"),
+    priceAmount: basePriceAmount,
+    currencyCode: "INR",
+    oldPrice: formatCurrency(resolvedCompareAtAmount, "INR"),
+    img: imageUrl,
+    galleryImages: allProductImages,
+    productMedia,
+    description:
+      node.description?.trim() ||
+      "Discover premium craftsmanship and modern elegance in this signature piece.",
+    optionGroups: (node.options ?? []).map((option) => ({
+      name: option.name,
+      values: option.values,
+    })),
+    sizeChart,
+    variants: (node.variants?.edges ?? [])
+      .map(({ node: variantNode }) => {
+        const variantImage = variantNode.image?.url ?? imageUrl;
+
+        if (!variantImage) {
+          return null;
+        }
+
+        const variantPriceAmount = convertAmount(
+          Number.parseFloat(variantNode.price.amount),
+          toSupportedCurrency(variantNode.price.currencyCode),
+          "INR",
+        );
+        const variantCompareAtAmount = variantNode.compareAtPrice
+          ? convertAmount(
+              Number.parseFloat(variantNode.compareAtPrice.amount),
+              toSupportedCurrency(variantNode.compareAtPrice.currencyCode),
+              "INR",
+            )
+          : 0;
+        const resolvedVariantCompareAtAmount =
+          variantCompareAtAmount > variantPriceAmount
+            ? variantCompareAtAmount
+            : getInflatedCompareAtAmount(variantPriceAmount);
+
+        return {
+          id: variantNode.id,
+          name: variantNode.title,
+          availableForSale: variantNode.availableForSale,
+          img: variantImage,
+          price: formatCurrency(variantPriceAmount, "INR"),
+          priceAmount: variantPriceAmount,
+          currencyCode: "INR",
+          oldPrice: formatCurrency(resolvedVariantCompareAtAmount, "INR"),
+          options: variantNode.selectedOptions,
+        };
+      })
+      .filter((variant): variant is NonNullable<typeof variant> => variant !== null),
+  } satisfies GridProduct;
+}
+
+export async function getStorefrontProductsByCollection(handle: string, limit = 80): Promise<GridProduct[]> {
+  const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
+  const storefrontAccessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
+  const normalizedHandle = handle.trim();
+
+  if (!storeDomain || !storefrontAccessToken || !normalizedHandle) {
+    return [];
+  }
+
+  const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
+  const safeLimit = Math.max(1, Math.min(limit, 1000));
+  const pageSize = Math.min(250, safeLimit);
+
+  try {
+    const productNodes: ShopifyProductNode[] = [];
+    let cursor: string | null = null;
+    let hasNextPage = true;
+
+    while (hasNextPage && productNodes.length < safeLimit) {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
+        },
+        body: JSON.stringify({
+          query: collectionProductsQuery,
+          variables: {
+            handle: normalizedHandle,
+            first: Math.min(pageSize, safeLimit - productNodes.length),
+            after: cursor,
+          },
+        }),
+        next: {
+          revalidate: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
+          tags: [`shopify-collection-${normalizedHandle.toLowerCase()}`],
+        },
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const json = (await response.json()) as ShopifyCollectionProductsResponse;
+      const pageEdges = json.data?.collection?.products?.edges ?? [];
+      const pageInfo = json.data?.collection?.products?.pageInfo;
+
+      productNodes.push(...pageEdges.map((edge) => edge.node));
+      hasNextPage = Boolean(pageInfo?.hasNextPage);
+      cursor = pageInfo?.endCursor ?? null;
+
+      if (!cursor) {
+        break;
+      }
+    }
+
+    return productNodes.slice(0, safeLimit).map((node) => mapStorefrontProductNode(node));
+  } catch (error) {
+    console.error("Shopify collection fetch failed", error);
     return [];
   }
 }

@@ -126,6 +126,40 @@ Implementation details:
 
 If Shopify credentials are not configured or Shopify is unavailable, the UI falls back to local product data.
 
+## Dynamic Shopify Collections And Launch Campaigns
+
+Navigation and homepage launch content can now be fully managed from Shopify collections.
+
+How it behaves:
+
+- Permanent nav items remain: MEN, WOMEN, GENZ
+- Custom collections are fetched dynamically from Shopify
+- One primary launch collection is highlighted in nav
+- `COLLECTIONS` dropdown is built dynamically
+- Hero banner and homepage launch section auto-update from featured collection metadata
+
+Recommended Shopify collection metafields (namespace: `custom`):
+
+- `featured` (boolean): mark as featured launch
+- `launch` (boolean): optional alternate featured flag
+- `launch_title` (single line text): main launch headline
+- `launch_subtitle` (multi-line text): supporting launch copy
+- `banner_image` (file reference): campaign banner image
+- `badge` (single line text): e.g. `NEW`, `HOT`, `LIMITED`
+- `priority` (number): lower number wins when multiple featured collections exist
+
+Image priority for hero/launch cards:
+
+1. `custom.banner_image`
+2. Collection image
+3. First product image in collection
+4. Default website hero image
+
+Routing behavior:
+
+- Dynamic collection links go to `/shop?collection=<collection-handle>`
+- Products are fetched from Shopify by collection handle server-side
+
 ## Shopify Admin Order And Inventory Sync
 
 Paid-order sync to Shopify Admin and Shopify inventory adjustments require additional server-side environment variables:

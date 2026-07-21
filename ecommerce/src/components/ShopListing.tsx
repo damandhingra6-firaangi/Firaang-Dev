@@ -16,6 +16,8 @@ type ShopListingProps = {
   initialCategory?: string;
   initialSubCategory?: string;
   initialAudience?: string;
+  initialCollection?: string;
+  initialCollectionTitle?: string;
 };
 
 type SortOption =
@@ -127,6 +129,8 @@ export default function ShopListing({
   initialCategory = "",
   initialSubCategory = "",
   initialAudience = "",
+  initialCollection = "",
+  initialCollectionTitle = "",
 }: ShopListingProps) {
   const [query, setQuery] = useState(() => initialQuery);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
@@ -236,6 +240,9 @@ export default function ShopListing({
         if (selectedAudience) {
           params.set("audience", selectedAudience);
         }
+        if (initialCollection) {
+          params.set("collection", initialCollection);
+        }
 
         const queryString = params.toString();
         const nextUrl = queryString ? `${pathname}?${queryString}` : pathname;
@@ -249,7 +256,7 @@ export default function ShopListing({
         urlSyncTimeoutRef.current = null;
       }
     };
-  }, [pathname, query, router, selectedAudience, selectedCategory, selectedSubCategory]);
+  }, [initialCollection, pathname, query, router, selectedAudience, selectedCategory, selectedSubCategory]);
 
   const selectedCategoryNode = useMemo(() => {
     if (!selectedCategory) {
@@ -685,7 +692,12 @@ export default function ShopListing({
     <section className="mx-auto w-full max-w-[1600px] px-4 py-8 md:px-6 md:py-10 lg:px-8">
       <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-[#282c3f] md:text-4xl">Shop</h1>
+          <h1 className="text-3xl font-semibold text-[#282c3f] md:text-4xl">
+            {initialCollectionTitle || "Shop"}
+          </h1>
+          {initialCollectionTitle ? (
+            <p className="mt-1 text-sm text-[#696e79]">Collection</p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
