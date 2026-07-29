@@ -3,11 +3,14 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
+import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "About | Firaang",
-  description: "Firaang is a modern Indian label creating bold, expressive designs for everyday wear — blending global inspiration with comfort and style.",
-};
+export const metadata: Metadata = createPageMetadata({
+  title: "About",
+  description:
+    "Firaang is a modern Indian label creating bold, expressive designs for everyday wear, blending global inspiration with comfort and style.",
+  path: "/about",
+});
 
 const valuePillars = [
   {

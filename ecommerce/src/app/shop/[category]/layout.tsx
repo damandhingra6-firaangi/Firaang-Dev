@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Metadata } from "next";
 import { fallbackProducts } from "@/lib/catalog";
+import { createPageMetadata } from "@/lib/seo";
 import { getStorefrontProducts } from "@/lib/shopify";
 import { buildCategoryTree } from "@/lib/product-taxonomy";
 
@@ -34,15 +35,11 @@ export async function generateMetadata({
   const title = `${categoryName}`;
   const description = `Browse our collection of ${categoryName.toLowerCase()}`;
 
-  return {
+  return createPageMetadata({
     title,
     description,
-    openGraph: {
-      title,
-      description,
-      type: "website",
-    },
-  };
+    path: `/shop/${encodeURIComponent(categorySlug)}`,
+  });
 }
 
 export default function CategoryLayout({ children }: LayoutProps) {

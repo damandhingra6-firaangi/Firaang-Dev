@@ -160,6 +160,8 @@ export default function ShopListing({
 
   const wishlistIds = getWishlistIds(wishlist);
   const categoryTree = useMemo(() => buildCategoryTree(products), [products]);
+  const listingScopeKey = `${initialCollection}::${initialCategory}::${initialSubCategory}::${initialAudience}::${initialQuery}`;
+  const previousListingScopeKeyRef = useRef<string | null>(null);
 
   const enrichedProducts = useMemo(
     () =>
@@ -197,6 +199,43 @@ export default function ShopListing({
     setSelectedSubCategory((prev) => (prev === initialSubCategory ? prev : initialSubCategory));
     setSelectedAudience((prev) => (prev === initialAudience ? prev : initialAudience));
   }, [initialCategory, initialSubCategory, initialAudience]);
+
+  useEffect(() => {
+    if (previousListingScopeKeyRef.current === null) {
+      previousListingScopeKeyRef.current = listingScopeKey;
+      return;
+    }
+
+    if (previousListingScopeKeyRef.current === listingScopeKey) {
+      return;
+    }
+
+    previousListingScopeKeyRef.current = listingScopeKey;
+
+    // Clear local listing state so each collection/search context starts cleanly.
+    setQuery(initialQuery);
+    setSelectedCategory(initialCategory);
+    setSelectedSubCategory(initialSubCategory);
+    setSelectedAudience(initialAudience);
+    setSelectedSort("recommended");
+    setSelectedBrands([]);
+    setSelectedSizes([]);
+    setSelectedColors([]);
+    setSelectedMaterials([]);
+    setAvailabilityFilter("all");
+    setMinDiscount(0);
+    setMinRating(0);
+    setPriceRange({ min: minCatalogPrice, max: maxCatalogPrice });
+    setIsMobileFiltersOpen(false);
+  }, [
+    initialAudience,
+    initialCategory,
+    initialQuery,
+    initialSubCategory,
+    listingScopeKey,
+    maxCatalogPrice,
+    minCatalogPrice,
+  ]);
 
   useEffect(() => {
     if (urlSyncTimeoutRef.current) {

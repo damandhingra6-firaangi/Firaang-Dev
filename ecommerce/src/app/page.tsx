@@ -1,5 +1,6 @@
 // app/page.tsx
 
+import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import Category from "@/components/Category";
@@ -9,10 +10,24 @@ import NewLaunchSection from "@/components/NewLaunchSection";
 import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
 import { fallbackProducts } from "@/lib/catalog";
+import { createPageMetadata } from "@/lib/seo";
+import { SITE_TITLE_DEFAULT } from "@/lib/site";
 import { getStorefrontProducts } from "@/lib/shopify";
 import { getShopifyCollectionsContent } from "@/lib/shopify-collections";
 
 export const revalidate = 300;
+
+export const metadata: Metadata = {
+  ...createPageMetadata({
+    title: SITE_TITLE_DEFAULT,
+    description:
+      "Shop premium Firaang clothing and jewellery with expressive seasonal launches, curated collections, and signature wardrobe essentials.",
+    path: "/",
+  }),
+  title: {
+    absolute: SITE_TITLE_DEFAULT,
+  },
+};
 
 const HOME_PRODUCT_FETCH_LIMIT = 250;
 

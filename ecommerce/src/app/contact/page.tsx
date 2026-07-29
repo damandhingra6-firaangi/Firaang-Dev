@@ -4,11 +4,13 @@ import Navbar from "@/components/Navbar";
 import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
 import { COMPANY_MANUFACTURER_DETAILS } from "@/lib/company";
+import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Contact | Firaang",
+export const metadata: Metadata = createPageMetadata({
+  title: "Contact",
   description: "Get in touch with the Firaang team for orders, support, and collaborations.",
-};
+  path: "/contact",
+});
 
 type ContactCard = {
   title: string;

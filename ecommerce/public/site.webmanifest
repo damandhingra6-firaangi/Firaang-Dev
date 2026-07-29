@@ -1,0 +1,22 @@
+{
+  "name": "Firaang",
+  "short_name": "Firaang",
+  "description": "Firaang crafts premium clothing and jewellery with bold, expressive design for modern wardrobes.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#fff8fa",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

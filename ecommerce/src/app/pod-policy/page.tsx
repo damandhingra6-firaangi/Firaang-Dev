@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
+import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Refund & Replacement Policy | Firaang",
+export const metadata: Metadata = createPageMetadata({
+  title: "Refund & Replacement Policy",
   description: "Read Firaang's made-to-order refund, replacement, and cancellation policy.",
-};
+  path: "/pod-policy",
+});
 
 const sections = [
   {

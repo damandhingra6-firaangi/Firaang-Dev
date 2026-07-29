@@ -5,6 +5,7 @@ import Newsletter from "@/components/Newsletter";
 import ProductDetailsPage, { type ProductCardLite } from "@/components/ProductDetailsPage";
 import { fallbackProducts } from "@/lib/catalog";
 import { getCatalogProducts } from "@/lib/products";
+import { SITE_NAME } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -46,17 +47,32 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
   if (!product) {
     return {
-      title: "Product not found | Firaang",
+      title: `Product not found | ${SITE_NAME}`,
+      robots: {
+        index: false,
+        follow: false,
+      },
     };
   }
 
   return {
-    title: `${product.name} | Firaang`,
+    title: product.name,
     description: product.description.slice(0, 160),
+    alternates: {
+      canonical: `/product/${encodeURIComponent(product.handle || handle)}`,
+    },
     openGraph: {
       title: product.name,
       description: product.description.slice(0, 160),
+      url: `/product/${encodeURIComponent(product.handle || handle)}`,
+      type: "website",
       images: [{ url: product.img, width: 1200, height: 1600, alt: product.name }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: product.name,
+      description: product.description.slice(0, 160),
+      images: [product.img],
     },
   };
 }

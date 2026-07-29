@@ -3,11 +3,13 @@ import { ArrowDownUp, MoveHorizontal, Ruler } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
+import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Size Guide | Firaang",
+export const metadata: Metadata = createPageMetadata({
+  title: "Size Guide",
   description: "Use the Firaang size guide to find your ideal fit before ordering.",
-};
+  path: "/size-guide",
+});
 
 const SIZE_HEADERS = ["Size", "Bust / Chest", "Length", "Across Shoulder", "Body Fit Range"];
 

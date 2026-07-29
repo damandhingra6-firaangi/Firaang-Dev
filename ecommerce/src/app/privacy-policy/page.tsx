@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
+import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy | Firaang",
-  description: "Learn how Firaang collects, uses and protects your personal information.",
-};
+export const metadata: Metadata = createPageMetadata({
+  title: "Privacy Policy",
+  description: "Learn how Firaang collects, uses, and protects your personal information.",
+  path: "/privacy-policy",
+});
 
 const sections = [
   {

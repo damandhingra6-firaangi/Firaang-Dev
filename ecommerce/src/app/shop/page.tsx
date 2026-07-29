@@ -1,12 +1,20 @@
+import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Newsletter from "@/components/Newsletter";
 import ShopListing from "@/components/ShopListing";
 import JewelleryComingSoonGate from "@/components/JewelleryComingSoonGate";
 import { fallbackProducts } from "@/lib/catalog";
+import { createPageMetadata } from "@/lib/seo";
 import { getShopifyCollectionsContent } from "@/lib/shopify-collections";
 import { getStorefrontProducts, getStorefrontProductsByCollection } from "@/lib/shopify";
 import { humanizeHandle } from "@/lib/text";
 import { isJewellerySlug } from "@/lib/jewellery";
+
+export const metadata: Metadata = createPageMetadata({
+  title: "Shop",
+  description: "Browse Firaang collections, signature pieces, and new seasonal launches.",
+  path: "/shop",
+});
 
 type ShopPageProps = {
   searchParams?: Promise<{ q?: string; category?: string; subCategory?: string; audience?: string; collection?: string }>;
