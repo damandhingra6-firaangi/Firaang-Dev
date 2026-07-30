@@ -28,6 +28,7 @@ import {
   Truck,
 } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
+import ProductSizeChartModal from "@/components/ProductSizeChartModal";
 import { GridProduct } from "@/lib/catalog";
 import { COMPANY_MANUFACTURER_DETAILS } from "@/lib/company";
 import { convertAmount, formatCurrency } from "@/lib/currency";
@@ -274,6 +275,7 @@ function OptionGroup({
   isDisabled,
   renderSwatch = false,
   showSizeGuide = false,
+  onSizeChartClick,
 }: {
   title: string;
   subtitle?: string;
@@ -283,6 +285,7 @@ function OptionGroup({
   isDisabled?: (value: string) => boolean;
   renderSwatch?: boolean;
   showSizeGuide?: boolean;
+  onSizeChartClick?: () => void;
 }) {
   return (
     <div>
@@ -292,7 +295,11 @@ function OptionGroup({
           {subtitle ? <p className="mt-1 text-sm text-[#695e57]">{subtitle}</p> : null}
         </div>
         {showSizeGuide ? (
-          <button type="button" className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--secondary)]">
+          <button
+            type="button"
+            onClick={onSizeChartClick}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--secondary)] transition hover:text-[var(--secondary)]/70"
+          >
             <Ruler className="h-4 w-4" />
             Size chart
           </button>
@@ -396,6 +403,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   const [reviewStatus, setReviewStatus] = useState<string | null>(null);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [isSizeChartOpen, setIsSizeChartOpen] = useState(false);
   const swipeStartRef = useRef<number | null>(null);
 
   const variants = product.variants ?? [];
@@ -520,6 +528,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   }, [activeVariant, galleryItems, selectedMediaId]);
 
   const previewIndex = Math.max(0, galleryItems.findIndex((item) => item.id === activeMedia?.id));
+  const sizeChartImage = galleryItems.length > 0 ? galleryItems[galleryItems.length - 1]?.src ?? null : null;
   const reviewSource = reviews.length > 0 ? reviews : FALLBACK_REVIEWS;
   const averageRating = reviewSource.reduce((sum, item) => sum + item.rating, 0) / Math.max(1, reviewSource.length);
   const reviewDistribution = buildDistribution(reviewSource);
@@ -990,6 +999,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
               onSelect={(value) => selectOptionValue(sizeGroup?.name ?? "Size", value)}
               isDisabled={(value) => !optionAvailability(sizeGroup?.name ?? "Size", value)}
               showSizeGuide
+              onSizeChartClick={() => setIsSizeChartOpen(true)}
             />
           ) : null}
 
@@ -1242,6 +1252,13 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
       </div>
 
       <div className="h-24 lg:hidden" />
+
+      <ProductSizeChartModal
+        isOpen={isSizeChartOpen}
+        onClose={() => setIsSizeChartOpen(false)}
+        image={sizeChartImage}
+        productName={product.name}
+      />
     </section>
   );
 }
