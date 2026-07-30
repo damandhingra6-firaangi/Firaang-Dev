@@ -31,6 +31,7 @@ const defaultProfile: AccountProfile = {
   state: "",
   pinCode: "",
   authProvider: "google",
+  savedAddresses: [],
 };
 
 export const useAccountStore = create<AccountState>()(

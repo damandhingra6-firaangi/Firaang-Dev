@@ -16,6 +16,20 @@ export type AccountProfile = {
   state: string;
   pinCode: string;
   authProvider: "google" | "email" | "mobile";
+  savedAddresses?: AccountSavedAddress[];
+};
+
+export type AccountSavedAddress = {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  tag?: "HOME" | "OFFICE" | "OTHER";
+  updatedAt: string;
 };
 
 export type AccountOrderItem = {
@@ -113,6 +127,18 @@ type AccountUserDocument = {
   city?: string;
   state?: string;
   pinCode?: string;
+  shippingAddresses?: Array<{
+    id: string;
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    address: string;
+    city?: string;
+    state: string;
+    pinCode?: string;
+    tag?: "HOME" | "OFFICE" | "OTHER";
+    updatedAt: Date;
+  }>;
   authProvider: "google" | "email" | "mobile";
   googleSub: string;
   passwordHash?: string;
@@ -300,6 +326,21 @@ function mapProfile(document: AccountUserDocument): AccountProfile {
     state: document.state ?? "",
     pinCode: document.pinCode ?? "",
     authProvider: document.authProvider,
+    savedAddresses: (document.shippingAddresses ?? [])
+      .slice()
+      .sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime())
+      .map((address) => ({
+        id: address.id,
+        fullName: address.fullName ?? "",
+        email: address.email ?? "",
+        phone: address.phone ?? "",
+        address: address.address,
+        city: address.city ?? "",
+        state: address.state,
+        pinCode: address.pinCode ?? "",
+        tag: address.tag,
+        updatedAt: address.updatedAt.toISOString(),
+      })),
   };
 }
 
@@ -785,24 +826,74 @@ export async function saveShippingAddressForSessionToken(
   token: string,
   addr: {
     fullName?: string;
+    email?: string;
+    phone?: string;
     address: string;
     city?: string;
     state: string;
     pinCode?: string;
   },
-): Promise<void> {
+): Promise<AccountProfile | null> {
   const { users, sessions } = await getCollections();
   const session = await sessions.findOne({ tokenHash: hashSessionToken(token) });
-  if (!session) return;
+  if (!session) return null;
+
+  const user = await users.findOne({ _id: session.userId });
+  if (!user) return null;
+
+  const normalizedAddress = addr.address.trim().toLowerCase();
+  const normalizedCity = (addr.city ?? "").trim().toLowerCase();
+  const normalizedState = addr.state.trim().toLowerCase();
+  const normalizedPin = (addr.pinCode ?? "").trim();
+  const existingAddresses = user.shippingAddresses ?? [];
+
+  const existingIndex = existingAddresses.findIndex((entry) => {
+    return (
+      entry.address.trim().toLowerCase() === normalizedAddress &&
+      (entry.city ?? "").trim().toLowerCase() === normalizedCity &&
+      entry.state.trim().toLowerCase() === normalizedState &&
+      (entry.pinCode ?? "").trim() === normalizedPin
+    );
+  });
+
+  const now = new Date();
+  const nextAddress = {
+    id: existingIndex >= 0 ? existingAddresses[existingIndex].id : randomBytes(8).toString("hex"),
+    fullName: addr.fullName?.trim() ?? "",
+    email: addr.email?.trim().toLowerCase() ?? "",
+    phone: addr.phone?.trim() ?? "",
+    address: addr.address,
+    city: addr.city ?? "",
+    state: addr.state,
+    pinCode: addr.pinCode ?? "",
+    tag: "HOME" as const,
+    updatedAt: now,
+  };
+
+  const mergedAddresses =
+    existingIndex >= 0
+      ? [
+          nextAddress,
+          ...existingAddresses.filter((_, index) => index !== existingIndex),
+        ]
+      : [nextAddress, ...existingAddresses];
+
+  const cappedAddresses = mergedAddresses.slice(0, 10);
+
   const setFields: Record<string, unknown> = {
     address: addr.address,
     state: addr.state,
-    updatedAt: new Date(),
+    shippingAddresses: cappedAddresses,
+    updatedAt: now,
   };
   if (addr.fullName) setFields.fullName = addr.fullName;
+  if (addr.phone) setFields.phone = addr.phone;
   if (addr.city) setFields.city = addr.city;
   if (addr.pinCode) setFields.pinCode = addr.pinCode;
   await users.updateOne({ _id: session.userId }, { $set: setFields });
+
+  const refreshedUser = await users.findOne({ _id: session.userId });
+  return refreshedUser ? mapProfile(refreshedUser) : null;
 }
 
 export async function createPendingOrderForSessionToken(

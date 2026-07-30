@@ -33,6 +33,23 @@ export type ProductVariant = {
   options: ProductVariantOption[];
 };
 
+export type ProductCustomizationSide = {
+  artworkUrl: string;
+  previewDataUrl: string;
+  positionX: number;
+  positionY: number;
+  scaleX: number;
+  scaleY: number;
+  angle: number;
+};
+
+export type ProductCustomization = {
+  front: ProductCustomizationSide | null;
+  back: ProductCustomizationSide | null;
+};
+
+export const CUSTOM_DESIGN_SURCHARGE_INR = 499;
+
 export type GridProduct = {
   id: string;
   parentId?: string;
@@ -56,6 +73,8 @@ export type GridProduct = {
   optionGroups?: ProductOptionGroup[];
   sizeChart?: ProductSizeChart;
   variants?: ProductVariant[];
+  /** Custom print-on-demand design data attached when ordering a Signature product */
+  customization?: ProductCustomization;
 };
 
 export const fallbackProducts: GridProduct[] = [

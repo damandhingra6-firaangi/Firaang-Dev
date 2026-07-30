@@ -29,7 +29,10 @@ import {
 } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import ProductSizeChartModal from "@/components/ProductSizeChartModal";
-import { GridProduct } from "@/lib/catalog";
+import CustomDesignSection from "@/components/CustomDesignSection";
+import type { DesignCustomization } from "@/components/DesignStudio";
+import { CUSTOM_DESIGN_SURCHARGE_INR, GridProduct } from "@/lib/catalog";
+import { isSignatureProduct } from "@/lib/design-inquiry";
 import { COMPANY_MANUFACTURER_DETAILS } from "@/lib/company";
 import { convertAmount, formatCurrency } from "@/lib/currency";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
@@ -84,6 +87,11 @@ type GalleryItem = {
   type: "image" | "video";
   src: string;
   thumbnail?: string;
+  label: string;
+};
+
+type ImageCandidate = {
+  src: string;
   label: string;
 };
 
@@ -177,6 +185,21 @@ function getSwatchColor(value: string) {
 function parseAmount(value: string) {
   const parsed = Number.parseFloat(value.replace(/[^0-9.]/g, ""));
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function hasBackKeyword(input: string) {
+  const text = input.toLowerCase();
+  return /(\bback\b|\brear\b|\bbackside\b|\breverse\b|\bback-view\b|\bbackview\b)/.test(text);
+}
+
+function hasFrontKeyword(input: string) {
+  const text = input.toLowerCase();
+  return /(\bfront\b|\bfront-view\b|\bfrontview\b)/.test(text);
+}
+
+function looksLikeModelShot(input: string) {
+  const text = input.toLowerCase();
+  return /(\bmodel\b|\bwear\b|\bworn\b|\bman\b|\bwoman\b|\bperson\b|\blifestyle\b)/.test(text);
 }
 
 function roundRating(value: number) {
@@ -404,6 +427,10 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [isSizeChartOpen, setIsSizeChartOpen] = useState(false);
+  const [designCustomization, setDesignCustomization] = useState<DesignCustomization | null>(null);
+  // TODO: revert to tag-based check once product is tagged in Shopify with "firaang-signature"
+  // const isSignature = isSignatureProduct(product.tags);
+  const isSignature = true;
   const swipeStartRef = useRef<number | null>(null);
 
   const variants = product.variants ?? [];
@@ -434,7 +461,9 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   const basePrice = product.priceAmount;
   const comparePrice = Math.max(parseAmount(product.oldPrice) || basePrice + 1200, basePrice + 1200);
   const discountPercent = Math.max(0, Math.round(((comparePrice - basePrice) / comparePrice) * 100));
-  const displayPrice = formatCurrency(convertAmount(basePrice, "INR", displayCurrency), displayCurrency);
+  const hasAnyDesign = Boolean(designCustomization?.front ?? designCustomization?.back);
+  const effectivePriceAmount = basePrice + (hasAnyDesign ? CUSTOM_DESIGN_SURCHARGE_INR : 0);
+  const displayPrice = formatCurrency(convertAmount(effectivePriceAmount, "INR", displayCurrency), displayCurrency);
   const displayOldPrice = formatCurrency(convertAmount(comparePrice, "INR", displayCurrency), displayCurrency);
 
   useEffect(() => {
@@ -526,6 +555,62 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
 
     return galleryItems[0] ?? null;
   }, [activeVariant, galleryItems, selectedMediaId]);
+
+  const designStudioMockups = useMemo(() => {
+    const frontSrc = activeVariant?.img ?? product.img;
+    const candidates: ImageCandidate[] = [];
+
+    for (const media of product.productMedia ?? []) {
+      if (media.type === "image" && media.src) {
+        candidates.push({ src: media.src, label: media.alt ?? "" });
+      }
+    }
+
+    for (const src of product.galleryImages ?? []) {
+      if (src) {
+        candidates.push({ src, label: src });
+      }
+    }
+
+    for (const variant of variants) {
+      if (variant.img) {
+        candidates.push({ src: variant.img, label: `${variant.name} ${variant.img}` });
+      }
+    }
+
+    const unique = new Map<string, ImageCandidate>();
+    for (const candidate of candidates) {
+      if (!unique.has(candidate.src)) {
+        unique.set(candidate.src, candidate);
+      }
+    }
+    const list = Array.from(unique.values());
+    const nonFront = list.filter((item) => item.src !== frontSrc);
+
+    const explicitBack = nonFront.find((item) => {
+      return hasBackKeyword(item.label) || hasBackKeyword(item.src);
+    });
+
+    const explicitFront = list.find((item) => {
+      if (item.src !== frontSrc) return false;
+      return hasFrontKeyword(item.label) || hasFrontKeyword(item.src);
+    });
+
+    const likelyBack = nonFront.find((item) => {
+      const descriptor = `${item.label} ${item.src}`;
+      if (hasFrontKeyword(descriptor)) return false;
+      if (looksLikeModelShot(descriptor)) return false;
+      return true;
+    });
+
+    // Last distinct image is usually back/alternate studio shot when metadata is missing.
+    const lastDistinctFallback = nonFront.length > 0 ? nonFront[nonFront.length - 1] : null;
+
+    return {
+      front: explicitFront?.src ?? frontSrc,
+      back: explicitBack?.src ?? likelyBack?.src ?? lastDistinctFallback?.src ?? frontSrc,
+    };
+  }, [activeVariant?.img, product.galleryImages, product.img, product.productMedia, variants]);
 
   const previewIndex = Math.max(0, galleryItems.findIndex((item) => item.id === activeMedia?.id));
   const sizeChartImage = galleryItems.length > 0 ? galleryItems[galleryItems.length - 1]?.src ?? null : null;
@@ -647,9 +732,20 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
     }
 
     setIsAdding(true);
-    addToCart(resolvedProduct);
+    const productToAdd = hasAnyDesign
+      ? {
+          ...resolvedProduct,
+          priceAmount: resolvedProduct.priceAmount + CUSTOM_DESIGN_SURCHARGE_INR,
+          price: formatCurrency(convertAmount(resolvedProduct.priceAmount + CUSTOM_DESIGN_SURCHARGE_INR, "INR", displayCurrency), displayCurrency),
+          customization: designCustomization ?? undefined,
+        }
+      : resolvedProduct;
+    addToCart(productToAdd);
     openCart();
-    pushToast("Added to bag", { variant: "success" });
+    pushToast(
+      hasAnyDesign ? "Custom design added to bag" : "Added to bag",
+      { variant: "success" }
+    );
     window.setTimeout(() => setIsAdding(false), 450);
   };
 
@@ -778,7 +874,6 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   };
 
   const specs = [
-    { label: "Product Description", value: product.description },
     { label: "Material & Fabric", value: product.tags?.find((tag) => /cotton|silk|linen|viscose|wool/i.test(tag)) ?? "Premium woven fabric" },
     { label: "Fit", value: product.tags?.find((tag) => /regular|slim|relaxed|straight/i.test(tag)) ?? "Regular fit" },
     { label: "Pattern", value: product.tags?.find((tag) => /embroider|printed|woven|solid|checked/i.test(tag)) ?? "Contemporary solid finish" },
@@ -927,6 +1022,27 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
             <InfoCard title="Delivery" text="Fast dispatch, tracked shipping, and serviceability by pincode." />
             <InfoCard title="Easy returns" text="Return and exchange support on eligible orders." />
           </div>
+
+          {isSignature && (
+            <CustomDesignSection
+              productName={product.name}
+              productId={product.id}
+              onCustomizationChange={setDesignCustomization}
+              productImageFront={designStudioMockups.front}
+              productImageBack={designStudioMockups.back}
+            />
+          )}
+
+          <SectionShell title="Product Details" subtitle="All essential product information at a glance.">
+            <div className="grid gap-3 md:grid-cols-2">
+              {specs.map((item) => (
+                <div key={item.label} className="rounded-2xl border border-[#eaded3] bg-white p-4 md:p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8e7f75]">{item.label}</p>
+                  <p className="mt-2 text-sm leading-7 text-[#4d4540] break-words">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </SectionShell>
         </div>
 
         <div className="min-w-0 space-y-6 rounded-[30px] border border-white/80 bg-[rgba(255,253,250,0.96)] p-5 shadow-[0_18px_60px_rgba(97,52,27,0.08)] md:p-6 lg:sticky lg:top-28 lg:self-start">
@@ -965,6 +1081,11 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
               <p className="text-4xl font-semibold tracking-tight text-[#271e1b] md:text-[2.85rem]">{displayPrice}</p>
               <p className="text-lg text-[#917d72] line-through">{displayOldPrice}</p>
               <p className="rounded-full bg-[#ffe7d7] px-3 py-1 text-sm font-semibold text-[#b2552b]">{discountPercent}% OFF</p>
+              {hasAnyDesign && (
+                <p className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
+                  +{formatCurrency(convertAmount(CUSTOM_DESIGN_SURCHARGE_INR, "INR", displayCurrency), displayCurrency)} Custom Print
+                </p>
+              )}
             </div>
             <p className="mt-2 text-sm text-[#6f625b]">Inclusive of all taxes. Additional discounts may apply at checkout.</p>
             <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[#5d534d]">
@@ -1011,7 +1132,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--secondary)] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#9f3940] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
-              Add to Bag
+              {hasAnyDesign ? "Add Custom Design to Bag" : "Add to Bag"}
             </button>
             <button
               type="button"
@@ -1023,6 +1144,19 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
               Wishlist
             </button>
           </div>
+
+          {hasAnyDesign && (
+            <div className="flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              <Sparkles className="h-4 w-4 shrink-0 mt-0.5 text-emerald-500" />
+              <span>
+                <strong>Custom design attached</strong>
+                {designCustomization?.front && <span className="ml-1">— front print</span>}
+                {designCustomization?.front && designCustomization?.back && <span>, </span>}
+                {designCustomization?.back && <span className={designCustomization?.front ? "" : "ml-1"}>— back print</span>}
+                . Your artwork will be printed exactly as positioned.
+              </span>
+            </div>
+          )}
 
           <div className="rounded-[24px] border border-[#ede2d7] bg-[#fffaf5] p-4">
             <div className="flex items-center justify-between gap-3">
@@ -1071,19 +1205,8 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
         </div>
       </div>
 
-      <div className="mt-10 grid gap-7 lg:mt-8 lg:gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="mt-8 grid gap-7 lg:mt-6 lg:gap-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] xl:gap-12">
         <div className="min-w-0 space-y-6">
-          <SectionShell title="Product Details" subtitle="All essential product information at a glance.">
-            <div className="grid gap-3 md:grid-cols-2">
-              {specs.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-[#eaded3] bg-white p-4 md:p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8e7f75]">{item.label}</p>
-                  <p className="mt-2 text-sm leading-7 text-[#4d4540] break-words">{item.value}</p>
-                </div>
-              ))}
-            </div>
-          </SectionShell>
-
           <SectionShell title="Specifications" subtitle="Structured product attributes for quick scanning.">
             <div className="grid gap-3 md:grid-cols-2">
               <SpecCard label="Brand" value={getBrand(product)} />
@@ -1135,12 +1258,12 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {reviewSource.map((review) => (
                 <article key={review.id} className="rounded-3xl border border-[#eaded3] bg-white p-4 md:p-5">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                    <div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2">
+                    <div className="min-w-0">
                       <p className="font-semibold text-[var(--page-fg)]">{review.reviewerName || "Verified buyer"}</p>
                       <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[#8f7f74]">{review.verifiedPurchase ? "Verified purchase" : "Customer review"}</p>
                     </div>
-                    <div className="flex items-center gap-1">{renderStars(review.rating)}</div>
+                    <div className="flex shrink-0 items-center gap-1 justify-self-end">{renderStars(review.rating)}</div>
                   </div>
                   <p className="mt-4 text-sm font-semibold text-[#352f2c]">{review.title ?? "Customer review"}</p>
                   <p className="mt-2 text-sm leading-7 text-[#5d534d] break-words">{review.message}</p>

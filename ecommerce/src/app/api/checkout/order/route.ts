@@ -157,6 +157,7 @@ export async function POST(request: Request) {
     if (sessionToken && shippingAddress && shippingState) {
       await saveShippingAddressForSessionToken(sessionToken, {
         fullName: shippingName || undefined,
+        email: shippingEmail || undefined,
         address: shippingAddress,
         city: shippingCity || undefined,
         state: shippingState,

@@ -14,7 +14,9 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@types/fabric": "^5.3.11",
     "axios": "^1.14.0",
+    "fabric": "^6.9.1",
     "google-auth-library": "^10.6.2",
     "lucide-react": "^1.7.0",
     "mongodb": "^6.18.0",
