@@ -39,7 +39,7 @@ const sections = [
   {
     title: "6. Refunds & Replacement Timelines",
     subtitle: "What happens after approval",
-    body: "If a refund is approved, the amount is credited to your Firaang wallet. If a replacement is approved, production begins immediately after approval and dispatch follows our standard production and shipping timelines.",
+    body: "If a refund is approved, the amount will be refunded to your original payment method. If a replacement is approved, production will begin immediately after approval, and the order will be dispatched as per our standard production and shipping timelines.",
   },
   {
     title: "7. Recommended Clarifications (Best Practice)",
