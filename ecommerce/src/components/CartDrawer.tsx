@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ChevronRight, Minus, Package, Plus, ShoppingBag, Tag, Trash2, X } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import { INDIAN_STATES, calculateCheckoutPricing, type ShippingMethod } from "@/lib/checkout-config";
+import { CUSTOM_DESIGN_SURCHARGE_INR } from "@/lib/catalog";
 import { convertAmount, formatCurrency } from "@/lib/currency";
 import { getCartCount, getCartItems, getCartSubtotal, useShopStore } from "@/store/useShopStore";
 import { useAccountStore } from "@/store/useAccountStore";
@@ -350,7 +351,11 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: cartItems.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
+          items: cartItems.map((item) => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+            customDesignSurchargeINR: item.product.customization ? CUSTOM_DESIGN_SURCHARGE_INR : 0,
+          })),
           shippingName: shippingName.trim(),
           shippingEmail: shippingEmail.trim(),
           shippingAddress: shippingAddress.trim(),

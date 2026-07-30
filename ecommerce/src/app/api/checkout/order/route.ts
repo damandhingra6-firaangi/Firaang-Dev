@@ -3,6 +3,7 @@ import { createPendingOrderForSessionToken, saveShippingAddressForSessionToken }
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { calculateCheckoutPricing, computeCouponDiscount, estimateOrderWeightKg, type ShippingMethod } from "@/lib/checkout-config";
+import { CUSTOM_DESIGN_SURCHARGE_INR } from "@/lib/catalog";
 import { getRazorpayClient } from "@/lib/razorpay";
 import { resolveCheckoutItems } from "@/lib/products";
 import { getActiveCouponByCode } from "@/lib/coupon-store";
@@ -20,6 +21,7 @@ type CreateOrderRequest = {
   items?: Array<{
     productId?: string;
     quantity?: number;
+    customDesignSurchargeINR?: number;
   }>;
   shippingName?: string;
   shippingEmail?: string;
@@ -68,7 +70,35 @@ export async function POST(request: Request) {
       }))
       .filter((item) => item.productId.length > 0);
 
-    const { items, totalPaise, currencyCode } = await resolveCheckoutItems(checkoutItems);
+    // Build a per-productId surcharge map (server clamps to the known constant to prevent tampering)
+    const surchargeByProductId = new Map<string, number>();
+    for (const item of rawItems) {
+      const pid = item.productId ?? "";
+      if (pid && typeof item.customDesignSurchargeINR === "number" && item.customDesignSurchargeINR > 0) {
+        surchargeByProductId.set(pid, CUSTOM_DESIGN_SURCHARGE_INR);
+      }
+    }
+
+    const { items: resolvedItems, currencyCode } = await resolveCheckoutItems(checkoutItems);
+
+    // Apply custom design surcharge to matching resolved items
+    const items = resolvedItems.map((item) => {
+      const surcharge = surchargeByProductId.get(item.product.id) ?? 0;
+      if (surcharge <= 0) return item;
+      return {
+        ...item,
+        product: {
+          ...item.product,
+          name: `${item.product.name} (Custom Print)`,
+          priceAmount: item.product.priceAmount + surcharge,
+        },
+      };
+    });
+
+    // Recalculate totalPaise from surcharge-adjusted items
+    const totalPaise = items.reduce((sum, item) => {
+      return sum + Math.round(item.product.priceAmount * 100) * item.quantity;
+    }, 0);
 
     if (items.length === 0 || totalPaise <= 0) {
       return NextResponse.json({ error: "No valid items found for checkout" }, { status: 400 });

@@ -428,9 +428,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [isSizeChartOpen, setIsSizeChartOpen] = useState(false);
   const [designCustomization, setDesignCustomization] = useState<DesignCustomization | null>(null);
-  // TODO: revert to tag-based check once product is tagged in Shopify with "firaang-signature"
-  // const isSignature = isSignatureProduct(product.tags);
-  const isSignature = true;
+  const isSignature = isSignatureProduct(product.tags);
   const swipeStartRef = useRef<number | null>(null);
 
   const variants = product.variants ?? [];

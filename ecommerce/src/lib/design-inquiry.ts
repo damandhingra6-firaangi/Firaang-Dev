@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const FIRAANG_SIGNATURE_TAGS = [
+  "signature",
   "firaang-signature",
   "firaangsignature",
   "custom-design",
@@ -11,7 +12,7 @@ export const FIRAANG_SIGNATURE_TAGS = [
 export function isSignatureProduct(tags?: string[]): boolean {
   if (!tags || tags.length === 0) return false;
   const normalizedTags = tags.map((t) => t.trim().toLowerCase());
-  return FIRAANG_SIGNATURE_TAGS.some((tag) => normalizedTags.includes(tag));
+  return FIRAANG_SIGNATURE_TAGS.some((tag) => normalizedTags.includes(tag.toLowerCase()));
 }
 
 export const designInquirySchema = z.object({

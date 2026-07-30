@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import AccountModal from "@/components/AccountModal";
 import Link from "next/link";
+import { BookMarked, CreditCard, Heart, MapPin, Package, User } from "lucide-react";
 
 type AccountPageProps = {
   searchParams?: Promise<{ tab?: string }>;
@@ -28,50 +29,73 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
   const params = searchParams ? await searchParams : undefined;
 
   return (
-    <main className="min-h-screen bg-[var(--page-bg)]">
+    <main className="min-h-screen bg-[#f7f8fc]">
       <Navbar />
       <div className="h-24 md:h-28" />
       <section className="section-shell pb-12 pt-6 md:pb-16 md:pt-8">
-        <div className="mb-5 md:mb-6">
-          <p className="text-xs uppercase tracking-[0.18em] text-[var(--gold)]">Account</p>
-          <h1 className="mt-2 text-3xl text-[var(--page-fg)] md:text-4xl">Manage Your Profile</h1>
-          <p className="mt-2 text-sm text-[var(--popup-subtext)]">View personal details, orders, addresses, wishlist, payment methods, and secure logout in one place.</p>
+        <div className="mb-6 md:mb-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#ff3f6c]">Account</p>
+          <h1 className="mt-1.5 text-3xl font-semibold text-[#1f2430] md:text-4xl">Manage Your Profile</h1>
+          <p className="mt-2 text-sm text-[#6b7280]">View personal details, orders, addresses, wishlist, and more.</p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-          <aside className="rounded-xl border border-[#e5e7ee] bg-white p-4 shadow-[0_8px_24px_rgba(40,44,63,0.06)]">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.1em] text-[#535766]">Account Menu</p>
-            <nav className="space-y-1 text-sm text-[#282c3f]">
-              <Link href="/account?tab=overview" className="block rounded-md px-2 py-2 hover:bg-[#f6f7fa] hover:text-[#ff3f6c]">Personal Information</Link>
-              <Link href="/account?tab=profile" className="block rounded-md px-2 py-2 hover:bg-[#f6f7fa] hover:text-[#ff3f6c]">Profile Details</Link>
-              <Link href="/account?tab=orders" className="block rounded-md px-2 py-2 hover:bg-[#f6f7fa] hover:text-[#ff3f6c]">Orders</Link>
-              <Link href="/account?tab=profile" className="block rounded-md px-2 py-2 hover:bg-[#f6f7fa] hover:text-[#ff3f6c]">Saved Addresses</Link>
-              <Link href="/shop" className="block rounded-md px-2 py-2 hover:bg-[#f6f7fa] hover:text-[#ff3f6c]">Wishlist</Link>
-              <Link href="/account?tab=profile" className="block rounded-md px-2 py-2 hover:bg-[#f6f7fa] hover:text-[#ff3f6c]">Saved Payment Methods</Link>
-            </nav>
+        <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="space-y-3">
+            <div className="rounded-2xl border border-[#e6e8f0] bg-white p-4 shadow-sm">
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[#9ca3af]">Account Menu</p>
+              <nav className="space-y-0.5 text-sm">
+                <Link href="/account?tab=overview" className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 font-medium text-[#1f2430] transition hover:bg-[#f7f8fc] hover:text-[#ff3f6c]">
+                  <User className="h-4 w-4 shrink-0" /> Personal Information
+                </Link>
+                <Link href="/account?tab=profile" className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 font-medium text-[#1f2430] transition hover:bg-[#f7f8fc] hover:text-[#ff3f6c]">
+                  <BookMarked className="h-4 w-4 shrink-0" /> Profile Details
+                </Link>
+                <Link href="/account?tab=orders" className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 font-medium text-[#1f2430] transition hover:bg-[#f7f8fc] hover:text-[#ff3f6c]">
+                  <Package className="h-4 w-4 shrink-0" /> Orders
+                </Link>
+                <Link href="/account?tab=profile" className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 font-medium text-[#1f2430] transition hover:bg-[#f7f8fc] hover:text-[#ff3f6c]">
+                  <MapPin className="h-4 w-4 shrink-0" /> Saved Addresses
+                </Link>
+                <Link href="/shop" className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 font-medium text-[#1f2430] transition hover:bg-[#f7f8fc] hover:text-[#ff3f6c]">
+                  <Heart className="h-4 w-4 shrink-0" /> Wishlist
+                </Link>
+                <Link href="/account?tab=profile" className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 font-medium text-[#1f2430] transition hover:bg-[#f7f8fc] hover:text-[#ff3f6c]">
+                  <CreditCard className="h-4 w-4 shrink-0" /> Saved Payment Methods
+                </Link>
+              </nav>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+              <Link href="/account?tab=profile" className="flex items-start gap-3 rounded-2xl border border-[#e6e8f0] bg-white p-4 text-sm shadow-sm transition hover:border-[#ff3f6c]/30 hover:shadow-md">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#ff3f6c]" />
+                <div>
+                  <p className="font-semibold text-[#1f2430]">Saved Addresses</p>
+                  <p className="mt-0.5 text-xs text-[#9ca3af]">Manage shipping addresses for faster checkout.</p>
+                </div>
+              </Link>
+              <Link href="/shop" className="flex items-start gap-3 rounded-2xl border border-[#e6e8f0] bg-white p-4 text-sm shadow-sm transition hover:border-[#ff3f6c]/30 hover:shadow-md">
+                <Heart className="mt-0.5 h-4 w-4 shrink-0 text-[#ff3f6c]" />
+                <div>
+                  <p className="font-semibold text-[#1f2430]">Wishlist</p>
+                  <p className="mt-0.5 text-xs text-[#9ca3af]">Review saved products and move to bag.</p>
+                </div>
+              </Link>
+              <Link href="/account?tab=profile" className="flex items-start gap-3 rounded-2xl border border-[#e6e8f0] bg-white p-4 text-sm shadow-sm transition hover:border-[#ff3f6c]/30 hover:shadow-md">
+                <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-[#ff3f6c]" />
+                <div>
+                  <p className="font-semibold text-[#1f2430]">Payment Methods</p>
+                  <p className="mt-0.5 text-xs text-[#9ca3af]">Keep payment preferences ready.</p>
+                </div>
+              </Link>
+            </div>
           </aside>
 
-          <div className="space-y-4">
+          <div>
             <AccountModal
               isOpen={true}
               initialView={toInitialView(params?.tab)}
               mode="page"
             />
-
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Link href="/account?tab=profile" className="rounded-xl border border-[#e5e7ee] bg-white p-4 text-sm text-[#282c3f] shadow-[0_5px_20px_rgba(40,44,63,0.05)] transition hover:-translate-y-0.5 hover:border-[#ffc1d2]">
-                <p className="font-semibold">Saved Addresses</p>
-                <p className="mt-1 text-xs text-[#696e79]">Manage shipping addresses for faster checkout.</p>
-              </Link>
-              <Link href="/shop" className="rounded-xl border border-[#e5e7ee] bg-white p-4 text-sm text-[#282c3f] shadow-[0_5px_20px_rgba(40,44,63,0.05)] transition hover:-translate-y-0.5 hover:border-[#ffc1d2]">
-                <p className="font-semibold">Wishlist</p>
-                <p className="mt-1 text-xs text-[#696e79]">Review your saved products and move to bag.</p>
-              </Link>
-              <Link href="/account?tab=profile" className="rounded-xl border border-[#e5e7ee] bg-white p-4 text-sm text-[#282c3f] shadow-[0_5px_20px_rgba(40,44,63,0.05)] transition hover:-translate-y-0.5 hover:border-[#ffc1d2]">
-                <p className="font-semibold">Saved Payment Methods</p>
-                <p className="mt-1 text-xs text-[#696e79]">Keep payment preferences ready for quick purchases.</p>
-              </Link>
-            </div>
           </div>
         </div>
       </section>

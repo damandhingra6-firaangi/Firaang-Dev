@@ -95,6 +95,11 @@ Required for this project:
 - `RAZORPAY_KEY_SECRET`
 - `NEXT_PUBLIC_RAZORPAY_KEY_ID`
 
+Required for order confirmation emails (via Resend):
+
+- `RESEND_API_KEY`
+- `ORDER_EMAIL_FROM` — the `from` address for order emails, e.g. `Firaang <orders@firaang.com>`
+
 Optional if you use Shopify homepage data:
 
 - `SHOPIFY_STORE_DOMAIN`

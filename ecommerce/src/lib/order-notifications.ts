@@ -185,8 +185,8 @@ export async function notifyOrderPaid(context: OrderNotificationContext) {
           <td style="padding:0 0 12px 0">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #efe2d7;border-radius:12px;background:#ffffff;">
               <tr>
-                <td width="78" style="padding:12px;vertical-align:top">
-                  <img src="${escapeHtml(image)}" alt="${escapeHtml(item.name)}" width="64" height="64" style="display:block;border-radius:8px;border:1px solid #eaded4;background:#fbf7f3" />
+                <td width="100" style="padding:12px;vertical-align:top">
+                  <img src="${escapeHtml(image)}" alt="${escapeHtml(item.name)}" width="88" height="88" style="display:block;width:88px;height:88px;border-radius:10px;border:1px solid #eaded4;background:#fbf7f3;object-fit:cover" />
                 </td>
                 <td style="padding:12px 0 12px 0;vertical-align:top">
                   <div style="font-size:14px;line-height:20px;color:#1c1a18;font-weight:600;padding-right:10px">${escapeHtml(item.name)}</div>
