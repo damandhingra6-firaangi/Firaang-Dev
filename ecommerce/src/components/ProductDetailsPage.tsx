@@ -1215,6 +1215,10 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
             </div>
           </SectionShell>
 
+          <SectionShell title="Product Description" subtitle="A richer look at the fit, finish, and styling context.">
+            <p className="max-w-3xl text-sm leading-7 text-[#4f4641] break-words">{product.description}</p>
+          </SectionShell>
+
           <SectionShell title="Ratings & Reviews" subtitle="Average rating, distribution, and customer opinions.">
             <div className="grid gap-5 lg:grid-cols-[240px_1fr]">
               <div className="rounded-3xl border border-[#eaded3] bg-white p-4 text-center md:p-5">
@@ -1344,10 +1348,6 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
                 ) : null}
               </div>
             </form>
-          </SectionShell>
-
-          <SectionShell title="Product Description" subtitle="A richer look at the fit, finish, and styling context.">
-            <p className="max-w-3xl text-sm leading-7 text-[#4f4641] break-words">{product.description}</p>
           </SectionShell>
         </div>
 

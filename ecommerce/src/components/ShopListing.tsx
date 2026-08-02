@@ -133,8 +133,8 @@ export default function ShopListing({
   initialCollectionTitle = "",
 }: ShopListingProps) {
   const [query, setQuery] = useState(() => initialQuery);
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
-  const [selectedSubCategory, setSelectedSubCategory] = useState(initialSubCategory);
+  const [selectedCategory, setSelectedCategory] = useState(initialCollection ? "" : initialCategory);
+  const [selectedSubCategory, setSelectedSubCategory] = useState(initialCollection ? "" : initialSubCategory);
   const [selectedAudience, setSelectedAudience] = useState(initialAudience);
   const [selectedSort, setSelectedSort] = useState<SortOption>("recommended");
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
@@ -270,10 +270,10 @@ export default function ShopListing({
         if (query.trim()) {
           params.set("q", query.trim());
         }
-        if (selectedCategory) {
+        if (!initialCollection && selectedCategory) {
           params.set("category", selectedCategory);
         }
-        if (selectedSubCategory) {
+        if (!initialCollection && selectedSubCategory) {
           params.set("subCategory", selectedSubCategory);
         }
         if (selectedAudience) {

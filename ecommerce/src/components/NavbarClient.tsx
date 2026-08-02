@@ -87,6 +87,7 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
 
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const collectionsRef = useRef<HTMLDivElement | null>(null);
+  const collectionsCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const displayName = useMemo(
     () => getDisplayName(profile.fullName, profile.email, profile.phone),
@@ -132,6 +133,33 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
       document.body.style.removeProperty("overflow");
     };
   }, [isMobileMenuOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (collectionsCloseTimeoutRef.current) {
+        clearTimeout(collectionsCloseTimeoutRef.current);
+        collectionsCloseTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  const openCollectionsDropdown = () => {
+    if (collectionsCloseTimeoutRef.current) {
+      clearTimeout(collectionsCloseTimeoutRef.current);
+      collectionsCloseTimeoutRef.current = null;
+    }
+    setIsCollectionsOpen(true);
+  };
+
+  const closeCollectionsDropdown = (delayMs = 80) => {
+    if (collectionsCloseTimeoutRef.current) {
+      clearTimeout(collectionsCloseTimeoutRef.current);
+    }
+    collectionsCloseTimeoutRef.current = setTimeout(() => {
+      setIsCollectionsOpen(false);
+      collectionsCloseTimeoutRef.current = null;
+    }, delayMs);
+  };
 
   const navigateToAccount = (view: AccountView) => {
     const tab = view === "signin" ? "overview" : view;
@@ -221,12 +249,18 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
               <div
                 className="relative"
                 ref={collectionsRef}
-                onMouseEnter={() => setIsCollectionsOpen(true)}
-                onMouseLeave={() => setIsCollectionsOpen(false)}
+                onMouseEnter={openCollectionsDropdown}
+                onMouseLeave={() => closeCollectionsDropdown()}
               >
                 <button
                   type="button"
-                  onClick={() => setIsCollectionsOpen((prev) => !prev)}
+                  onClick={() => {
+                    if (isCollectionsOpen) {
+                      closeCollectionsDropdown(0);
+                      return;
+                    }
+                    openCollectionsDropdown();
+                  }}
                   className={`${desktopNavLinkClass} gap-1`}
                 >
                   COLLECTIONS
@@ -234,7 +268,12 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
                 </button>
 
                 {isCollectionsOpen ? (
-                  <div className="absolute left-1/2 top-[calc(100%+10px)] z-[110] w-[560px] -translate-x-1/2 overflow-hidden rounded-md border border-[#e3e4e8] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.12)]">
+                  <div
+                    className="absolute left-1/2 top-full z-[110] w-[560px] -translate-x-1/2 pt-2"
+                    onMouseEnter={openCollectionsDropdown}
+                    onMouseLeave={() => closeCollectionsDropdown()}
+                  >
+                    <div className="overflow-hidden rounded-md border border-[#e3e4e8] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.12)]">
                     <div className="grid grid-cols-2 gap-1 p-2">
                       {dropdownCollections.length === 0 ? (
                         <Link
@@ -262,6 +301,7 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
                         </Link>
                       ))}
                     </div>
+                  </div>
                   </div>
                 ) : null}
               </div>

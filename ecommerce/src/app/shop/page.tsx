@@ -5,7 +5,6 @@ import ShopListing from "@/components/ShopListing";
 import JewelleryComingSoonGate from "@/components/JewelleryComingSoonGate";
 import { fallbackProducts } from "@/lib/catalog";
 import { createPageMetadata } from "@/lib/seo";
-import { getShopifyCollectionsContent } from "@/lib/shopify-collections";
 import { getStorefrontProducts, getStorefrontProductsByCollection } from "@/lib/shopify";
 import { humanizeHandle } from "@/lib/text";
 import { isJewellerySlug } from "@/lib/jewellery";
@@ -38,15 +37,11 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     );
   }
 
-  const [storefrontProducts, collectionsContent] = await Promise.all([
-    collection ? getStorefrontProductsByCollection(collection, 250) : getStorefrontProducts(250),
-    collection ? getShopifyCollectionsContent() : Promise.resolve(null),
-  ]);
+  const storefrontProducts = await (
+    collection ? getStorefrontProductsByCollection(collection, 250) : getStorefrontProducts(250)
+  );
 
-  const collectionTitle = collection
-    ? collectionsContent?.collections.find((item) => item.handle.toLowerCase() === collection.toLowerCase())?.title ??
-      humanizeHandle(collection)
-    : "";
+  const collectionTitle = collection ? humanizeHandle(collection) : "";
 
   const products = collection
     ? storefrontProducts

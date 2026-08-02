@@ -5,34 +5,18 @@ import { useRef } from "react";
 import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 
-const categories = [
-  {
-    name: "Sweatshirts",
-    count: "85 Products",
-    img: "/Sweatshirts.png",
-    href: "/shop?category=sweatshirts",
-  },
-  {
-    name: "T - Shirts",
-    count: "80 Products",
-    img: "/T-shirts.png",
-    href: "/shop?category=t-shirts",
-  },
-  {
-    name: "Hoodies",
-    count: "50 Products",
-    img: "/Hoodies.jpg",
-    href: "/shop?category=accessories",
-  },
-  {
-    name: "Cap",
-    count: "100 Products",
-    img: "/Cap.png",
-    href: "/shop?category=accessories",
-  },
-];
+type CategoryCard = {
+  name: string;
+  href: string;
+  img: string;
+  count: number;
+};
 
-export default function Category() {
+type CategoryProps = {
+  categories: CategoryCard[];
+};
+
+export default function Category({ categories }: CategoryProps) {
   const railRef = useRef<HTMLDivElement | null>(null);
 
   const scrollRail = (direction: "left" | "right") => {
@@ -100,7 +84,9 @@ export default function Category() {
                 <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-5 text-white md:p-6">
                   <div>
                     <p className="font-sans text-[38px] font-semibold leading-[0.95] tracking-[-0.02em] sm:text-[30px] sm:leading-[1] sm:tracking-[-0.01em] md:text-[35px]">{category.name}</p>
-                    {/* <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.04em] text-white/80">{category.count}</p> */}
+                    <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.04em] text-white/80">
+                      {category.count} {category.count === 1 ? "Product" : "Products"}
+                    </p>
                   </div>
 
                   <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition duration-300 group-hover:bg-[#ED467A] group-hover:scale-110 group-hover:shadow-[0_0_0_3px_rgba(237,70,122,0.35)] group-hover:text-white">

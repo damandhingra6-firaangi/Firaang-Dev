@@ -59,14 +59,32 @@ const CATEGORY_TAG_OVERRIDES: CategoryTagOverride[] = [
     match: [/\bhoodies?\b/i, /\bcategory\s*[:=]\s*hoodies?\b/i],
   },
   {
-    category: "Sweatshirts",
-    subCategoryFallback: "All Sweatshirts",
+    category: "Full-Sleeve T-shirt",
+    subCategoryFallback: "All Full-Sleeve T-shirts",
     match: [/\bsweat[-_\s]?shirts?\b/i, /\bcrew[-_\s]?necks?\b/i, /\bpullovers?\b/i, /\bcategory\s*[:=]\s*sweat[-_\s]?shirts?\b/i],
   },
   {
     category: "T-Shirts",
     subCategoryFallback: "Classic T-Shirts",
     match: [/\bt[-_\s]?shirts?\b/i, /\bcategory\s*[:=]\s*t[-_\s]?shirts?\b/i],
+  },
+  {
+    category: "Bottomwear",
+    subCategoryFallback: "All Bottomwear",
+    match: [
+      /\bpants?\b/i,
+      /\bjoggers?\b/i,
+      /\blowers?\b/i,
+      /\btrousers?\b/i,
+      /\bshorts\b/i,
+      /\bpalazzos?\b/i,
+      /\blounge[-_\s]?pants?\b/i,
+      /\bbottomwear\b/i,
+      /\bcargo[-_\s]?pants?\b/i,
+      /\bcategory\s*[:=]\s*bottomwear\b/i,
+      /\bcategory\s*[:=]\s*pants?\b/i,
+      /\bcategory\s*[:=]\s*lowers?\b/i,
+    ],
   },
   {
     category: "Caps",
@@ -95,6 +113,21 @@ const CATEGORY_RULES: CategoryRule[] = [
     category: "T-Shirts",
     subCategoryFallback: "Classic T-Shirts",
     match: [/\bt[-\s]?shirt\b/i, /\btee\b/i],
+  },
+  {
+    category: "Bottomwear",
+    subCategoryFallback: "All Bottomwear",
+    match: [
+      /\bpants?\b/i,
+      /\bjoggers?\b/i,
+      /\blowers?\b/i,
+      /\btrousers?\b/i,
+      /\bshorts\b/i,
+      /\bpalazzos?\b/i,
+      /\blounge[-\s]?pants?\b/i,
+      /\bbottomwear\b/i,
+      /\bcargo[-\s]?pants?\b/i,
+    ],
   },
   {
     category: "Caps",
@@ -241,10 +274,6 @@ export function matchesAudienceFilter(productAudience: string | undefined, selec
   }
 
   const normalizedProductAudience = (productAudience ?? "").trim().toLowerCase();
-
-  if (normalizedSelected === "boys") {
-    return normalizedProductAudience === normalizedSelected || normalizedProductAudience === "unisex";
-  }
 
   return normalizedProductAudience === normalizedSelected;
 }
