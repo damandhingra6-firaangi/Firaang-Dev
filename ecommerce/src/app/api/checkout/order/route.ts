@@ -4,6 +4,7 @@ import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { calculateCheckoutPricing, computeCouponDiscount, estimateOrderWeightKg, type ShippingMethod } from "@/lib/checkout-config";
 import { CUSTOM_DESIGN_SURCHARGE_INR } from "@/lib/catalog";
+import { getDisplayPricing, isInclusiveDisplayPricingEnabled } from "@/lib/pricing-display";
 import { getRazorpayClient } from "@/lib/razorpay";
 import { resolveCheckoutItems } from "@/lib/products";
 import { getActiveCouponByCode } from "@/lib/coupon-store";
@@ -31,6 +32,8 @@ type CreateOrderRequest = {
   shippingPinCode?: string;
   shippingMethod?: ShippingMethod;
   couponCode?: string;
+  displaySubtotalAmount?: number;
+  displayTotalAmount?: number;
 };
 
 export async function POST(request: Request) {
@@ -105,6 +108,24 @@ export async function POST(request: Request) {
     }
 
     const subtotalAmount = Math.round(totalPaise / 100);
+    const useInclusiveDisplayPayable = isInclusiveDisplayPricingEnabled();
+
+    const displayItems = items.map((item) => {
+      const displayPricing = getDisplayPricing({
+        priceAmount: item.product.priceAmount,
+        compareAt: item.product.oldPrice,
+      });
+
+      return {
+        ...item,
+        displayUnitPrice: displayPricing.priceAmount,
+      };
+    });
+
+    const displaySubtotalAmount = Math.round(
+      displayItems.reduce((sum, item) => sum + item.displayUnitPrice * item.quantity, 0),
+    );
+    const pricingSubtotalAmount = useInclusiveDisplayPayable ? displaySubtotalAmount : subtotalAmount;
     // Resolve coupon from DB
     let validatedCoupon: {
       code: string;
@@ -118,7 +139,7 @@ export async function POST(request: Request) {
       if (!couponRecord) {
         return NextResponse.json({ error: "Coupon code is not valid or has expired" }, { status: 400 });
       }
-      const { eligible, discountAmount } = computeCouponDiscount(subtotalAmount, couponRecord);
+      const { eligible, discountAmount } = computeCouponDiscount(pricingSubtotalAmount, couponRecord);
       if (!eligible) {
         return NextResponse.json(
           { error: `Coupon applies on orders above ₹${couponRecord.minSubtotal}` },
@@ -138,7 +159,7 @@ export async function POST(request: Request) {
     );
 
     const pricing = calculateCheckoutPricing({
-      subtotalAmount,
+      subtotalAmount: pricingSubtotalAmount,
       shippingState,
       shippingMethod,
       orderWeightKg,
@@ -150,14 +171,18 @@ export async function POST(request: Request) {
     }
 
 
-    if (pricing.totalAmount <= 0) {
+    const finalTotalAmount = useInclusiveDisplayPayable
+      ? Math.max(0, pricingSubtotalAmount - pricing.discountAmount)
+      : pricing.totalAmount;
+
+    if (finalTotalAmount <= 0) {
       return NextResponse.json({ error: "Invalid order total" }, { status: 400 });
     }
 
     const razorpay = getRazorpayClient();
 
     const order = await razorpay.orders.create({
-      amount: pricing.totalAmount * 100,
+      amount: finalTotalAmount * 100,
       currency: currencyCode,
       receipt: `rcpt_${Date.now()}`,
       payment_capture: true,
@@ -166,7 +191,7 @@ export async function POST(request: Request) {
         shippingState,
         shippingMethod,
         orderWeightKg: String(orderWeightKg),
-        shippingFee: String(pricing.shippingFee),
+        shippingFee: String(useInclusiveDisplayPayable ? 0 : pricing.shippingFee),
         discountAmount: String(pricing.discountAmount),
         couponCode: validatedCoupon?.code ?? "",
         shippingName,
@@ -201,8 +226,8 @@ export async function POST(request: Request) {
       persistedOrder = await createPendingOrderForSessionToken(sessionToken, {
         orderId: order.id,
         totalAmount,
-        subtotalAmount: pricing.subtotalAmount,
-        shippingFee: pricing.shippingFee,
+        subtotalAmount: pricingSubtotalAmount,
+        shippingFee: useInclusiveDisplayPayable ? 0 : pricing.shippingFee,
         taxAmount: 0,
         discountAmount: pricing.discountAmount,
         codFee: pricing.codFee,
@@ -218,13 +243,15 @@ export async function POST(request: Request) {
         shippingCity,
         shippingState,
         shippingPinCode,
-        items: items.map((item) => ({
+        items: displayItems.map((item) => ({
           productId: item.product.id,
           name: item.product.name,
           image: item.product.img,
-          unitPrice: item.product.priceAmount,
+          unitPrice: useInclusiveDisplayPayable ? item.displayUnitPrice : item.product.priceAmount,
           quantity: item.quantity,
-          lineTotal: item.product.priceAmount * item.quantity,
+          lineTotal:
+            (useInclusiveDisplayPayable ? item.displayUnitPrice : item.product.priceAmount) *
+            item.quantity,
         })),
       });
 

@@ -35,6 +35,7 @@ import { CUSTOM_DESIGN_SURCHARGE_INR, GridProduct } from "@/lib/catalog";
 import { isSignatureProduct } from "@/lib/design-inquiry";
 import { COMPANY_MANUFACTURER_DETAILS } from "@/lib/company";
 import { convertAmount, formatCurrency } from "@/lib/currency";
+import { getDisplayPricing } from "@/lib/pricing-display";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useUiStore } from "@/store/useUiStore";
@@ -180,11 +181,6 @@ function getSwatchColor(value: string) {
   };
 
   return palette[normalized] ?? "#8c8c8c";
-}
-
-function parseAmount(value: string) {
-  const parsed = Number.parseFloat(value.replace(/[^0-9.]/g, ""));
-  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function hasBackKeyword(input: string) {
@@ -386,7 +382,12 @@ function RelatedRail({
               <SafeImage src={item.img} alt={item.name} className={compact ? "h-40 w-full object-cover" : "h-52 w-full object-cover"} loading="lazy" />
               <div className="p-3">
                 <p className="line-clamp-2 text-sm font-semibold text-[var(--page-fg)]">{item.name}</p>
-                <p className="mt-2 text-sm text-[#5f544d]">{formatCurrency(convertAmount(item.priceAmount, "INR", currencyCode), currencyCode)}</p>
+                <p className="mt-2 text-sm text-[#5f544d]">
+                  {formatCurrency(
+                    convertAmount(getDisplayPricing({ priceAmount: item.priceAmount, compareAt: item.oldPrice }).priceAmount, "INR", currencyCode),
+                    currencyCode,
+                  )}
+                </p>
                 <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--secondary)] transition group-hover:gap-2">
                   View details
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -456,13 +457,19 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   const sizeGroup = optionGroups.find((group) => isSizeOption(group.name));
   const hasSizeOptions = Boolean(sizeGroup?.values.length);
   const hasColorOptions = Boolean(colorGroup?.values.length);
-  const basePrice = product.priceAmount;
-  const comparePrice = Math.max(parseAmount(product.oldPrice) || basePrice + 1200, basePrice + 1200);
-  const discountPercent = Math.max(0, Math.round(((comparePrice - basePrice) / comparePrice) * 100));
+  const pricingSource = variants.find((variant) => variant.id === selectedVariantId) ?? variants[0] ?? null;
+  const basePrice = pricingSource?.priceAmount ?? product.priceAmount;
+  const displayPricing = getDisplayPricing({
+    priceAmount: basePrice,
+    compareAt: pricingSource?.oldPrice ?? product.oldPrice,
+  });
+  const discountPercent = displayPricing.discountPercent;
   const hasAnyDesign = Boolean(designCustomization?.front ?? designCustomization?.back);
-  const effectivePriceAmount = basePrice + (hasAnyDesign ? CUSTOM_DESIGN_SURCHARGE_INR : 0);
+  const effectivePriceAmount = displayPricing.priceAmount + (hasAnyDesign ? CUSTOM_DESIGN_SURCHARGE_INR : 0);
   const displayPrice = formatCurrency(convertAmount(effectivePriceAmount, "INR", displayCurrency), displayCurrency);
-  const displayOldPrice = formatCurrency(convertAmount(comparePrice, "INR", displayCurrency), displayCurrency);
+  const displayOldPrice = displayPricing.compareAtAmount
+    ? formatCurrency(convertAmount(displayPricing.compareAtAmount, "INR", displayCurrency), displayCurrency)
+    : null;
 
   useEffect(() => {
     const initialVariant = variants.find((variant) => variant.availableForSale) ?? variants[0] ?? null;
@@ -966,9 +973,11 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
                     <span className="rounded-full bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--secondary)] shadow-sm">
                       {getBrand(product)}
                     </span>
-                    <span className="rounded-full bg-[#111111]/82 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
-                      {discountPercent}% OFF
-                    </span>
+                    {discountPercent > 0 ? (
+                      <span className="rounded-full bg-[#111111]/82 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                        {discountPercent}% OFF
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/45 to-transparent p-4 text-white md:hidden">
@@ -1077,8 +1086,8 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
           <div className="rounded-[24px] bg-[linear-gradient(135deg,#fff7f0_0%,#f4ebe3_100%)] p-4">
             <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
               <p className="text-4xl font-semibold tracking-tight text-[#271e1b] md:text-[2.85rem]">{displayPrice}</p>
-              <p className="text-lg text-[#917d72] line-through">{displayOldPrice}</p>
-              <p className="rounded-full bg-[#ffe7d7] px-3 py-1 text-sm font-semibold text-[#b2552b]">{discountPercent}% OFF</p>
+              {displayOldPrice ? <p className="text-lg text-[#917d72] line-through">{displayOldPrice}</p> : null}
+              {discountPercent > 0 ? <p className="rounded-full bg-[#ffe7d7] px-3 py-1 text-sm font-semibold text-[#b2552b]">{discountPercent}% OFF</p> : null}
               {hasAnyDesign && (
                 <p className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
                   +{formatCurrency(convertAmount(CUSTOM_DESIGN_SURCHARGE_INR, "INR", displayCurrency), displayCurrency)} Custom Print

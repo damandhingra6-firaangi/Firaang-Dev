@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ChevronRight, Minus, Package, Plus, ShoppingBag, Tag, Trash2, X } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import { INDIAN_STATES, calculateCheckoutPricing, type ShippingMethod } from "@/lib/checkout-config";
 import { CUSTOM_DESIGN_SURCHARGE_INR } from "@/lib/catalog";
 import { convertAmount, formatCurrency } from "@/lib/currency";
+import { getDisplayPricing, isInclusiveDisplayPricingEnabled } from "@/lib/pricing-display";
 import { getCartCount, getCartItems, getCartSubtotal, useShopStore } from "@/store/useShopStore";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useUiStore } from "@/store/useUiStore";
@@ -184,6 +185,36 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
     validatedCoupon: appliedCoupon,
   });
 
+  const lineDisplayUnitAmounts = useMemo(
+    () =>
+      cartItems.map((item) =>
+        getDisplayPricing({
+          priceAmount: item.product.priceAmount,
+          compareAt: item.product.oldPrice,
+        }).priceAmount,
+      ),
+    [cartItems],
+  );
+
+  const lineDisplayTotals = useMemo(
+    () => cartItems.map((item, index) => (lineDisplayUnitAmounts[index] ?? item.product.priceAmount) * item.quantity),
+    [cartItems, lineDisplayUnitAmounts],
+  );
+
+  const displaySubtotalAmount = useMemo(
+    () => lineDisplayTotals.reduce((sum, value) => sum + value, 0),
+    [lineDisplayTotals],
+  );
+
+  const useInclusiveDisplayPayable = isInclusiveDisplayPricingEnabled();
+  const displayTotalPayableAmount = useMemo(
+    () =>
+      useInclusiveDisplayPayable
+        ? Math.max(0, displaySubtotalAmount - pricing.discountAmount)
+        : pricing.totalAmount,
+    [displaySubtotalAmount, pricing.discountAmount, pricing.totalAmount, useInclusiveDisplayPayable],
+  );
+
   const hasShippingDetails =
     shippingName.trim().length > 0 &&
     emailRegex.test(shippingEmail.trim()) &&
@@ -249,7 +280,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       const response = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, subtotalAmount: subtotal }),
+        body: JSON.stringify({ code, subtotalAmount: displaySubtotalAmount }),
       });
       const data = (await response.json()) as { valid?: boolean; coupon?: AppliedCoupon; message?: string };
       if (!data.valid || !data.coupon) {
@@ -356,6 +387,8 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
             quantity: item.quantity,
             customDesignSurchargeINR: item.product.customization ? CUSTOM_DESIGN_SURCHARGE_INR : 0,
           })),
+          displaySubtotalAmount,
+          displayTotalAmount: displayTotalPayableAmount,
           shippingName: shippingName.trim(),
           shippingEmail: shippingEmail.trim(),
           shippingAddress: shippingAddress.trim(),
@@ -530,8 +563,8 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                 )
               ) : (
                 <div className="space-y-3">
-                  {cartItems.map((item) => {
-                    const lineTotal = item.product.priceAmount * item.quantity;
+                  {cartItems.map((item, index) => {
+                    const lineTotal = lineDisplayTotals[index] ?? item.product.priceAmount * item.quantity;
                     return (
                       <article key={item.product.id} className="rounded-2xl border border-[#ff3f6c]/30 bg-white p-3">
                         <div className="flex gap-4">
@@ -542,8 +575,8 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                               <p className="mt-0.5 text-[11px] capitalize text-[#6b7280]">{item.product.category}</p>
                             ) : null}
                             <p className="mt-1.5 text-sm font-medium text-[#eac26a]">
-                              {formatCurrency(convertAmount(item.product.priceAmount, "INR", displayCurrency), displayCurrency)}
-                              <span className="ml-1 text-xs text-[#6b7280]">/ piece</span>
+                              {formatCurrency(convertAmount(lineDisplayUnitAmounts[index] ?? item.product.priceAmount, "INR", displayCurrency), displayCurrency)}
+                              <span className="ml-1 text-xs text-[#6b7280]">/ piece (all-inclusive)</span>
                             </p>
                             <div className="mt-2.5 flex items-center justify-between">
                               <div className="flex items-center gap-1.5 rounded-full border border-[#ff3f6c]/40 px-1 py-0.5">
@@ -688,13 +721,13 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
               <div className="rounded-2xl border border-[#ff3f6c]/30 bg-white p-4">
                 <p className="mb-3 text-[11px] uppercase tracking-[0.14em] text-[#ff3f6c]">Items ({cartCount})</p>
                 <div className="space-y-2.5">
-                  {cartItems.map((item) => (
+                  {cartItems.map((item, index) => (
                     <div key={item.product.id} className="flex items-center gap-3">
                       <SafeImage src={item.product.img} alt={item.product.name} className="h-10 w-10 shrink-0 rounded-lg object-cover" />
                       <p className="flex-1 text-xs text-[#1f2430] line-clamp-1">{item.product.name}</p>
                       <span className="text-xs text-[#6b7280]">x{item.quantity}</span>
                       <span className="text-xs font-medium text-[#1f2430]">
-                        {formatCurrency(convertAmount(item.product.priceAmount * item.quantity, "INR", displayCurrency), displayCurrency)}
+                        {formatCurrency(convertAmount(lineDisplayTotals[index] ?? item.product.priceAmount * item.quantity, "INR", displayCurrency), displayCurrency)}
                       </span>
                     </div>
                   ))}
@@ -738,11 +771,15 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                 <p className="mb-1 text-[11px] uppercase tracking-[0.14em] text-[#ff3f6c]">Price Breakdown</p>
                 <div className="flex justify-between text-sm text-[#1f2430]">
                   <span>Subtotal ({cartCount} items)</span>
-                  <span>{formatCurrency(convertAmount(pricing.subtotalAmount, "INR", displayCurrency), displayCurrency)}</span>
+                  <span>{formatCurrency(convertAmount(displaySubtotalAmount, "INR", displayCurrency), displayCurrency)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-[#1f2430]">
-                  <span>Shipping {pricing.shippingStatus === "resolved" ? <span className="ml-1 text-[11px] text-[#6b7280]">({pricing.shippingLabel})</span> : null}</span>
-                  <span>{pricing.shippingStatus === "resolved" ? formatCurrency(convertAmount(pricing.shippingFee, "INR", displayCurrency), displayCurrency) : "-"}</span>
+                  <span>
+                    Shipping {pricing.shippingStatus === "resolved" ? <span className="ml-1 text-[11px] text-[#6b7280]">({pricing.shippingLabel})</span> : null}
+                  </span>
+                  <span className={pricing.shippingStatus === "resolved" ? "font-semibold text-emerald-600" : ""}>
+                    {pricing.shippingStatus === "resolved" ? "FREE" : "-"}
+                  </span>
                 </div>
                 {pricing.discountAmount > 0 ? (
                   <div className="flex justify-between text-sm text-emerald-300">
@@ -752,7 +789,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                 ) : null}
                 <div className="flex justify-between border-t border-[#eceff5] pt-2.5 text-base font-semibold text-[#1f2430]">
                   <span>Total Payable</span>
-                  <span>{formatCurrency(convertAmount(pricing.totalAmount, "INR", displayCurrency), displayCurrency)}</span>
+                  <span>{formatCurrency(convertAmount(displayTotalPayableAmount, "INR", displayCurrency), displayCurrency)}</span>
                 </div>
                 {pricing.discountAmount > 0 ? (
                   <p className="text-center text-xs text-emerald-400">You save {formatCurrency(convertAmount(pricing.discountAmount, "INR", displayCurrency), displayCurrency)} on this order!</p>
@@ -776,8 +813,8 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
             <>
               {cartItems.length > 0 ? (
                 <div className="flex justify-between text-sm text-[#1f2430]">
-                  <span>Cart Subtotal</span>
-                  <span className="font-semibold">{formatCurrency(convertAmount(subtotal, "INR", displayCurrency), displayCurrency)}</span>
+                  <span>Cart Subtotal (all-inclusive)</span>
+                  <span className="font-semibold">{formatCurrency(convertAmount(displaySubtotalAmount, "INR", displayCurrency), displayCurrency)}</span>
                 </div>
               ) : null}
               <button type="button" disabled={cartItems.length === 0} onClick={handleProceedToShipping} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#ff3f6c] px-5 py-3.5 font-semibold text-white transition hover:bg-[#ff5f84] disabled:cursor-not-allowed disabled:opacity-50">
@@ -792,7 +829,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
           )}
           {step === "summary" && (
             <button type="button" disabled={isCheckingOut || !hasShippingDetails || pricing.shippingStatus !== "resolved"} onClick={() => void handleOnlineCheckout()} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#ff3f6c] px-5 py-4 text-base font-bold text-white transition hover:bg-[#ff5f84] disabled:cursor-not-allowed disabled:opacity-50">
-              {isCheckingOut ? "Processing..." : <>Pay Securely{pricing.totalAmount > 0 ? ` - ${formatCurrency(convertAmount(pricing.totalAmount, "INR", displayCurrency), displayCurrency)}` : ""}</>}
+              {isCheckingOut ? "Processing..." : <>Pay Securely{displayTotalPayableAmount > 0 ? ` - ${formatCurrency(convertAmount(displayTotalPayableAmount, "INR", displayCurrency), displayCurrency)}` : ""}</>}
             </button>
           )}
         </div>

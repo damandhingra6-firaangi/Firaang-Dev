@@ -85,6 +85,24 @@ type ShopifyProductsResponse = {
               };
             }>;
           };
+          selectedOrFirstAvailableVariant?: {
+            id: string;
+            title: string;
+            availableForSale: boolean;
+            image: { url: string; altText: string | null } | null;
+            price: {
+              amount: string;
+              currencyCode: string;
+            };
+            compareAtPrice?: {
+              amount: string;
+              currencyCode: string;
+            } | null;
+            selectedOptions: Array<{
+              name: string;
+              value: string;
+            }>;
+          } | null;
           sizeChartJson?: {
             value: string;
           } | null;
@@ -214,6 +232,27 @@ const productsQuery = `#graphql
               }
             }
           }
+          selectedOrFirstAvailableVariant {
+            id
+            title
+            availableForSale
+            image {
+              url
+              altText
+            }
+            price {
+              amount
+              currencyCode
+            }
+            compareAtPrice {
+              amount
+              currencyCode
+            }
+            selectedOptions {
+              name
+              value
+            }
+          }
         }
       }
     }
@@ -315,6 +354,27 @@ const collectionProductsQuery = `#graphql
                 }
               }
             }
+            selectedOrFirstAvailableVariant {
+              id
+              title
+              availableForSale
+              image {
+                url
+                altText
+              }
+              price {
+                amount
+                currencyCode
+              }
+              compareAtPrice {
+                amount
+                currencyCode
+              }
+              selectedOptions {
+                name
+                value
+              }
+            }
           }
         }
       }
@@ -326,10 +386,23 @@ function normalizeStoreDomain(value: string) {
   return value.replace(/^https?:\/\//, "").replace(/\/$/, "");
 }
 
-function getInflatedCompareAtAmount(priceAmount: number) {
+function getStableDynamicDiscountPercent(seed: string) {
+  const buckets = [10, 20, 30] as const;
+  const hash = Array.from(seed).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return buckets[hash % buckets.length];
+}
+
+function getDynamicCompareAtAmount(priceAmount: number, seed: string) {
   const base = Number.isFinite(priceAmount) ? priceAmount : 0;
-  const bumped = Math.ceil((base * 1.2) / 100) * 100 - 1;
-  return Math.max(base + 100, bumped);
+
+  if (base <= 0) {
+    return null;
+  }
+
+  const percent = getStableDynamicDiscountPercent(seed);
+  const compare = base / (1 - percent / 100);
+  const rounded = Math.ceil(compare / 10) * 10;
+  return rounded > base ? rounded : base + 10;
 }
 
 function prettifyHeaderLabel(input: string) {
@@ -746,18 +819,31 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
     productType: node.productType,
     tags: node.tags,
   });
-  const basePriceAmount = convertAmount(
-    Number.parseFloat(node.priceRange.minVariantPrice.amount),
-    toSupportedCurrency(node.priceRange.minVariantPrice.currencyCode),
-    "INR",
-  );
-  const compareAtAmount = convertAmount(
-    Number.parseFloat(node.compareAtPriceRange.minVariantPrice.amount),
-    toSupportedCurrency(node.compareAtPriceRange.minVariantPrice.currencyCode),
-    "INR",
-  );
+  const selectedVariant = node.selectedOrFirstAvailableVariant;
+  const basePriceAmount = selectedVariant
+    ? convertAmount(
+        Number.parseFloat(selectedVariant.price.amount),
+        toSupportedCurrency(selectedVariant.price.currencyCode),
+        "INR",
+      )
+    : convertAmount(
+        Number.parseFloat(node.priceRange.minVariantPrice.amount),
+        toSupportedCurrency(node.priceRange.minVariantPrice.currencyCode),
+        "INR",
+      );
+  const compareAtAmount = selectedVariant?.compareAtPrice
+    ? convertAmount(
+        Number.parseFloat(selectedVariant.compareAtPrice.amount),
+        toSupportedCurrency(selectedVariant.compareAtPrice.currencyCode),
+        "INR",
+      )
+    : convertAmount(
+        Number.parseFloat(node.compareAtPriceRange.minVariantPrice.amount),
+        toSupportedCurrency(node.compareAtPriceRange.minVariantPrice.currencyCode),
+        "INR",
+      );
   const resolvedCompareAtAmount =
-    compareAtAmount > basePriceAmount ? compareAtAmount : getInflatedCompareAtAmount(basePriceAmount);
+    compareAtAmount > basePriceAmount ? compareAtAmount : getDynamicCompareAtAmount(basePriceAmount, node.id);
 
   return {
     id: node.id,
@@ -773,7 +859,7 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
     price: formatCurrency(basePriceAmount, "INR"),
     priceAmount: basePriceAmount,
     currencyCode: "INR",
-    oldPrice: formatCurrency(resolvedCompareAtAmount, "INR"),
+    oldPrice: resolvedCompareAtAmount ? formatCurrency(resolvedCompareAtAmount, "INR") : "",
     img: imageUrl,
     galleryImages: allProductImages,
     productMedia,
@@ -808,7 +894,7 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
         const resolvedVariantCompareAtAmount =
           variantCompareAtAmount > variantPriceAmount
             ? variantCompareAtAmount
-            : getInflatedCompareAtAmount(variantPriceAmount);
+            : getDynamicCompareAtAmount(variantPriceAmount, variantNode.id);
 
         return {
           id: variantNode.id,
@@ -818,7 +904,7 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
           price: formatCurrency(variantPriceAmount, "INR"),
           priceAmount: variantPriceAmount,
           currencyCode: "INR",
-          oldPrice: formatCurrency(resolvedVariantCompareAtAmount, "INR"),
+          oldPrice: resolvedVariantCompareAtAmount ? formatCurrency(resolvedVariantCompareAtAmount, "INR") : "",
           options: variantNode.selectedOptions,
         };
       })

@@ -27,6 +27,10 @@ const INITIAL_FORM: FormState = {
   expectedDelivery: "",
 };
 
+const MAX_REFERENCE_FILES = 5;
+const MAX_REFERENCE_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+const ALLOWED_REFERENCE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
+
 export default function DesignIdeaForm({ productName, productId }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,8 +45,38 @@ export default function DesignIdeaForm({ productName, productId }: Props) {
 
   const handleReferenceFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
-    const allowed = files.filter((f) => ["image/png", "image/jpeg", "image/jpg"].includes(f.type));
-    setReferenceFiles((prev) => [...prev, ...allowed].slice(0, 5));
+    const allowed: File[] = [];
+    const rejectedByType: string[] = [];
+    const rejectedBySize: string[] = [];
+
+    for (const file of files) {
+      if (!ALLOWED_REFERENCE_MIME_TYPES.has(file.type)) {
+        rejectedByType.push(file.name);
+        continue;
+      }
+
+      if (file.size > MAX_REFERENCE_FILE_SIZE_BYTES) {
+        rejectedBySize.push(file.name);
+        continue;
+      }
+
+      allowed.push(file);
+    }
+
+    if (rejectedByType.length > 0 || rejectedBySize.length > 0) {
+      const messages: string[] = [];
+      if (rejectedByType.length > 0) {
+        messages.push(`Unsupported format: ${rejectedByType.join(", ")}. Use PNG/JPG/JPEG/WEBP.`);
+      }
+      if (rejectedBySize.length > 0) {
+        messages.push(`Too large (max 20 MB each): ${rejectedBySize.join(", ")}.`);
+      }
+      setErrorMessage(messages.join(" "));
+    } else {
+      setErrorMessage(null);
+    }
+
+    setReferenceFiles((prev) => [...prev, ...allowed].slice(0, MAX_REFERENCE_FILES));
     event.target.value = "";
   };
 
@@ -72,16 +106,27 @@ export default function DesignIdeaForm({ productName, productId }: Props) {
     try {
       // Upload reference images first (fire-and-forget individually)
       const referenceImageUrls: string[] = [];
+      const failedUploads: string[] = [];
       for (const file of referenceFiles) {
         try {
           const fd = new FormData();
           fd.append("file", file);
           const res = await fetch("/api/design/upload", { method: "POST", body: fd });
-          const data = (await res.json()) as { url?: string };
-          if (data.url) referenceImageUrls.push(data.url);
+          const data = (await res.json()) as { url?: string; error?: string };
+
+          if (!res.ok || !data.url) {
+            failedUploads.push(file.name);
+            continue;
+          }
+
+          referenceImageUrls.push(data.url);
         } catch {
-          // Skip failed reference images, don't block submission
+          failedUploads.push(file.name);
         }
+      }
+
+      if (failedUploads.length > 0) {
+        throw new Error(`Some images failed to upload: ${failedUploads.join(", ")}. Please retry.`);
       }
 
       const response = await fetch("/api/design/inquiry", {
@@ -249,7 +294,7 @@ export default function DesignIdeaForm({ productName, productId }: Props) {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+          accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
           multiple
           className="sr-only"
           onChange={handleReferenceFiles}

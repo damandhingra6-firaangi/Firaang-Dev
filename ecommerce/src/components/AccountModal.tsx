@@ -1,10 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ClipboardList, KeyRound, Loader2, LogOut, Sparkles, Smartphone, X } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import { ORDER_CANCELLATION_WINDOW_DAYS } from "@/lib/checkout-config";
 import { useAccountStore } from "@/store/useAccountStore";
+import { getCartCount, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
 
 type AccountView = "signin" | "profile" | "orders";
@@ -104,6 +106,7 @@ function isConfiguredGoogleClientId(value: string) {
 
 export default function AccountModal({ isOpen, initialView, onClose, mode = "modal" }: AccountModalProps) {
   const safeOnClose = onClose ?? (() => {});
+  const router = useRouter();
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
   const isGoogleConfigured = isConfiguredGoogleClientId(googleClientId);
   const isLoading = useAccountStore((state) => state.isLoading);
@@ -114,6 +117,7 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
   const clearSession = useAccountStore((state) => state.clearSession);
   const updateProfile = useAccountStore((state) => state.updateProfile);
   const upsertOrder = useAccountStore((state) => state.upsertOrder);
+  const cart = useShopStore((state) => state.cart);
   const pushToast = useUiStore((state) => state.pushToast);
 
   const [activeView, setActiveView] = useState<AccountView>(initialView);
@@ -457,6 +461,14 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
       return;
     }
 
+    const wasLikelyNewUser =
+      orders.length === 0 &&
+      (!profile.phone.trim() ||
+        !profile.address.trim() ||
+        !profile.city.trim() ||
+        !profile.state.trim() ||
+        !profile.pinCode.trim());
+
     setProfileErrors({});
 
     setIsSavingProfile(true);
@@ -492,6 +504,20 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
       updateProfile(payload.profile);
       setProfileDraft(payload.profile);
       pushToast("Profile updated", { variant: "success" });
+
+      if (mode === "page" && wasLikelyNewUser) {
+        const hasBagItems = getCartCount(cart) > 0;
+
+        if (hasBagItems) {
+          pushToast("Profile saved. Redirecting to checkout...", { variant: "info" });
+          router.push("/checkout");
+          return;
+        }
+
+        pushToast("Profile saved. Redirecting to home...", { variant: "info" });
+        router.push("/");
+        return;
+      }
     } catch (error) {
       console.error("Failed to save account profile", error);
       pushToast("Could not update profile", { variant: "error" });

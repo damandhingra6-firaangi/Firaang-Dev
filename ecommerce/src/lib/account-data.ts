@@ -114,6 +114,7 @@ export type AccountOrderWithCustomer = {
   customer: {
     email: string;
     fullName: string;
+    phone: string;
     authProvider: AccountProfile["authProvider"];
   } | null;
 };
@@ -1413,6 +1414,7 @@ export async function findOrderWithCustomerByOrderId(orderId: string): Promise<A
       ? {
           email: customer.email ?? "",
           fullName: customer.fullName,
+          phone: customer.phone ?? "",
           authProvider: customer.authProvider,
         }
       : null,
@@ -1441,6 +1443,7 @@ export async function findOrderWithCustomerByPaymentId(paymentId: string): Promi
       ? {
           email: customer.email ?? "",
           fullName: customer.fullName,
+          phone: customer.phone ?? "",
           authProvider: customer.authProvider,
         }
       : null,
@@ -1468,6 +1471,7 @@ export async function listOrdersForAdmin(limit = 100) {
         ? {
             email: customer.email ?? "",
             fullName: customer.fullName,
+            phone: customer.phone ?? "",
             authProvider: customer.authProvider,
           }
         : null,

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
+import { getDisplayPricing } from "@/lib/pricing-display";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Minus, Play, Plus, ShoppingBag, Sparkles, X } from "lucide-react";
 import { getConfiguredSizeChart } from "@/lib/size-charts";
 import SafeImage from "@/components/SafeImage";
@@ -364,6 +365,15 @@ export default function ProductDetailsModal({
       oldPrice: activeVariant.oldPrice,
     } satisfies GridProduct;
   }, [activeVariant, product]);
+
+  const displayPricing = useMemo(
+    () =>
+      getDisplayPricing({
+        priceAmount: resolvedProduct?.priceAmount ?? product?.priceAmount ?? 0,
+        compareAt: resolvedProduct?.oldPrice ?? product?.oldPrice,
+      }),
+    [product?.oldPrice, product?.priceAmount, resolvedProduct?.oldPrice, resolvedProduct?.priceAmount],
+  );
 
   const previewMedia = useMemo(() => {
     if (!product) {
@@ -871,19 +881,18 @@ export default function ProductDetailsModal({
                   <p className="text-3xl leading-none sm:text-4xl">
                     {formatCurrency(
                       convertAmount(
-                        resolvedProduct?.priceAmount ?? product.priceAmount,
+                        displayPricing.priceAmount,
                         toSupportedCurrency(resolvedProduct?.currencyCode ?? product.currencyCode),
                         displayCurrency,
                       ),
                       displayCurrency,
                     )}
                   </p>
-                  {(resolvedProduct?.oldPrice ?? product.oldPrice) ? (
+                  {displayPricing.compareAtAmount ? (
                     <p className="text-base text-[var(--popup-muted)] line-through sm:text-lg">
                       {formatCurrency(
                         convertAmount(
-                          Number.parseFloat((resolvedProduct?.oldPrice ?? product.oldPrice).replace(/[^\d.]/g, "")) ||
-                            (resolvedProduct?.priceAmount ?? product.priceAmount),
+                          displayPricing.compareAtAmount,
                           toSupportedCurrency(resolvedProduct?.currencyCode ?? product.currencyCode),
                           displayCurrency,
                         ),

@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
+import { getDisplayPricing } from "@/lib/pricing-display";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
 
@@ -305,15 +306,20 @@ export default function ProductGrid({ products }: ProductGridProps) {
               style={{ gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))` }}
             >
               {row.map((p, productIndex) => {
+                const displayPricing = getDisplayPricing({
+                  priceAmount: p.priceAmount,
+                  compareAt: p.oldPrice,
+                });
+
                 const currentPrice = formatCurrency(
-                  convertAmount(p.priceAmount, toSupportedCurrency(p.currencyCode), displayCurrency),
+                  convertAmount(displayPricing.priceAmount, toSupportedCurrency(p.currencyCode), displayCurrency),
                   displayCurrency,
                 );
 
-                const oldPrice = p.oldPrice
+                const oldPrice = displayPricing.compareAtAmount
                   ? formatCurrency(
                       convertAmount(
-                        Number.parseFloat(p.oldPrice.replace(/[^\d.]/g, "")) || p.priceAmount,
+                        displayPricing.compareAtAmount,
                         toSupportedCurrency(p.currencyCode),
                         displayCurrency,
                       ),

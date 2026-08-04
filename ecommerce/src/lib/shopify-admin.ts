@@ -1,5 +1,6 @@
 import {
   findOrderWithCustomerByOrderId,
+  normalizePhoneNumber,
   type AccountInventorySyncAttempt,
   updateInventorySyncStatusByOrderId,
 } from "@/lib/account-data";
@@ -141,6 +142,16 @@ function getShopifyCustomerEmail(customer: { email: string; authProvider: "googl
   }
 
   return email;
+}
+
+function getShopifyPhoneNumber(phone: string | undefined) {
+  const raw = (phone ?? "").trim();
+
+  if (!raw) {
+    return undefined;
+  }
+
+  return normalizePhoneNumber(raw) || raw;
 }
 
 const DRAFT_ORDER_SCOPE_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -457,6 +468,9 @@ function getRestOrderId(order?: ShopifyRestOrderCreateResponse["order"]) {
 
 async function createPaidOrderViaRest(input: {
   customerEmail?: string;
+  customerFirstName: string;
+  customerLastName: string;
+  customerPhone?: string;
   orderId: string;
   paymentMethod: string;
   currencyCode?: string;
@@ -475,7 +489,7 @@ async function createPaidOrderViaRest(input: {
     province: string;
     zip: string;
     country: string;
-    phone: string;
+    phone?: string;
   };
 }) {
   const adminConfig = await getShopifyAdminConfig();
@@ -491,6 +505,12 @@ async function createPaidOrderViaRest(input: {
       body: JSON.stringify({
         order: {
           email: input.customerEmail,
+          customer: {
+            first_name: input.customerFirstName,
+            last_name: input.customerLastName,
+            email: input.customerEmail,
+            phone: input.customerPhone,
+          },
           financial_status: "paid",
           send_receipt: false,
           send_fulfillment_receipt: false,
@@ -862,6 +882,7 @@ export async function syncPaidOrderToShopify(orderId: string) {
 
   const customerName = orderWithCustomer.order.shippingName ?? orderWithCustomer.customer?.fullName ?? "Firaang Customer";
   const customerEmail = getShopifyCustomerEmail(orderWithCustomer.customer) ?? orderWithCustomer.order.shippingEmail;
+  const customerPhone = getShopifyPhoneNumber(orderWithCustomer.customer?.phone);
   const { firstName, lastName } = splitCustomerName(customerName);
 
   const lineItems = orderWithCustomer.order.items.map((item) => ({
@@ -879,12 +900,15 @@ export async function syncPaidOrderToShopify(orderId: string) {
         province: orderWithCustomer.order.shippingState ?? "",
         zip: orderWithCustomer.order.shippingPinCode ?? "",
         country: "India",
-        phone: "",
+        phone: customerPhone,
       }
     : undefined;
 
   return createPaidOrderViaRest({
     customerEmail,
+    customerFirstName: firstName,
+    customerLastName: lastName,
+    customerPhone,
     orderId: orderWithCustomer.order.id,
     paymentMethod: orderWithCustomer.order.paymentMethod,
     currencyCode: orderWithCustomer.order.currencyCode,

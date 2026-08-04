@@ -1,9 +1,25 @@
 import { NextResponse } from "next/server";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { designInquirySchema } from "@/lib/design-inquiry";
 import { saveDesignInquiry } from "@/lib/design-inquiry-store";
 import { COMPANY_SUPPORT_EMAIL, COMPANY_SUPPORT_PHONE } from "@/lib/company";
 
 export const runtime = "nodejs";
+
+const DESIGN_UPLOAD_DIR = path.join(process.cwd(), ".data", "design-uploads");
+const DESIGN_FILE_ROUTE_PREFIX = "/api/design/file/";
+const EMAIL_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024; // 10 MB per file for email payload safety
+const EMAIL_ATTACHMENT_TOTAL_MAX_BYTES = 35 * 1024 * 1024; // keep under common provider limits
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+};
+
+const ALLOWED_FILE_EXTENSIONS = new Set(Object.keys(MIME_BY_EXTENSION));
 
 function escapeHtml(value: string | undefined) {
   if (!value) return "";
@@ -20,6 +36,11 @@ async function sendEmail(payload: {
   subject: string;
   html: string;
   text: string;
+  attachments?: Array<{
+    filename: string;
+    content: string;
+    type: string;
+  }>;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.ORDER_EMAIL_FROM ?? process.env.RESEND_FROM_EMAIL;
@@ -40,6 +61,7 @@ async function sendEmail(payload: {
       subject: payload.subject,
       html: payload.html,
       text: payload.text,
+      attachments: payload.attachments,
     }),
     cache: "no-store",
   });
@@ -50,6 +72,113 @@ async function sendEmail(payload: {
   }
 
   return { sent: true as const };
+}
+
+function resolvePublicOrigin(request: Request) {
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto") || "https";
+
+  if (host) {
+    return `${proto}://${host}`;
+  }
+
+  try {
+    return new URL(request.url).origin;
+  } catch {
+    return "";
+  }
+}
+
+function toAbsoluteUrl(url: string, publicOrigin: string) {
+  const trimmed = url.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith("/") && publicOrigin) {
+    return `${publicOrigin}${trimmed}`;
+  }
+
+  return trimmed;
+}
+
+function getDesignUploadFilenameFromUrl(url: string) {
+  try {
+    const parsedUrl = /^https?:\/\//i.test(url) ? new URL(url) : new URL(url, "https://firaang.local");
+    const pathname = parsedUrl.pathname;
+
+    if (!pathname.startsWith(DESIGN_FILE_ROUTE_PREFIX)) {
+      return "";
+    }
+
+    const filename = decodeURIComponent(pathname.slice(DESIGN_FILE_ROUTE_PREFIX.length));
+
+    if (!/^[a-zA-Z0-9._-]+$/.test(filename) || filename.includes("..")) {
+      return "";
+    }
+
+    const extension = path.extname(filename).toLowerCase();
+    if (!ALLOWED_FILE_EXTENSIONS.has(extension)) {
+      return "";
+    }
+
+    return filename;
+  } catch {
+    return "";
+  }
+}
+
+async function buildReferenceImageAttachments(referenceImageUrls: string[] | undefined) {
+  const attachments: Array<{ filename: string; content: string; type: string }> = [];
+
+  if (!referenceImageUrls || referenceImageUrls.length === 0) {
+    return attachments;
+  }
+
+  let accumulatedBytes = 0;
+
+  for (const url of referenceImageUrls) {
+    const filename = getDesignUploadFilenameFromUrl(url);
+
+    if (!filename) {
+      continue;
+    }
+
+    const extension = path.extname(filename).toLowerCase();
+    const mimeType = MIME_BY_EXTENSION[extension];
+
+    if (!mimeType) {
+      continue;
+    }
+
+    try {
+      const fileBuffer = await readFile(path.join(DESIGN_UPLOAD_DIR, filename));
+
+      if (fileBuffer.length > EMAIL_ATTACHMENT_MAX_BYTES) {
+        continue;
+      }
+
+      if (accumulatedBytes + fileBuffer.length > EMAIL_ATTACHMENT_TOTAL_MAX_BYTES) {
+        continue;
+      }
+
+      attachments.push({
+        filename,
+        content: fileBuffer.toString("base64"),
+        type: mimeType,
+      });
+      accumulatedBytes += fileBuffer.length;
+    } catch {
+      // Non-fatal: keep sending inquiry email even if one attachment file cannot be read.
+    }
+  }
+
+  return attachments;
 }
 
 function buildAdminEmailHtml(data: {
@@ -68,7 +197,10 @@ function buildAdminEmailHtml(data: {
       ? data.referenceImageUrls
           .map(
             (url, i) =>
-              `<p><a href="${escapeHtml(url)}" style="color:#b04050;">Reference image ${i + 1}</a></p>`
+              `<div style="margin-bottom:16px;">
+                <p style="margin:0 0 6px 0;"><a href="${escapeHtml(url)}" style="color:#b04050;">Reference image ${i + 1}</a></p>
+                <img src="${escapeHtml(url)}" alt="Reference image ${i + 1}" style="display:block;max-width:100%;height:auto;border:1px solid #eee;border-radius:8px;" />
+              </div>`
           )
           .join("")
       : "<p>No reference images provided.</p>";
@@ -150,6 +282,11 @@ export async function POST(request: Request) {
   }
 
   const data = parsed.data;
+  const publicOrigin = resolvePublicOrigin(request);
+  const absoluteReferenceImageUrls = (data.referenceImageUrls ?? [])
+    .map((url) => toAbsoluteUrl(url, publicOrigin))
+    .filter((url) => Boolean(url));
+  const adminAttachments = await buildReferenceImageAttachments(data.referenceImageUrls);
 
   const { record } = await saveDesignInquiry(data).catch((error) => {
     console.error("Failed to save design inquiry:", error);
@@ -169,9 +306,11 @@ export async function POST(request: Request) {
       subject: `New Custom Design Inquiry from ${data.name}`,
       html: buildAdminEmailHtml({
         ...data,
+        referenceImageUrls: absoluteReferenceImageUrls,
         submittedAt,
       }),
-      text: `New design inquiry from ${data.name} (${data.email})\n\nDescription: ${data.description}\n\nPhone: ${data.phone ?? "N/A"}\nProduct: ${data.productName ?? "N/A"}\nBudget: ${data.budget ?? "N/A"}\nExpected Delivery: ${data.expectedDelivery ?? "N/A"}`,
+      text: `New design inquiry from ${data.name} (${data.email})\n\nDescription: ${data.description}\n\nPhone: ${data.phone ?? "N/A"}\nProduct: ${data.productName ?? "N/A"}\nBudget: ${data.budget ?? "N/A"}\nExpected Delivery: ${data.expectedDelivery ?? "N/A"}${absoluteReferenceImageUrls.length ? `\nReference images:\n${absoluteReferenceImageUrls.map((url, index) => `${index + 1}. ${url}`).join("\n")}` : ""}`,
+      attachments: adminAttachments,
     }),
     sendEmail({
       to: data.email,

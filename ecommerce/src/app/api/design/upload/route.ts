@@ -1,4 +1,4 @@
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 
@@ -6,8 +6,8 @@ export const runtime = "nodejs";
 
 const UPLOAD_DIR = path.join(process.cwd(), ".data", "design-uploads");
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
-const ALLOWED_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/jpg"]);
-const ALLOWED_EXTENSIONS = new Set([".png", ".jpg", ".jpeg"]);
+const ALLOWED_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
+const ALLOWED_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 
 function sanitizeFilename(name: string): string {
   return name
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   // Validate MIME type
   if (!ALLOWED_MIME_TYPES.has(file.type)) {
     return NextResponse.json(
-      { error: "Only PNG, JPG, and JPEG images are allowed." },
+      { error: "Only PNG, JPG, JPEG, and WEBP images are allowed." },
       { status: 415 }
     );
   }
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   const ext = path.extname(file.name).toLowerCase();
   if (!ALLOWED_EXTENSIONS.has(ext)) {
     return NextResponse.json(
-      { error: "Only .png, .jpg, and .jpeg files are allowed." },
+      { error: "Only .png, .jpg, .jpeg, and .webp files are allowed." },
       { status: 415 }
     );
   }
@@ -68,10 +68,19 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(arrayBuffer);
 
     // Verify magic bytes to confirm actual image type (security: prevent MIME spoofing)
-    const isPng = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
-    const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8;
+    const isPng =
+      buffer.length >= 8 &&
+      buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4e &&
+      buffer[3] === 0x47;
+    const isJpeg = buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xd8;
+    const isWebp =
+      buffer.length >= 12 &&
+      buffer.slice(0, 4).toString("ascii") === "RIFF" &&
+      buffer.slice(8, 12).toString("ascii") === "WEBP";
 
-    if (!isPng && !isJpeg) {
+    if (!isPng && !isJpeg && !isWebp) {
       return NextResponse.json(
         { error: "File content does not match a valid image format." },
         { status: 415 }

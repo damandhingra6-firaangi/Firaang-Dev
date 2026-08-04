@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 const UPLOAD_DIR = path.join(process.cwd(), ".data", "design-uploads");
-const ALLOWED_EXTENSIONS = new Set([".png", ".jpg", ".jpeg"]);
+const ALLOWED_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 
 export async function GET(
   _request: Request,
@@ -37,6 +37,7 @@ export async function GET(
       ".png": "image/png",
       ".jpg": "image/jpeg",
       ".jpeg": "image/jpeg",
+      ".webp": "image/webp",
     };
 
     const contentType = mimeMap[ext] ?? "application/octet-stream";

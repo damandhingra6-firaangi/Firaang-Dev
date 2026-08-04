@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Heart, ShoppingBag, SlidersHorizontal, Star, X } from "lucide-react";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
+import { getDisplayPricing } from "@/lib/pricing-display";
 import { buildCategoryTree, matchesAudienceFilter, slugify } from "@/lib/product-taxonomy";
 import SafeImage from "@/components/SafeImage";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
@@ -40,14 +41,6 @@ const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
 ];
 
 const KNOWN_MATERIALS = ["Cotton", "Polyester", "Linen", "Denim", "Rayon", "Wool", "Silk", "Satin", "Viscose"] as const;
-
-function parseDiscountPercent(product: GridProduct) {
-  const normalizedOld = Number.parseFloat((product.oldPrice ?? "").replace(/[^\d.]/g, ""));
-  if (!Number.isFinite(normalizedOld) || normalizedOld <= product.priceAmount || product.priceAmount <= 0) {
-    return 0;
-  }
-  return Math.round(((normalizedOld - product.priceAmount) / normalizedOld) * 100);
-}
 
 function hashString(input: string) {
   let hash = 0;
@@ -165,22 +158,37 @@ export default function ShopListing({
 
   const enrichedProducts = useMemo(
     () =>
-      products.map((product) => ({
-        ...product,
-        brand: extractBrand(product),
-        sizes: extractSizes(product),
-        colors: extractColors(product),
-        materials: extractMaterials(product),
-        inStock: isProductInStock(product),
-        discountPercent: parseDiscountPercent(product),
-        rating: Number(getPseudoRating(product.id).toFixed(1)),
-        popularity: getPseudoPopularity(product.id),
-      })),
+      products.map((product) => {
+        const displayPricing = getDisplayPricing({
+          priceAmount: product.priceAmount,
+          compareAt: product.oldPrice,
+        });
+
+        return {
+          ...product,
+          brand: extractBrand(product),
+          sizes: extractSizes(product),
+          colors: extractColors(product),
+          materials: extractMaterials(product),
+          inStock: isProductInStock(product),
+          displayPriceAmount: displayPricing.priceAmount,
+          displayOldPriceAmount: displayPricing.compareAtAmount,
+          discountPercent: displayPricing.discountPercent,
+          rating: Number(getPseudoRating(product.id).toFixed(1)),
+          popularity: getPseudoPopularity(product.id),
+        };
+      }),
     [products],
   );
 
-  const minCatalogPrice = useMemo(() => (enrichedProducts.length ? Math.min(...enrichedProducts.map((p) => p.priceAmount)) : 0), [enrichedProducts]);
-  const maxCatalogPrice = useMemo(() => (enrichedProducts.length ? Math.max(...enrichedProducts.map((p) => p.priceAmount)) : 0), [enrichedProducts]);
+  const minCatalogPrice = useMemo(
+    () => (enrichedProducts.length ? Math.min(...enrichedProducts.map((p) => p.displayPriceAmount)) : 0),
+    [enrichedProducts],
+  );
+  const maxCatalogPrice = useMemo(
+    () => (enrichedProducts.length ? Math.max(...enrichedProducts.map((p) => p.displayPriceAmount)) : 0),
+    [enrichedProducts],
+  );
 
   useEffect(() => {
     setPriceRange((current) => {
@@ -405,7 +413,7 @@ export default function ShopListing({
       const availabilityMatch = availabilityFilter === "all" || (availabilityFilter === "in" ? product.inStock : !product.inStock);
       const discountMatch = product.discountPercent >= minDiscount;
       const ratingMatch = product.rating >= minRating;
-      const priceMatch = product.priceAmount >= priceRange.min && product.priceAmount <= priceRange.max;
+      const priceMatch = product.displayPriceAmount >= priceRange.min && product.displayPriceAmount <= priceRange.max;
 
       return (
         categoryMatch &&
@@ -448,9 +456,9 @@ export default function ShopListing({
       case "popularity":
         return list.sort((a, b) => b.popularity - a.popularity);
       case "price-low-high":
-        return list.sort((a, b) => a.priceAmount - b.priceAmount);
+        return list.sort((a, b) => a.displayPriceAmount - b.displayPriceAmount);
       case "price-high-low":
-        return list.sort((a, b) => b.priceAmount - a.priceAmount);
+        return list.sort((a, b) => b.displayPriceAmount - a.displayPriceAmount);
       case "discount":
         return list.sort((a, b) => b.discountPercent - a.discountPercent);
       case "rating":
@@ -816,15 +824,15 @@ export default function ShopListing({
                     <div className="flex items-end gap-2">
                       <p className="text-base font-semibold text-[#282c3f]">
                         {formatCurrency(
-                          convertAmount(product.priceAmount, toSupportedCurrency(product.currencyCode), displayCurrency),
+                          convertAmount(product.displayPriceAmount, toSupportedCurrency(product.currencyCode), displayCurrency),
                           displayCurrency,
                         )}
                       </p>
-                      {product.oldPrice ? (
+                      {product.displayOldPriceAmount ? (
                         <p className="text-xs text-[#94969f] line-through">
                           {formatCurrency(
                             convertAmount(
-                              Number.parseFloat(product.oldPrice.replace(/[^\d.]/g, "")) || product.priceAmount,
+                              product.displayOldPriceAmount,
                               toSupportedCurrency(product.currencyCode),
                               displayCurrency,
                             ),
