@@ -7,6 +7,8 @@ const SHOPIFY_PRODUCTS_REVALIDATE_SECONDS = Math.max(
   60,
   Number.parseInt(process.env.SHOPIFY_PRODUCTS_REVALIDATE_SECONDS ?? "300", 10) || 300,
 );
+// Maximum time to wait for a single Shopify API page request before aborting.
+const SHOPIFY_FETCH_TIMEOUT_MS = 10_000;
 
 type MoneyV2 = {
   amount: string;
@@ -925,6 +927,9 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
   const safeLimit = Math.max(1, Math.min(limit, 1000));
   const pageSize = Math.min(250, safeLimit);
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), SHOPIFY_FETCH_TIMEOUT_MS);
+
   try {
     const productNodes: ShopifyProductNode[] = [];
     let cursor: string | null = null;
@@ -945,6 +950,7 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
             after: cursor,
           },
         }),
+        signal: controller.signal,
         next: {
           revalidate: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
           tags: [`shopify-collection-${normalizedHandle.toLowerCase()}`],
@@ -952,7 +958,9 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
       });
 
       if (!response.ok) {
-        return [];
+        return productNodes.length > 0
+          ? productNodes.slice(0, safeLimit).map((node) => mapStorefrontProductNode(node))
+          : [];
       }
 
       const json = (await response.json()) as ShopifyCollectionProductsResponse;
@@ -970,7 +978,13 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
 
     return productNodes.slice(0, safeLimit).map((node) => mapStorefrontProductNode(node));
   } catch (error) {
-    console.error("Shopify collection fetch failed", error);
+    if (controller.signal.aborted) {
+      console.error(`Shopify collection fetch timed out after ${SHOPIFY_FETCH_TIMEOUT_MS}ms`, handle);
+    } else {
+      console.error("Shopify collection fetch failed", error);
+    }
     return [];
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
