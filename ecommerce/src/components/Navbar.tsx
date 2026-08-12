@@ -12,6 +12,7 @@ export default async function Navbar() {
         title: item.title,
         href: item.href,
         badge: item.badge,
+        badgeType: item.badgeType,
         isFeatured: item.isFeatured,
       }))}
       primaryCollection={
@@ -22,6 +23,7 @@ export default async function Navbar() {
               title: primaryNavCollection.title,
               href: primaryNavCollection.href,
               badge: primaryNavCollection.badge,
+              badgeType: primaryNavCollection.badgeType,
               isFeatured: primaryNavCollection.isFeatured,
             }
           : null

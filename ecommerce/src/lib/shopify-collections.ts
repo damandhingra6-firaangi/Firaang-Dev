@@ -69,6 +69,8 @@ type ShopifyCollectionsResponse = {
   };
 };
 
+export type CollectionBadgeType = "new" | "seasonal" | "trending" | null;
+
 export type ShopifyCollectionLaunch = {
   id: string;
   handle: string;
@@ -78,6 +80,7 @@ export type ShopifyCollectionLaunch = {
   updatedAt: string;
   imageUrl: string;
   badge: string | null;
+  badgeType: CollectionBadgeType;
   launchTitle: string | null;
   launchSubtitle: string | null;
   isFeatured: boolean;
@@ -178,9 +181,36 @@ function parsePriority(value: string | undefined | null) {
   return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
 }
 
+const SEASONAL_KEYWORDS = new Set([
+  "rakhi",
+  "independence",
+  "diwali",
+  "holi",
+  "christmas",
+  "eid",
+  "valentine",
+  "new year",
+  "republic",
+  "navratri",
+  "onam",
+  "pongal",
+  "ugadi",
+  "baisakhi",
+  "ganesh",
+]);
+
 function isSeasonalTitle(title: string) {
   const normalized = title.trim().toLowerCase();
   return FEATURED_KEYWORDS.some((keyword) => normalized.includes(keyword));
+}
+
+function getBadgeType(title: string, badge: string | null, isFeatured: boolean): CollectionBadgeType {
+  if (!isFeatured) return null;
+  const lower = title.toLowerCase();
+  if ([...SEASONAL_KEYWORDS].some((k) => lower.includes(k))) return "seasonal";
+  const badgeLower = (badge ?? "").toLowerCase();
+  if (badgeLower === "trending") return "trending";
+  return "new";
 }
 
 function isPermanentCollection(title: string, handle: string) {
@@ -224,6 +254,8 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
   const launchFlag = parseBoolean(node.launchMetafield?.value);
   const normalizedTitle = toTitleCase(node.title?.trim() || "") || humanizeHandle(node.handle);
   const normalizedDescription = node.description?.trim() ?? "";
+  const badge = node.badgeMetafield?.value?.trim() || null;
+  const isFeatured = featured || launchFlag || isSeasonalTitle(node.title);
 
   return {
     id: node.id,
@@ -233,10 +265,11 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
     href: `/shop?collection=${encodeURIComponent(node.handle)}`,
     updatedAt: node.updatedAt,
     imageUrl: resolveBannerImage(node),
-    badge: node.badgeMetafield?.value?.trim() || null,
+    badge,
+    badgeType: getBadgeType(normalizedTitle, badge, isFeatured),
     launchTitle: node.launchTitleMetafield?.value?.trim() || null,
     launchSubtitle: node.launchSubtitleMetafield?.value?.trim() || null,
-    isFeatured: featured || launchFlag || isSeasonalTitle(node.title),
+    isFeatured,
     priority: parsePriority(node.priorityMetafield?.value),
   };
 }

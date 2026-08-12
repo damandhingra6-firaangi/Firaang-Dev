@@ -15,12 +15,15 @@ import { useUiStore } from "@/store/useUiStore";
 
 type AccountView = "signin" | "profile" | "orders";
 
+type CollectionBadgeType = "new" | "seasonal" | "trending" | null;
+
 type NavCollectionItem = {
   id: string;
   handle: string;
   title: string;
   href: string;
   badge: string | null;
+  badgeType: CollectionBadgeType;
   isFeatured: boolean;
 };
 
@@ -28,6 +31,83 @@ type NavbarClientProps = {
   collections: NavCollectionItem[];
   primaryCollection: NavCollectionItem | null;
 };
+
+// ── Collection badge pill ─────────────────────────────────────────
+const BADGE_GRADIENT: Record<NonNullable<CollectionBadgeType>, string> = {
+  new:      "from-[#ff3f6c] to-[#ff6b35]",
+  seasonal: "from-[#f59e0b] to-[#f97316]",
+  trending: "from-[#f97316] to-[#ef4444]",
+};
+
+function CollectionBadgePill({
+  badge,
+  badgeType,
+  className = "",
+}: {
+  badge: string | null;
+  badgeType: CollectionBadgeType;
+  className?: string;
+}) {
+  const label = badge ?? "NEW";
+  const gradient = BADGE_GRADIENT[badgeType ?? "new"];
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded-[3px] bg-gradient-to-r ${gradient} px-[7px] py-[2px] text-[9px] font-extrabold uppercase tracking-[0.1em] text-white ${className}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+// ── Single item in the COLLECTIONS dropdown ───────────────────────
+function DropdownCollectionItem({
+  collection,
+  onClick,
+}: {
+  collection: NavCollectionItem;
+  onClick: () => void;
+}) {
+  const isSeasonal = collection.badgeType === "seasonal";
+  const isFeatured = collection.isFeatured;
+  const showBadge = collection.badge !== null || isFeatured;
+
+  return (
+    <Link
+      href={collection.href}
+      onClick={onClick}
+      className={
+        `group flex items-center justify-between rounded-[5px] px-3 py-[9px] text-[13.5px] transition-all duration-150 ` +
+        (isFeatured
+          ? isSeasonal
+            ? "font-semibold text-[#5c3800] hover:bg-[#fffbee] hover:text-[#92400e]"
+            : "font-semibold text-[#2d0e1c] hover:bg-[#fff0f5] hover:text-[#c8285a]"
+          : "font-medium text-[#282c3f] hover:bg-[#f7f7f9] hover:text-[#ff3f6c]")
+      }
+    >
+      <span className="flex min-w-0 items-center gap-1.5">
+        {isFeatured ? (
+          <span
+            aria-hidden="true"
+            className={
+              "shrink-0 text-[10px] leading-none " +
+              (isSeasonal ? "text-[#f59e0b]" : "text-[#ed467a]")
+            }
+          >
+            ✦
+          </span>
+        ) : null}
+        <span className="truncate">{collection.title}</span>
+      </span>
+      {showBadge ? (
+        <CollectionBadgePill
+          badge={collection.badge}
+          badgeType={collection.badgeType}
+          className="ml-2"
+        />
+      ) : null}
+    </Link>
+  );
+}
 
 const permanentDesktopNavItems = [
   { label: "MEN", href: "/shop?audience=boys" },
@@ -233,15 +313,17 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
               {primaryCollection ? (
                 <Link href={primaryCollection.href} className={`${desktopNavLinkClass} gap-2`}>
                   {primaryCollection.isFeatured ? (
-                    <span className="inline-flex h-5 items-center rounded-full bg-[#ffecf2] px-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#d6316b]">
-                      New Launch
+                    <span
+                      className="nav-new-drop-badge inline-flex items-center gap-[3px] rounded-[3px] px-[7px] py-[3px] text-[9px] font-extrabold uppercase tracking-[0.13em] text-white"
+                      aria-label="New drop"
+                    >
+                      <span aria-hidden="true">✦</span>
+                      <span>NEW DROP</span>
                     </span>
                   ) : null}
                   <span>{primaryCollection.title}</span>
-                  {primaryCollection.badge ? (
-                    <span className="rounded-full bg-[#ff3f6c] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
-                      {primaryCollection.badge}
-                    </span>
+                  {primaryCollection.badge && primaryCollection.badge.toUpperCase() !== "NEW" ? (
+                    <CollectionBadgePill badge={primaryCollection.badge} badgeType={primaryCollection.badgeType} />
                   ) : null}
                 </Link>
               ) : null}
@@ -269,39 +351,52 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
 
                 {isCollectionsOpen ? (
                   <div
-                    className="absolute left-1/2 top-full z-[110] w-[560px] -translate-x-1/2 pt-2"
+                    className="absolute left-1/2 top-full z-[110] w-[580px] -translate-x-1/2 pt-2"
                     onMouseEnter={openCollectionsDropdown}
                     onMouseLeave={() => closeCollectionsDropdown()}
                   >
-                    <div className="overflow-hidden rounded-md border border-[#e3e4e8] bg-white shadow-[0_12px_28px_rgba(0,0,0,0.12)]">
-                    <div className="grid grid-cols-2 gap-1 p-2">
-                      {dropdownCollections.length === 0 ? (
+                    <div className="collections-dropdown-panel overflow-hidden rounded-lg border border-[#e8e8ed] bg-white shadow-[0_16px_36px_rgba(0,0,0,0.14),0_2px_8px_rgba(0,0,0,0.05)]">
+                      {/* Brand accent line */}
+                      <div
+                        className="h-[2.5px] bg-gradient-to-r from-[#ff3f6c] via-[#ff8c6e] to-[#ed467a]"
+                        aria-hidden="true"
+                      />
+
+                      {/* Dropdown header */}
+                      <div className="flex items-center justify-between border-b border-[#f2f2f6] px-4 py-2.5">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9b9fad]">
+                          Our Collections
+                        </span>
                         <Link
                           href="/shop"
                           onClick={() => setIsCollectionsOpen(false)}
-                          className="col-span-2 flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-[#282c3f] transition hover:bg-[#f7f7f9] hover:text-[#ff3f6c]"
+                          className="text-[10.5px] font-semibold tracking-[0.04em] text-[#ed467a] transition hover:underline"
                         >
-                          <span>All Collections</span>
+                          View All →
                         </Link>
-                      ) : null}
+                      </div>
 
-                      {dropdownCollections.map((collection) => (
-                        <Link
-                          key={collection.id}
-                          href={collection.href}
-                          onClick={() => setIsCollectionsOpen(false)}
-                          className="flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-[#282c3f] transition hover:bg-[#f7f7f9] hover:text-[#ff3f6c]"
-                        >
-                          <span>{collection.title}</span>
-                          {collection.badge || collection.isFeatured ? (
-                            <span className="rounded-full bg-[#ff3f6c] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
-                              {collection.badge ?? "NEW"}
-                            </span>
-                          ) : null}
-                        </Link>
-                      ))}
+                      {/* Grid */}
+                      <div className="grid grid-cols-2 gap-0.5 p-2.5">
+                        {dropdownCollections.length === 0 ? (
+                          <Link
+                            href="/shop"
+                            onClick={() => setIsCollectionsOpen(false)}
+                            className="col-span-2 flex items-center justify-between rounded-[5px] px-3 py-2.5 text-sm font-medium text-[#282c3f] transition hover:bg-[#f7f7f9] hover:text-[#ff3f6c]"
+                          >
+                            <span>All Collections</span>
+                          </Link>
+                        ) : null}
+
+                        {dropdownCollections.map((collection) => (
+                          <DropdownCollectionItem
+                            key={collection.id}
+                            collection={collection}
+                            onClick={() => setIsCollectionsOpen(false)}
+                          />
+                        ))}
+                      </div>
                     </div>
-                  </div>
                   </div>
                 ) : null}
               </div>
@@ -516,11 +611,18 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
                 <Link
                   href={primaryCollection.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="mt-2 flex items-center justify-between rounded-md bg-[#fff3f7] px-2 py-2 text-[15px] font-semibold text-[#282c3f]"
+                  className="mt-2 flex items-center justify-between rounded-md bg-[#fff3f7] px-2 py-2.5 text-[15px] font-semibold text-[#282c3f]"
                 >
-                  <span>{primaryCollection.title}</span>
-                  <span className="rounded-full bg-[#ff3f6c] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
-                    {primaryCollection.badge ?? "NEW"}
+                  <span className="flex items-center gap-1.5">
+                    <span aria-hidden="true" className="text-[10px] text-[#ed467a]">✦</span>
+                    {primaryCollection.title}
+                  </span>
+                  <span
+                    className="nav-new-drop-badge inline-flex items-center gap-[3px] rounded-[3px] px-[7px] py-[3px] text-[9px] font-extrabold uppercase tracking-[0.1em] text-white"
+                    aria-label="New drop"
+                  >
+                    <span aria-hidden="true">✦</span>
+                    <span>NEW</span>
                   </span>
                 </Link>
               ) : null}
@@ -535,13 +637,21 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
                       key={item.id}
                       href={item.href}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center justify-between rounded-md px-2 py-2 text-[14px] text-[#282c3f] hover:bg-[#f7f7f8]"
+                      className={`flex items-center justify-between rounded-md px-2 py-2 text-[14px] hover:bg-[#f7f7f8] ${item.isFeatured ? "font-semibold text-[#282c3f]" : "text-[#282c3f]"}`}
                     >
-                      <span>{item.title}</span>
+                      <span className="flex items-center gap-1.5">
+                        {item.isFeatured ? (
+                          <span
+                            aria-hidden="true"
+                            className={`text-[10px] leading-none ${item.badgeType === "seasonal" ? "text-[#f59e0b]" : "text-[#ed467a]"}`}
+                          >
+                            ✦
+                          </span>
+                        ) : null}
+                        {item.title}
+                      </span>
                       {item.badge || item.isFeatured ? (
-                        <span className="rounded-full bg-[#ff3f6c] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
-                          {item.badge ?? "NEW"}
-                        </span>
+                        <CollectionBadgePill badge={item.badge} badgeType={item.badgeType} />
                       ) : null}
                     </Link>
                   ))}
