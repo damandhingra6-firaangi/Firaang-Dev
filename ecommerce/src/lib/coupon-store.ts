@@ -29,6 +29,23 @@ export type CouponRecord = CouponDefinition & {
 
 let ensureCouponIndexPromise: Promise<void> | null = null;
 
+/**
+ * Safely convert a MongoDB field that should be a Date into an ISO string.
+ * Documents inserted directly via the Atlas/Compass UI may store the value as
+ * a plain string instead of a BSON Date, or the field may be missing entirely.
+ * This helper handles all three cases without throwing.
+ */
+function toIsoString(val: unknown): string {
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === "string" && val) {
+    const parsed = new Date(val);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+  return new Date(0).toISOString(); // safe fallback for missing / null / undefined
+}
+
 function mapCoupon(doc: CouponDocument): CouponRecord {
   return {
     id: doc._id.toHexString(),
@@ -40,8 +57,8 @@ function mapCoupon(doc: CouponDocument): CouponRecord {
     minSubtotal: doc.minSubtotal,
     maxDiscountAmount: doc.maxDiscountAmount,
     isActive: doc.isActive,
-    createdAt: doc.createdAt.toISOString(),
-    updatedAt: doc.updatedAt.toISOString(),
+    createdAt: toIsoString(doc.createdAt),
+    updatedAt: toIsoString(doc.updatedAt),
   };
 }
 
@@ -72,7 +89,8 @@ export async function listCoupons(): Promise<CouponRecord[]> {
 export async function getActiveCouponByCode(code: string): Promise<CouponRecord | null> {
   const coupons = await getCouponsCollection();
   const normalized = code.trim().toUpperCase();
-  const doc = await coupons.findOne({ code: normalized, isActive: true });
+  const escapedCode = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const doc = await coupons.findOne({ code: { $regex: `^${escapedCode}$`, $options: "i" }, isActive: true });
   return doc ? mapCoupon(doc) : null;
 }
 
