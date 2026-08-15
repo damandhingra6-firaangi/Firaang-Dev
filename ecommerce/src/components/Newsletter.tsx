@@ -194,7 +194,7 @@ export default function Newsletter() {
           <div className="text-center">
             <p className="font-sans text-[13px] font-medium uppercase tracking-[0.06em] text-[#3f3f3f]">FOLLOW US ON INSTAGRAM</p>
             <h2 className="mt-2 font-sans text-[48px] font-semibold leading-[0.94] tracking-[-0.02em] text-[#2d2d2d] md:text-[54px]">
-              @Firaang
+              @Fir.aang
             </h2>
           </div>
 

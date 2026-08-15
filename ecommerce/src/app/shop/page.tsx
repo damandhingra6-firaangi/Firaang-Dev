@@ -5,6 +5,7 @@ import Newsletter from "@/components/Newsletter";
 import ShopListing from "@/components/ShopListing";
 import JewelleryComingSoonGate from "@/components/JewelleryComingSoonGate";
 import { fallbackProducts } from "@/lib/catalog";
+import { normalizeShopPromoSection } from "@/lib/shop-promo-banners";
 import { createPageMetadata } from "@/lib/seo";
 import { getStorefrontProducts, getStorefrontProductsByCollection } from "@/lib/shopify";
 import { humanizeHandle } from "@/lib/text";
@@ -17,7 +18,14 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 type ShopPageProps = {
-  searchParams?: Promise<{ q?: string; category?: string; subCategory?: string; audience?: string; collection?: string }>;
+  searchParams?: Promise<{
+    q?: string;
+    category?: string;
+    subCategory?: string;
+    audience?: string;
+    collection?: string;
+    section?: string;
+  }>;
 };
 
 type ShopProductsProps = {
@@ -26,6 +34,7 @@ type ShopProductsProps = {
   category: string;
   subCategory: string;
   audience: string;
+  section: ReturnType<typeof normalizeShopPromoSection>;
 };
 
 /**
@@ -56,7 +65,7 @@ function ShopProductsSkeleton() {
  * Wrapped in <Suspense> so its parent page shell streams without waiting
  * for the Shopify response.
  */
-async function ShopProducts({ collection, query, category, subCategory, audience }: ShopProductsProps) {
+async function ShopProducts({ collection, query, category, subCategory, audience, section }: ShopProductsProps) {
   const storefrontProducts = await (
     collection ? getStorefrontProductsByCollection(collection, 250) : getStorefrontProducts(250)
   );
@@ -69,15 +78,18 @@ async function ShopProducts({ collection, query, category, subCategory, audience
   const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
 
   return (
-    <ShopListing
-      products={products}
-      initialQuery={query}
-      initialCategory={category}
-      initialSubCategory={subCategory}
-      initialAudience={audience}
-      initialCollection={collection}
-      initialCollectionTitle={collectionTitle}
-    />
+    <>
+      <ShopListing
+        products={products}
+        initialQuery={query}
+        initialCategory={category}
+        initialSubCategory={subCategory}
+        initialAudience={audience}
+        initialCollection={collection}
+        initialCollectionTitle={collectionTitle}
+        initialSection={section}
+      />
+    </>
   );
 }
 
@@ -88,11 +100,13 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
   const subCategory = params?.subCategory ?? "";
   const audience = params?.audience ?? "";
   const collection = params?.collection ?? "";
+  const section = normalizeShopPromoSection(params?.section);
+  const effectiveSection = collection ? "collections" : section;
 
   if (isJewellerySlug(category) || isJewellerySlug(subCategory)) {
     return (
       <main className="min-h-screen bg-[var(--page-bg)]">
-        <Navbar />
+        <Navbar activeSection={effectiveSection} />
         <div className="h-24 md:h-28" />
         <JewelleryComingSoonGate backHref="/shop" />
       </main>
@@ -101,8 +115,8 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
 
   return (
     <main>
-      <Navbar />
-      <div className="h-24 md:h-28" />
+      <Navbar activeSection={effectiveSection} />
+      <div className="h-[68px] md:h-[72px]" />
       {/*
         Suspense boundary: the Navbar and page chrome above stream to the
         browser immediately. ShopProducts awaits the Shopify API and streams
@@ -111,11 +125,13 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       */}
       <Suspense fallback={<ShopProductsSkeleton />}>
         <ShopProducts
+          key={`${effectiveSection}::${collection}`}
           collection={collection}
           query={query}
           category={category}
           subCategory={subCategory}
           audience={audience}
+          section={effectiveSection}
         />
       </Suspense>
       <Newsletter />

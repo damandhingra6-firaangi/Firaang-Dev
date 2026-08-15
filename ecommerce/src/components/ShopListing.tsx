@@ -3,10 +3,12 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Heart, ShoppingBag, SlidersHorizontal, Star, X } from "lucide-react";
+import CollectionHeroBanner from "@/components/CollectionHeroBanner";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { getDisplayPricing } from "@/lib/pricing-display";
 import { buildCategoryTree, matchesAudienceFilter, slugify } from "@/lib/product-taxonomy";
+import { isExcludedFromCuratedShopSections, isOversizedContext } from "@/lib/shop-section-exclusions";
 import SafeImage from "@/components/SafeImage";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
@@ -19,6 +21,7 @@ type ShopListingProps = {
   initialAudience?: string;
   initialCollection?: string;
   initialCollectionTitle?: string;
+  initialSection?: "just-dropped" | "shop" | "collections" | "bestsellers" | "sale";
 };
 
 type SortOption =
@@ -124,6 +127,7 @@ export default function ShopListing({
   initialAudience = "",
   initialCollection = "",
   initialCollectionTitle = "",
+  initialSection = "shop",
 }: ShopListingProps) {
   const [query, setQuery] = useState(() => initialQuery);
   const [selectedCategory, setSelectedCategory] = useState(initialCollection ? "" : initialCategory);
@@ -275,6 +279,11 @@ export default function ShopListing({
       if (!isSeoPatternRoute) {
         const params = new URLSearchParams();
 
+        // Always preserve the section so dedicated sections (just-dropped, bestsellers,
+        // sale) are never silently collapsed back to the default "shop" context.
+        if (initialSection) {
+          params.set("section", initialSection);
+        }
         if (query.trim()) {
           params.set("q", query.trim());
         }
@@ -303,7 +312,7 @@ export default function ShopListing({
         urlSyncTimeoutRef.current = null;
       }
     };
-  }, [initialCollection, pathname, query, router, selectedAudience, selectedCategory, selectedSubCategory]);
+  }, [initialCollection, initialSection, pathname, query, router, selectedAudience, selectedCategory, selectedSubCategory]);
 
   const selectedCategoryNode = useMemo(() => {
     if (!selectedCategory) {
@@ -320,6 +329,38 @@ export default function ShopListing({
   }, [categoryTree, selectedCategory]);
 
   const availableSubCategories = selectedCategoryNode?.subCategories ?? [];
+
+  const shouldApplyCuratedExclusions = useMemo(() => {
+    if (initialSection === "bestsellers" || initialSection === "sale") {
+      return true;
+    }
+
+    return isOversizedContext([
+      initialSubCategory,
+      selectedSubCategory,
+      initialCategory,
+      selectedCategory,
+      initialCollection,
+      initialCollectionTitle,
+    ]);
+  }, [
+    initialCategory,
+    initialCollection,
+    initialCollectionTitle,
+    initialSection,
+    initialSubCategory,
+    selectedCategory,
+    selectedSubCategory,
+  ]);
+
+  const sectionEligibleProducts = useMemo(() => {
+    if (!shouldApplyCuratedExclusions) {
+      return enrichedProducts;
+    }
+
+    // Central reusable exclusion rule applied before any further filtering/sorting.
+    return enrichedProducts.filter((product) => !isExcludedFromCuratedShopSections(product));
+  }, [enrichedProducts, shouldApplyCuratedExclusions]);
 
   useEffect(() => {
     if (!selectedCategoryNode) {
@@ -342,41 +383,41 @@ export default function ShopListing({
 
   const availableBrands = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const product of enrichedProducts) {
+    for (const product of sectionEligibleProducts) {
       counts.set(product.brand, (counts.get(product.brand) ?? 0) + 1);
     }
     return Array.from(counts.entries()).map(([label, count]) => ({ label, count }));
-  }, [enrichedProducts]);
+  }, [sectionEligibleProducts]);
 
   const availableSizes = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const product of enrichedProducts) {
+    for (const product of sectionEligibleProducts) {
       for (const size of product.sizes) {
         counts.set(size, (counts.get(size) ?? 0) + 1);
       }
     }
     return Array.from(counts.entries()).map(([label, count]) => ({ label, count }));
-  }, [enrichedProducts]);
+  }, [sectionEligibleProducts]);
 
   const availableColors = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const product of enrichedProducts) {
+    for (const product of sectionEligibleProducts) {
       for (const color of product.colors) {
         counts.set(color, (counts.get(color) ?? 0) + 1);
       }
     }
     return Array.from(counts.entries()).map(([label, count]) => ({ label, count }));
-  }, [enrichedProducts]);
+  }, [sectionEligibleProducts]);
 
   const availableMaterials = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const product of enrichedProducts) {
+    for (const product of sectionEligibleProducts) {
       for (const material of product.materials) {
         counts.set(material, (counts.get(material) ?? 0) + 1);
       }
     }
     return Array.from(counts.entries()).map(([label, count]) => ({ label, count }));
-  }, [enrichedProducts]);
+  }, [sectionEligibleProducts]);
 
   const filteredProducts = useMemo(() => {
     const normalized = deferredQuery.trim().toLowerCase();
@@ -385,7 +426,8 @@ export default function ShopListing({
     const normalizedSubCategorySlug = slugify(selectedSubCategory);
     const normalizedAudience = selectedAudience.trim().toLowerCase();
 
-    return enrichedProducts.filter((product) => {
+    return sectionEligibleProducts.filter((product) => {
+
       const categoryMatch =
         !normalizedCategory ||
         product.categorySlug?.toLowerCase() === normalizedCategory ||
@@ -433,7 +475,7 @@ export default function ShopListing({
   }, [
     availabilityFilter,
     deferredQuery,
-    enrichedProducts,
+    sectionEligibleProducts,
     minDiscount,
     minRating,
     priceRange.max,
@@ -447,12 +489,123 @@ export default function ShopListing({
     selectedSubCategory,
   ]);
 
+  const heroProduct = useMemo(() => {
+    const sourceProducts = sectionEligibleProducts;
+
+    // Just Dropped: products are the full store catalog sorted newest-first by Shopify
+    if (initialSection === "just-dropped") {
+      return sourceProducts.find((p) => Boolean(p.img)) ?? sourceProducts[0] ?? null;
+    }
+
+    // Bestsellers: highest stable-popularity product with a valid image
+    if (initialSection === "bestsellers") {
+      return (
+        [...sourceProducts].sort((a, b) => b.popularity - a.popularity).find((p) => Boolean(p.img)) ??
+        sourceProducts[0] ??
+        null
+      );
+    }
+
+    // Sale: highest-discount product, distinct from the bestsellers and just-dropped picks
+    if (initialSection === "sale") {
+      const topBestsellerId = [...sourceProducts].sort((a, b) => b.popularity - a.popularity)[0]?.id;
+      const topJustDroppedId = sourceProducts.find((p) => Boolean(p.img))?.id;
+      const byDiscount = [...sourceProducts].sort((a, b) => b.discountPercent - a.discountPercent);
+      return (
+        byDiscount.find((p) => Boolean(p.img) && p.id !== topBestsellerId && p.id !== topJustDroppedId) ??
+        byDiscount.find((p) => Boolean(p.img)) ??
+        byDiscount[0] ??
+        null
+      );
+    }
+
+    // Named collection or category: keyword-match scoring
+    const candidateProducts = filteredProducts.length > 0 ? filteredProducts : enrichedProducts;
+
+    // When a specific collection or subcategory is active, filteredProducts are already
+    // scoped to that context — pick the first one with a face-visible image rather than
+    // re-scoring against a broad category keyword.
+    if ((initialCollection || initialSubCategory) && candidateProducts.length > 0) {
+      return candidateProducts.find((p) => Boolean(p.img)) ?? candidateProducts[0];
+    }
+
+    const keyedTitle = initialSubCategory || initialCategory || initialCollectionTitle;
+    if (!keyedTitle || !candidateProducts.length) {
+      return products[0] ?? null;
+    }
+
+    const matchScore = (product: GridProduct) => {
+      const haystack = [product.name, product.category, product.subCategory, product.audience, ...(product.tags ?? [])]
+        .join(" ")
+        .toLowerCase();
+      const target = keyedTitle.toLowerCase();
+      if (!target || !haystack) return 0;
+      if (haystack.includes(target)) return 4;
+      return target.split(/\s+/).reduce((score, token) => score + (haystack.includes(token.toLowerCase()) ? 1 : 0), 0);
+    };
+
+    return (
+      [...candidateProducts].sort((a, b) => matchScore(b) - matchScore(a))[0] ??
+      candidateProducts[0] ??
+      sourceProducts[0] ??
+      products[0] ??
+      null
+    );
+  }, [
+    filteredProducts,
+    initialCategory,
+    initialCollection,
+    initialCollectionTitle,
+    initialSection,
+    initialSubCategory,
+    products,
+    sectionEligibleProducts,
+  ]);
+
+  // ── Hero banner derivation ─────────────────────────────────────────────────
+  // Use initial URL props (always in sync with the current route) rather than
+  // selectedCategory/selectedSubCategory (client state) which can be one render
+  // behind during navigation — causing the stale "Classic-T-Shirts" flash when
+  // the user navigates to "Regular Fit T-Shirts".
+  const heroSectionTitle =
+    initialSection === "just-dropped"
+      ? "Just Dropped"
+      : initialSection === "bestsellers"
+        ? "Bestsellers"
+        : initialSection === "sale"
+          ? "Sale"
+          : initialSection === "collections"
+            ? "Collections"
+            : "Shop";
+
+  const heroTitle = initialCollectionTitle || initialSubCategory || initialCategory || heroSectionTitle;
+  // Banner CTAs must open the exact featured product, never a generic listing URL.
+  const heroProductHref = heroProduct?.handle?.trim()
+    ? `/product/${encodeURIComponent(heroProduct.handle.trim())}`
+    : heroProduct?.id
+      ? `/product/${encodeURIComponent(heroProduct.id)}`
+      : undefined;
+  const heroCtaHref = heroProductHref;
+  const heroCtaLabel = "SHOP";
+
   const sortedProducts = useMemo(() => {
     const list = [...filteredProducts];
 
+    // Sort two products by their Shopify publishedAt date (newest first).
+    // Falls back to the existing array order, which is already CREATED_AT desc
+    // from the Shopify query — a reliable proxy when publishedAt is unavailable.
+    const compareByPublishedAt = (a: (typeof list)[0], b: (typeof list)[0]) => {
+      if (a.publishedAt && b.publishedAt) {
+        return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+      }
+      return 0; // keep Shopify's server-side CREATED_AT order
+    };
+
     switch (selectedSort) {
       case "new":
-        return list.sort((a, b) => hashString(b.id) - hashString(a.id));
+        // "What's New" uses the actual Shopify publishedAt so that a product created
+        // long ago but published recently ranks correctly (not by creation date).
+        return list.sort(compareByPublishedAt);
       case "popularity":
         return list.sort((a, b) => b.popularity - a.popularity);
       case "price-low-high":
@@ -465,9 +618,14 @@ export default function ShopListing({
         return list.sort((a, b) => b.rating - a.rating);
       case "recommended":
       default:
+        // For Just Dropped the natural order is "recently published first", not a
+        // rating × popularity blend.  The user can always override via the sort UI.
+        if (initialSection === "just-dropped") {
+          return list.sort(compareByPublishedAt);
+        }
         return list.sort((a, b) => b.rating * 100 + b.popularity - (a.rating * 100 + a.popularity));
     }
-  }, [filteredProducts, selectedSort]);
+  }, [filteredProducts, initialSection, selectedSort]);
 
   const handleOpenDetails = (product: GridProduct) => {
     const routeKey = product.handle?.trim() || product.id;
@@ -736,8 +894,19 @@ export default function ShopListing({
   );
 
   return (
-    <section className="mx-auto w-full max-w-[1600px] px-4 py-8 md:px-6 md:py-10 lg:px-8">
-      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <section className="mx-auto w-full max-w-[1600px] px-4 pb-8 md:px-6 md:pb-10 lg:px-8">
+      {heroProduct ? (
+        <CollectionHeroBanner
+          title={heroTitle}
+          product={heroProduct}
+          ctaHref={heroCtaHref}
+          ctaLabel={heroCtaLabel}
+          couponCode={initialSection === "sale" ? "WELCOME5" : undefined}
+          couponLabel={initialSection === "sale" ? "Extra 5% OFF" : undefined}
+        />
+      ) : null}
+
+      <div className="mb-6 mt-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-3xl font-semibold text-[#282c3f] md:text-4xl">
             {initialCollectionTitle || "Shop"}

@@ -27,9 +27,28 @@ type NavCollectionItem = {
   isFeatured: boolean;
 };
 
+type NavLink = {
+  label: string;
+  href: string;
+};
+
+type NavSectionKey =
+  | "just-dropped"
+  | "shop"
+  | "collections"
+  | "bestsellers"
+  | "sale"
+  | "about";
+
 type NavbarClientProps = {
   collections: NavCollectionItem[];
   primaryCollection: NavCollectionItem | null;
+  shopSectionLinks: NavLink[];
+  shopCategoryLinks: NavLink[];
+  justDroppedHref: string;
+  bestsellersHref: string;
+  saleHref: string;
+  activeSection: NavSectionKey | null;
 };
 
 // ── Collection badge pill ─────────────────────────────────────────
@@ -109,18 +128,6 @@ function DropdownCollectionItem({
   );
 }
 
-const permanentDesktopNavItems = [
-  { label: "MEN", href: "/shop?audience=boys" },
-  { label: "WOMEN", href: "/shop?audience=girls" },
-  { label: "GENZ", href: "/shop?category=t-shirts&subCategory=gen-z-t-shirts" },
-] as const;
-
-const permanentMobileItems = [
-  { label: "Men", href: "/shop?audience=boys" },
-  { label: "Women", href: "/shop?audience=girls" },
-  { label: "GenZ", href: "/shop?category=t-shirts&subCategory=gen-z-t-shirts" },
-] as const;
-
 function getDisplayName(fullName: string, email: string, phone: string) {
   const trimmedName = fullName.trim();
   if (trimmedName) {
@@ -135,12 +142,44 @@ function getDisplayName(fullName: string, email: string, phone: string) {
   return phone.trim() || "User";
 }
 
-export default function NavbarClient({ collections, primaryCollection }: NavbarClientProps) {
+const DROPDOWN_VIEWPORT_MARGIN_PX = 20;
+
+function calculateDropdownShift(dropdownEl: HTMLElement, viewportMargin = DROPDOWN_VIEWPORT_MARGIN_PX) {
+  const rect = dropdownEl.getBoundingClientRect();
+  const minLeft = viewportMargin;
+  const maxRight = window.innerWidth - viewportMargin;
+
+  if (rect.left < minLeft) {
+    return minLeft - rect.left;
+  }
+
+  if (rect.right > maxRight) {
+    return maxRight - rect.right;
+  }
+
+  return 0;
+}
+
+export default function NavbarClient({
+  collections,
+  primaryCollection,
+  shopSectionLinks,
+  shopCategoryLinks,
+  justDroppedHref,
+  bestsellersHref,
+  saleHref,
+  activeSection,
+}: NavbarClientProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isAccountSheetOpen, setIsAccountSheetOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileShopOpen, setIsMobileShopOpen] = useState(false);
+  const [isMobileCollectionsOpen, setIsMobileCollectionsOpen] = useState(false);
+  const [isShopOpen, setIsShopOpen] = useState(false);
   const [isCollectionsOpen, setIsCollectionsOpen] = useState(false);
+  const [shopDropdownShift, setShopDropdownShift] = useState(0);
+  const [collectionsDropdownShift, setCollectionsDropdownShift] = useState(0);
 
   const isCartOpen = useUiStore((state) => state.isCartOpen);
   const isWishlistOpen = useUiStore((state) => state.isWishlistOpen);
@@ -166,7 +205,11 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
   const wishlistCount = getWishlistItems(wishlist).length;
 
   const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const shopRef = useRef<HTMLDivElement | null>(null);
   const collectionsRef = useRef<HTMLDivElement | null>(null);
+  const shopDropdownRef = useRef<HTMLDivElement | null>(null);
+  const collectionsDropdownRef = useRef<HTMLDivElement | null>(null);
+  const shopCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const collectionsCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const displayName = useMemo(
@@ -184,6 +227,9 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
       if (userMenuRef.current && !userMenuRef.current.contains(targetNode)) {
         closeUserMenu();
       }
+      if (shopRef.current && !shopRef.current.contains(targetNode)) {
+        setIsShopOpen(false);
+      }
       if (collectionsRef.current && !collectionsRef.current.contains(targetNode)) {
         setIsCollectionsOpen(false);
       }
@@ -198,8 +244,11 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
     closeWishlist();
     closeSearch();
     closeUserMenu();
+    setIsShopOpen(false);
     setIsCollectionsOpen(false);
     setIsMobileMenuOpen(false);
+    setIsMobileShopOpen(false);
+    setIsMobileCollectionsOpen(false);
   }, [closeCart, closeSearch, closeUserMenu, closeWishlist, pathname]);
 
   useEffect(() => {
@@ -216,12 +265,82 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
 
   useEffect(() => {
     return () => {
+      if (shopCloseTimeoutRef.current) {
+        clearTimeout(shopCloseTimeoutRef.current);
+        shopCloseTimeoutRef.current = null;
+      }
       if (collectionsCloseTimeoutRef.current) {
         clearTimeout(collectionsCloseTimeoutRef.current);
         collectionsCloseTimeoutRef.current = null;
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!isShopOpen) {
+      setShopDropdownShift(0);
+      return;
+    }
+
+    const updatePosition = () => {
+      if (!shopDropdownRef.current) {
+        return;
+      }
+      const nextShift = calculateDropdownShift(shopDropdownRef.current);
+      setShopDropdownShift((previousShift) => (Math.abs(previousShift - nextShift) < 0.5 ? previousShift : nextShift));
+    };
+
+    const rafId = window.requestAnimationFrame(updatePosition);
+    window.addEventListener("resize", updatePosition);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [isShopOpen, shopCategoryLinks.length, primaryCollection?.id]);
+
+  useEffect(() => {
+    if (!isCollectionsOpen) {
+      setCollectionsDropdownShift(0);
+      return;
+    }
+
+    const updatePosition = () => {
+      if (!collectionsDropdownRef.current) {
+        return;
+      }
+      const nextShift = calculateDropdownShift(collectionsDropdownRef.current);
+      setCollectionsDropdownShift((previousShift) =>
+        Math.abs(previousShift - nextShift) < 0.5 ? previousShift : nextShift,
+      );
+    };
+
+    const rafId = window.requestAnimationFrame(updatePosition);
+    window.addEventListener("resize", updatePosition);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [dropdownCollections.length, isCollectionsOpen]);
+
+  const openShopDropdown = () => {
+    if (shopCloseTimeoutRef.current) {
+      clearTimeout(shopCloseTimeoutRef.current);
+      shopCloseTimeoutRef.current = null;
+    }
+    setIsShopOpen(true);
+  };
+
+  const closeShopDropdown = (delayMs = 80) => {
+    if (shopCloseTimeoutRef.current) {
+      clearTimeout(shopCloseTimeoutRef.current);
+    }
+    shopCloseTimeoutRef.current = setTimeout(() => {
+      setIsShopOpen(false);
+      shopCloseTimeoutRef.current = null;
+    }, delayMs);
+  };
 
   const openCollectionsDropdown = () => {
     if (collectionsCloseTimeoutRef.current) {
@@ -265,7 +384,20 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
   };
 
   const desktopNavLinkClass =
-    "relative inline-flex items-center py-1 text-[16px] font-semibold leading-none tracking-normal text-[var(--nav-text)] transition-colors duration-200 hover:text-[var(--nav-active)] after:absolute after:-bottom-[9px] after:left-0 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-[#ed467a] after:transition-transform after:duration-200 hover:after:scale-x-100";
+    "relative inline-flex items-center py-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-[var(--nav-text)] transition-colors duration-200 hover:text-[var(--nav-active)] after:absolute after:-bottom-[10px] after:left-0 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-[#ed467a] after:transition-transform after:duration-200 hover:after:scale-x-100";
+
+  const desktopNavLinkActiveClass =
+    "text-[var(--nav-active)] after:scale-x-100";
+
+  const isAboutRoute = pathname.startsWith("/about");
+  const isShopRoute = pathname.startsWith("/shop") || pathname.startsWith("/product");
+  const isShopActive = activeSection === "shop" || (!activeSection && isShopRoute);
+  const isJustDroppedActive = activeSection === "just-dropped";
+  const isCollectionsActive = activeSection === "collections";
+  const isBestsellersActive = activeSection === "bestsellers";
+  const isSaleActive = activeSection === "sale";
+  const shopAccentLeft = `clamp(28px, calc(50% - ${shopDropdownShift}px), calc(100% - 28px))`;
+  const collectionsAccentLeft = `clamp(28px, calc(50% - ${collectionsDropdownShift}px), calc(100% - 28px))`;
 
   const openWishlistFromMenu = () => {
     openWishlist();
@@ -303,102 +435,173 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
               />
             </Link>
 
-            <nav className="hidden shrink-0 items-center gap-5 lg:flex xl:gap-7">
-              {permanentDesktopNavItems.map((item) => (
-                <Link key={item.label} href={item.href} className={desktopNavLinkClass}>
-                  {item.label}
+            <nav className="hidden flex-1 items-center justify-center lg:flex">
+              <div className="flex items-center gap-5 xl:gap-7">
+                <Link href={justDroppedHref} className={`${desktopNavLinkClass} ${isJustDroppedActive ? desktopNavLinkActiveClass : ""}`}>
+                  JUST DROPPED
                 </Link>
-              ))}
 
-              {primaryCollection ? (
-                <Link href={primaryCollection.href} className={`${desktopNavLinkClass} gap-2`}>
-                  {primaryCollection.isFeatured ? (
-                    <span
-                      className="nav-new-drop-badge inline-flex items-center gap-[3px] rounded-[3px] px-[7px] py-[3px] text-[9px] font-extrabold uppercase tracking-[0.13em] text-white"
-                      aria-label="New drop"
-                    >
-                      <span aria-hidden="true">✦</span>
-                      <span>NEW DROP</span>
-                    </span>
-                  ) : null}
-                  <span>{primaryCollection.title}</span>
-                  {primaryCollection.badge && primaryCollection.badge.toUpperCase() !== "NEW" ? (
-                    <CollectionBadgePill badge={primaryCollection.badge} badgeType={primaryCollection.badgeType} />
-                  ) : null}
-                </Link>
-              ) : null}
-
-              <div
-                className="relative"
-                ref={collectionsRef}
-                onMouseEnter={openCollectionsDropdown}
-                onMouseLeave={() => closeCollectionsDropdown()}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isCollectionsOpen) {
-                      closeCollectionsDropdown(0);
-                      return;
-                    }
-                    openCollectionsDropdown();
-                  }}
-                  className={`${desktopNavLinkClass} gap-1`}
+                <div
+                  className="relative"
+                  ref={shopRef}
+                  onMouseEnter={openShopDropdown}
+                  onMouseLeave={() => closeShopDropdown()}
                 >
-                  COLLECTIONS
-                  <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isCollectionsOpen ? "rotate-180" : ""}`} />
-                </button>
-
-                {isCollectionsOpen ? (
-                  <div
-                    className="absolute left-1/2 top-full z-[110] w-[580px] -translate-x-1/2 pt-2"
-                    onMouseEnter={openCollectionsDropdown}
-                    onMouseLeave={() => closeCollectionsDropdown()}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isShopOpen) {
+                        closeShopDropdown(0);
+                        return;
+                      }
+                      openShopDropdown();
+                    }}
+                    className={`${desktopNavLinkClass} gap-1 ${isShopOpen || isShopActive ? desktopNavLinkActiveClass : ""}`}
                   >
-                    <div className="collections-dropdown-panel overflow-hidden rounded-lg border border-[#e8e8ed] bg-white shadow-[0_16px_36px_rgba(0,0,0,0.14),0_2px_8px_rgba(0,0,0,0.05)]">
-                      {/* Brand accent line */}
-                      <div
-                        className="h-[2.5px] bg-gradient-to-r from-[#ff3f6c] via-[#ff8c6e] to-[#ed467a]"
-                        aria-hidden="true"
-                      />
+                    SHOP
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isShopOpen ? "rotate-180" : ""}`} />
+                  </button>
 
-                      {/* Dropdown header */}
-                      <div className="flex items-center justify-between border-b border-[#f2f2f6] px-4 py-2.5">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9b9fad]">
-                          Our Collections
-                        </span>
-                        <Link
-                          href="/shop"
-                          onClick={() => setIsCollectionsOpen(false)}
-                          className="text-[10.5px] font-semibold tracking-[0.04em] text-[#ed467a] transition hover:underline"
-                        >
-                          View All →
-                        </Link>
-                      </div>
+                  {isShopOpen ? (
+                    <div
+                      ref={shopDropdownRef}
+                      className="absolute left-1/2 top-full z-[110] w-[500px] max-w-[calc(100vw-2rem)] pt-1.5"
+                      style={{ transform: `translateX(calc(-50% + ${shopDropdownShift}px))` }}
+                      onMouseEnter={openShopDropdown}
+                      onMouseLeave={() => closeShopDropdown()}
+                    >
+                      <div className="collections-dropdown-panel relative overflow-hidden rounded-[14px] border border-[#ececf2] bg-white shadow-[0_8px_22px_rgba(16,24,40,0.09),0_1px_3px_rgba(16,24,40,0.05)]">
+                        <div
+                          className="absolute top-0 h-[2px] w-16 -translate-x-1/2 rounded-b-full bg-[#ed467a]"
+                          style={{ left: shopAccentLeft }}
+                          aria-hidden="true"
+                        />
+                        <div className="border-b border-[#f2f2f6] px-8 pb-3 pt-3.5">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9b9fad]">Categories</p>
+                          <div className="mt-1.5">
+                            {shopCategoryLinks.map((item) => (
+                              <Link
+                                key={`${item.label}-${item.href}`}
+                                href={item.href}
+                                onClick={() => setIsShopOpen(false)}
+                                className="group flex items-center rounded-[8px] px-1.5 py-2.5 text-[15px] font-medium leading-[1.2] text-[#2f3344] transition-all duration-150 hover:bg-[#f8f8fc] hover:pl-2.5 hover:text-[#ed467a]"
+                              >
+                                {item.label}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
 
-                      {/* Grid */}
-                      <div className="grid grid-cols-2 gap-0.5 p-2.5">
-                        {dropdownCollections.length === 0 ? (
-                          <Link
-                            href="/shop"
-                            onClick={() => setIsCollectionsOpen(false)}
-                            className="col-span-2 flex items-center justify-between rounded-[5px] px-3 py-2.5 text-sm font-medium text-[#282c3f] transition hover:bg-[#f7f7f9] hover:text-[#ff3f6c]"
-                          >
-                            <span>All Collections</span>
-                          </Link>
-                        ) : null}
-
-                        {dropdownCollections.map((collection) => (
-                          <DropdownCollectionItem
-                            key={collection.id}
-                            collection={collection}
-                            onClick={() => setIsCollectionsOpen(false)}
-                          />
-                        ))}
+                        <div className="flex items-center justify-between gap-3 bg-[#fff7fb] px-8 py-1.5">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <Link
+                              href={shopSectionLinks[0]?.href ?? "/shop"}
+                              onClick={() => setIsShopOpen(false)}
+                              className="truncate text-[10px] font-semibold uppercase tracking-[0.15em] text-[#9f637a] transition hover:text-[#ed467a]"
+                            >
+                              View All Products
+                            </Link>
+                            {primaryCollection ? (
+                              <Link
+                                href={primaryCollection.href}
+                                onClick={() => setIsShopOpen(false)}
+                                className="truncate text-[10px] font-medium text-[#9f637a] transition hover:text-[#ed467a]"
+                              >
+                                · {primaryCollection.title}
+                              </Link>
+                            ) : null}
+                          </div>
+                          {primaryCollection && (primaryCollection.badge || primaryCollection.isFeatured) ? (
+                            <CollectionBadgePill badge={primaryCollection.badge} badgeType={primaryCollection.badgeType} />
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
+
+                <div
+                  className="relative"
+                  ref={collectionsRef}
+                  onMouseEnter={openCollectionsDropdown}
+                  onMouseLeave={() => closeCollectionsDropdown()}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isCollectionsOpen) {
+                        closeCollectionsDropdown(0);
+                        return;
+                      }
+                      openCollectionsDropdown();
+                    }}
+                    className={`${desktopNavLinkClass} gap-1 ${isCollectionsOpen || isCollectionsActive ? desktopNavLinkActiveClass : ""}`}
+                  >
+                    COLLECTIONS
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isCollectionsOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {isCollectionsOpen ? (
+                    <div
+                      ref={collectionsDropdownRef}
+                      className="absolute left-1/2 top-full z-[110] w-[580px] max-w-[calc(100vw-2rem)] pt-3"
+                      style={{ transform: `translateX(calc(-50% + ${collectionsDropdownShift}px))` }}
+                      onMouseEnter={openCollectionsDropdown}
+                      onMouseLeave={() => closeCollectionsDropdown()}
+                    >
+                      <div className="collections-dropdown-panel relative overflow-hidden rounded-xl border border-[#e8e8ed] bg-white shadow-[0_16px_36px_rgba(0,0,0,0.14),0_2px_8px_rgba(0,0,0,0.05)]">
+                        <div className="h-[2.5px] bg-gradient-to-r from-[#ff3f6c] via-[#ff8c6e] to-[#ed467a]" aria-hidden="true" />
+                        <div
+                          className="absolute top-0 h-[2.5px] w-16 -translate-x-1/2 rounded-b-full bg-[#ed467a]"
+                          style={{ left: collectionsAccentLeft }}
+                          aria-hidden="true"
+                        />
+                        <div className="flex items-center justify-between border-b border-[#f2f2f6] px-4 py-2.5">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9b9fad]">
+                            Collections
+                          </span>
+                          <Link
+                            href="/shop?section=collections"
+                            onClick={() => setIsCollectionsOpen(false)}
+                            className="text-[10.5px] font-semibold tracking-[0.04em] text-[#ed467a] transition hover:underline"
+                          >
+                            View All →
+                          </Link>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-0.5 p-2.5">
+                          {dropdownCollections.length === 0 ? (
+                            <Link
+                              href="/shop"
+                              onClick={() => setIsCollectionsOpen(false)}
+                              className="col-span-2 flex items-center justify-between rounded-[5px] px-3 py-2.5 text-sm font-medium text-[#282c3f] transition hover:bg-[#f7f7f9] hover:text-[#ff3f6c]"
+                            >
+                              <span>All Collections</span>
+                            </Link>
+                          ) : null}
+
+                          {dropdownCollections.map((collection) => (
+                            <DropdownCollectionItem
+                              key={collection.id}
+                              collection={collection}
+                              onClick={() => setIsCollectionsOpen(false)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <Link href={bestsellersHref} className={`${desktopNavLinkClass} ${isBestsellersActive ? desktopNavLinkActiveClass : ""}`}>
+                  BESTSELLERS
+                </Link>
+                <Link href={saleHref} className={`${desktopNavLinkClass} ${isSaleActive ? desktopNavLinkActiveClass : ""}`}>
+                  SALE
+                </Link>
+                <Link href="/about" className={`${desktopNavLinkClass} ${activeSection === "about" || isAboutRoute ? desktopNavLinkActiveClass : ""}`}>
+                  ABOUT
+                </Link>
               </div>
             </nav>
           </div>
@@ -470,29 +673,6 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
               {cartCount > 0 ? (
                 <span className="absolute right-0 top-0 rounded-full bg-[#ff3f6c] px-1.5 py-[1px] text-[10px] font-semibold text-white">
                   {cartCount}
-                </span>
-              ) : null}
-            </button>
-
-            <button
-              type="button"
-              aria-label="Open profile"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--nav-text)] transition hover:bg-[#f4f4f4] md:hidden"
-              onClick={() => setIsAccountSheetOpen(true)}
-            >
-              <User className="h-5 w-5" />
-            </button>
-
-            <button
-              type="button"
-              aria-label="Open wishlist"
-              onClick={openWishlist}
-              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--nav-text)] transition hover:bg-[#f4f4f4] md:hidden"
-            >
-              <Heart className="h-5 w-5" />
-              {wishlistCount > 0 ? (
-                <span className="absolute right-0 top-0 rounded-full bg-[#ff3f6c] px-1.5 py-[1px] text-[10px] font-semibold text-white">
-                  {wishlistCount}
                 </span>
               ) : null}
             </button>
@@ -580,7 +760,7 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
       {isMobileMenuOpen ? (
         <div className="mobile-drawer-backdrop fixed inset-0 top-[72px] z-[90] bg-black/45 backdrop-blur-[2px] md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
           <div
-            className="mobile-drawer-panel h-full w-[88vw] max-w-[340px] overflow-y-auto border-r border-[#e2e2e2] bg-white px-4 py-5"
+            className="mobile-drawer-panel h-full w-[88vw] max-w-[340px] overflow-x-hidden overflow-y-auto border-r border-[#e2e2e2] bg-white px-4 py-5"
             onClick={(event) => event.stopPropagation()}
           >
             <button
@@ -595,69 +775,163 @@ export default function NavbarClient({ collections, primaryCollection }: NavbarC
               Search for products, brands and more
             </button>
 
-            <div className="space-y-1">
-              {permanentMobileItems.map((item) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block rounded-md px-2 py-2 text-[15px] font-medium text-[#282c3f] hover:bg-[#f7f7f8]"
-                >
-                  {item.label}
-                </Link>
-              ))}
+            <div className="space-y-1.5">
+              <Link
+                href={justDroppedHref}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block rounded-md px-2 py-2 text-[15px] font-semibold text-[#282c3f] hover:bg-[#f7f7f8]"
+              >
+                Just Dropped
+              </Link>
 
-              {primaryCollection ? (
-                <Link
-                  href={primaryCollection.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="mt-2 flex items-center justify-between rounded-md bg-[#fff3f7] px-2 py-2.5 text-[15px] font-semibold text-[#282c3f]"
+              <div className="rounded-md border border-[#efeff4]">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileShopOpen((prev) => !prev)}
+                  className="flex w-full items-center justify-between px-2.5 py-2.5 text-left text-[15px] font-semibold text-[#282c3f]"
                 >
-                  <span className="flex items-center gap-1.5">
-                    <span aria-hidden="true" className="text-[10px] text-[#ed467a]">✦</span>
-                    {primaryCollection.title}
-                  </span>
-                  <span
-                    className="nav-new-drop-badge inline-flex items-center gap-[3px] rounded-[3px] px-[7px] py-[3px] text-[9px] font-extrabold uppercase tracking-[0.1em] text-white"
-                    aria-label="New drop"
-                  >
-                    <span aria-hidden="true">✦</span>
-                    <span>NEW</span>
-                  </span>
-                </Link>
-              ) : null}
+                  <span>Shop</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isMobileShopOpen ? "rotate-180" : ""}`} />
+                </button>
+                {isMobileShopOpen ? (
+                  <div className="space-y-2.5 border-t border-[#efeff4] px-2.5 py-2">
+                    <div>
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#9096a3]">Shop</p>
+                      <div className="space-y-0.5">
+                        {shopSectionLinks.map((item) => (
+                          <Link
+                            key={item.label}
+                            href={item.href}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="block rounded-[7px] px-2 py-1.5 text-[14px] text-[#2f3344] transition-colors duration-150 hover:bg-[#f7f7fb] hover:text-[#ed467a]"
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#9096a3]">Categories</p>
+                      <div className="space-y-0.5">
+                        {shopCategoryLinks.map((item) => (
+                          <Link
+                            key={`${item.label}-${item.href}`}
+                            href={item.href}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="block rounded-[7px] px-2 py-1.5 text-[14px] text-[#2f3344] transition-colors duration-150 hover:bg-[#f7f7fb] hover:text-[#ed467a]"
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="rounded-md border border-[#efeff4]">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileCollectionsOpen((prev) => !prev)}
+                  className="flex w-full items-center justify-between px-2.5 py-2.5 text-left text-[15px] font-semibold text-[#282c3f]"
+                >
+                  <span>Collections</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isMobileCollectionsOpen ? "rotate-180" : ""}`} />
+                </button>
+                {isMobileCollectionsOpen ? (
+                  <div className="space-y-1 border-t border-[#efeff4] px-2.5 py-2.5">
+                    {collections.length === 0 ? (
+                      <Link
+                        href="/shop?section=collections"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="block rounded-[6px] px-2 py-1.5 text-[14px] text-[#2f3344] hover:bg-[#f7f7fb]"
+                      >
+                        All Collections
+                      </Link>
+                    ) : null}
+
+                    {collections.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={item.href}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center justify-between rounded-[6px] px-2 py-1.5 text-[14px] text-[#2f3344] hover:bg-[#f7f7fb]"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {item.isFeatured ? (
+                            <span
+                              aria-hidden="true"
+                              className={`text-[10px] leading-none ${item.badgeType === "seasonal" ? "text-[#f59e0b]" : "text-[#ed467a]"}`}
+                            >
+                              ✦
+                            </span>
+                          ) : null}
+                          {item.title}
+                        </span>
+                        {item.badge || item.isFeatured ? (
+                          <CollectionBadgePill badge={item.badge} badgeType={item.badgeType} />
+                        ) : null}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <Link
+                href={bestsellersHref}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block rounded-md px-2 py-2 text-[15px] font-medium text-[#282c3f] hover:bg-[#f7f7f8]"
+              >
+                Bestsellers
+              </Link>
+
+              <Link
+                href={saleHref}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block rounded-md px-2 py-2 text-[15px] font-medium text-[#282c3f] hover:bg-[#f7f7f8]"
+              >
+                Sale
+              </Link>
+
+              <Link
+                href="/about"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block rounded-md px-2 py-2 text-[15px] font-medium text-[#282c3f] hover:bg-[#f7f7f8]"
+              >
+                About
+              </Link>
             </div>
 
-            {collections.length > 0 ? (
-              <div className="mt-5 border-t border-[#ececf0] pt-4">
-                <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#7a7f8c]">Collections</p>
-                <div className="space-y-1">
-                  {collections.map((item) => (
-                    <Link
-                      key={item.id}
-                      href={item.href}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center justify-between rounded-md px-2 py-2 text-[14px] hover:bg-[#f7f7f8] ${item.isFeatured ? "font-semibold text-[#282c3f]" : "text-[#282c3f]"}`}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        {item.isFeatured ? (
-                          <span
-                            aria-hidden="true"
-                            className={`text-[10px] leading-none ${item.badgeType === "seasonal" ? "text-[#f59e0b]" : "text-[#ed467a]"}`}
-                          >
-                            ✦
-                          </span>
-                        ) : null}
-                        {item.title}
-                      </span>
-                      {item.badge || item.isFeatured ? (
-                        <CollectionBadgePill badge={item.badge} badgeType={item.badgeType} />
-                      ) : null}
-                    </Link>
-                  ))}
-                </div>
+            <div className="mt-5 border-t border-[#ececf0] pt-4">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAccountSheetOpen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="inline-flex items-center justify-center rounded-md border border-[#e6e7ec] px-3 py-2 text-sm font-medium text-[#2f3344]"
+                >
+                  Account
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    openWishlist();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="relative inline-flex items-center justify-center rounded-md border border-[#e6e7ec] px-3 py-2 text-sm font-medium text-[#2f3344]"
+                >
+                  Wishlist
+                  {wishlistCount > 0 ? (
+                    <span className="absolute -right-1 -top-1 rounded-full bg-[#ff3f6c] px-1.5 py-[1px] text-[10px] font-semibold text-white">
+                      {wishlistCount}
+                    </span>
+                  ) : null}
+                </button>
               </div>
-            ) : null}
+            </div>
           </div>
         </div>
       ) : null}

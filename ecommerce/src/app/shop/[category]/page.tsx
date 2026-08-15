@@ -38,7 +38,7 @@ export default async function CategoryPage({
   }
 
   // Fetch products
-  const storefrontProducts = await getStorefrontProducts(40);
+  const storefrontProducts = await getStorefrontProducts(250);
   const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
 
   // Build category tree to validate the requested category exists
@@ -56,14 +56,15 @@ export default async function CategoryPage({
 
   return (
     <main>
-      <Navbar />
-      <div className="h-24 md:h-28" />
+      <Navbar activeSection="shop" />
+      <div className="h-[68px] md:h-[72px]" />
       <ShopListing
         products={products}
         initialQuery={query}
         initialCategory={categoryNode.name}
         initialSubCategory={subCategory}
         initialAudience={audience}
+        initialSection="shop"
       />
     </main>
   );

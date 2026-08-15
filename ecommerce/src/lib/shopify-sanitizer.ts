@@ -68,6 +68,8 @@ export function createSafeProductResponse(product: GridProduct) {
     subCategorySlug: product.subCategorySlug,
     audience: product.audience,
     audienceSlug: product.audienceSlug,
+    fit: product.fit,
+    productType: product.productType,
     tags: product.tags,
     description: product.description,
     galleryImages: product.galleryImages,

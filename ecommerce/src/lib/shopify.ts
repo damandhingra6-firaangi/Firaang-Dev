@@ -1,5 +1,6 @@
 import { GridProduct, ProductMedia, ProductSizeChart } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
+import { deriveProductFit } from "@/lib/product-fit";
 import { deriveProductTaxonomy } from "@/lib/product-taxonomy";
 
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
@@ -30,6 +31,20 @@ type ShopifyProductsResponse = {
           title: string;
           productType: string;
           tags: string[];
+          /** ISO-8601 date-time when the product was first published to the storefront. */
+          publishedAt: string;
+          fitCustom?: {
+            value: string;
+          } | null;
+          fitTypeCustom?: {
+            value: string;
+          } | null;
+          styleFitCustom?: {
+            value: string;
+          } | null;
+          fitDetails?: {
+            value: string;
+          } | null;
           description: string;
           featuredImage: { url: string; altText: string | null } | null;
           images?: {
@@ -155,6 +170,19 @@ const productsQuery = `#graphql
           title
           productType
           tags
+          publishedAt
+          fitCustom: metafield(namespace: "custom", key: "fit") {
+            value
+          }
+          fitTypeCustom: metafield(namespace: "custom", key: "fit_type") {
+            value
+          }
+          styleFitCustom: metafield(namespace: "custom", key: "style_fit") {
+            value
+          }
+          fitDetails: metafield(namespace: "details", key: "fit") {
+            value
+          }
           description
           featuredImage {
             url
@@ -277,6 +305,18 @@ const collectionProductsQuery = `#graphql
             title
             productType
             tags
+            fitCustom: metafield(namespace: "custom", key: "fit") {
+              value
+            }
+            fitTypeCustom: metafield(namespace: "custom", key: "fit_type") {
+              value
+            }
+            styleFitCustom: metafield(namespace: "custom", key: "style_fit") {
+              value
+            }
+            fitDetails: metafield(namespace: "details", key: "fit") {
+              value
+            }
             description
             featuredImage {
               url
@@ -821,6 +861,13 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
     productType: node.productType,
     tags: node.tags,
   });
+  const productFit = deriveProductFit({
+    fitMetafields: [node.fitCustom?.value, node.fitTypeCustom?.value, node.styleFitCustom?.value, node.fitDetails?.value],
+    tags: node.tags,
+    subCategory: taxonomy.subCategory,
+    productType: node.productType,
+    title: node.title,
+  });
   const selectedVariant = node.selectedOrFirstAvailableVariant;
   const basePriceAmount = selectedVariant
     ? convertAmount(
@@ -851,6 +898,9 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
     id: node.id,
     handle: node.handle,
     tags: node.tags,
+    publishedAt: node.publishedAt ?? undefined,
+    fit: productFit,
+    productType: node.productType,
     category: taxonomy.category,
     categorySlug: taxonomy.categorySlug,
     subCategory: taxonomy.subCategory,

@@ -55,12 +55,16 @@ export type GridProduct = {
   parentId?: string;
   handle?: string;
   tags?: string[];
+  /** ISO-8601 date-time when the product was made available on the storefront. */
+  publishedAt?: string;
   category?: string;
   categorySlug?: string;
   subCategory?: string;
   subCategorySlug?: string;
   audience?: string;
   audienceSlug?: string;
+  fit?: string;
+  productType?: string;
   name: string;
   price: string;
   priceAmount: number;

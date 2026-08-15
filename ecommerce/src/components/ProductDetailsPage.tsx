@@ -35,6 +35,7 @@ import { CUSTOM_DESIGN_SURCHARGE_INR, GridProduct } from "@/lib/catalog";
 import { isSignatureProduct } from "@/lib/design-inquiry";
 import { COMPANY_MANUFACTURER_DETAILS } from "@/lib/company";
 import { convertAmount, formatCurrency } from "@/lib/currency";
+import { deriveProductFit } from "@/lib/product-fit";
 import { getDisplayPricing } from "@/lib/pricing-display";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useAccountStore } from "@/store/useAccountStore";
@@ -878,9 +879,19 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
     setSelectedMediaId(galleryItems[nextIndex]?.id ?? null);
   };
 
+  const resolvedFit =
+    product.fit ??
+    deriveProductFit({
+      tags: product.tags,
+      subCategory: product.subCategory,
+      productType: product.productType ?? product.category,
+      title: product.name,
+    }) ??
+    "Fit varies by style";
+
   const specs = [
     { label: "Material & Fabric", value: product.tags?.find((tag) => /cotton|silk|linen|viscose|wool/i.test(tag)) ?? "Premium woven fabric" },
-    { label: "Fit", value: product.tags?.find((tag) => /regular|slim|relaxed|straight/i.test(tag)) ?? "Regular fit" },
+    { label: "Fit", value: resolvedFit },
     { label: "Pattern", value: product.tags?.find((tag) => /embroider|printed|woven|solid|checked/i.test(tag)) ?? "Contemporary solid finish" },
     { label: "Sleeve Type", value: product.tags?.find((tag) => /sleeve/i.test(tag)) ?? "Three-quarter sleeves" },
     { label: "Neck Type", value: product.tags?.find((tag) => /neck/i.test(tag)) ?? "Round neck" },
