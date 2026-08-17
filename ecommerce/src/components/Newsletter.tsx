@@ -244,6 +244,9 @@ export default function Newsletter() {
               <p className="mt-4 max-w-[330px] text-[12px] leading-[1.65] text-white/60">
                 Where fashion meets global elegance. Curated clothing and jewellery for the modern connoisseur.
               </p>
+              <p className="mt-2 text-[11px] leading-relaxed text-white/65">
+                Firaang, pronounced <span className="font-semibold text-white/85">Fi-rang</span> (फिरंग).
+              </p>
               <p className="mt-4 inline-flex rounded-full border border-white/[0.15] bg-white/[0.05] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80">
                 Trusted Checkout by Razorpay
               </p>

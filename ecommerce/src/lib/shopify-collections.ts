@@ -40,6 +40,9 @@ type ShopifyCollectionNode = {
   launchSubtitleMetafield?: { value: string } | null;
   badgeMetafield?: { value: string } | null;
   priorityMetafield?: { value: string } | null;
+  campaignStartDateMetafield?: { value: string } | null;
+  campaignEndDateMetafield?: { value: string } | null;
+  isNewMetafield?: { value: string } | null;
   bannerImageMetafield?: {
     value: string | null;
     reference?:
@@ -84,6 +87,9 @@ export type ShopifyCollectionLaunch = {
   launchTitle: string | null;
   launchSubtitle: string | null;
   isFeatured: boolean;
+  isCampaignActive: boolean;
+  campaignStartDate: string | null;
+  campaignEndDate: string | null;
   priority: number;
 };
 
@@ -138,6 +144,15 @@ const collectionsQuery = `#graphql
           priorityMetafield: metafield(namespace: "custom", key: "priority") {
             value
           }
+          campaignStartDateMetafield: metafield(namespace: "custom", key: "campaign_start_date") {
+            value
+          }
+          campaignEndDateMetafield: metafield(namespace: "custom", key: "campaign_end_date") {
+            value
+          }
+          isNewMetafield: metafield(namespace: "custom", key: "is_new") {
+            value
+          }
           bannerImageMetafield: metafield(namespace: "custom", key: "banner_image") {
             value
             reference {
@@ -179,6 +194,61 @@ function parsePriority(value: string | undefined | null) {
 
   const parsed = Number.parseInt(value.trim(), 10);
   return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
+}
+
+function parseCampaignDate(value: string | undefined | null, boundary: "start" | "end") {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  // YYYY-MM-DD from Shopify date metafields: treat as whole-day campaign window.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return boundary === "start"
+      ? new Date(`${normalized}T00:00:00.000Z`)
+      : new Date(`${normalized}T23:59:59.999Z`);
+  }
+
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function isCampaignActiveNow(startDateRaw: string | null, endDateRaw: string | null, now = new Date()) {
+  const startDate = parseCampaignDate(startDateRaw, "start");
+  const explicitEndDate = parseCampaignDate(endDateRaw, "end");
+  const endDate = explicitEndDate ?? (startDate ? parseCampaignDate(startDateRaw, "end") : null);
+
+  if (!startDate && !endDate) {
+    return null;
+  }
+
+  // Upcoming campaigns (future start) should remain visible as upcoming/new.
+  // Only campaign end should retire a campaign from hero/new treatment.
+
+  if (endDate && now > endDate) {
+    return false;
+  }
+
+  return true;
+}
+
+function isIndependenceCampaignExpired(title: string, now = new Date()) {
+  const lowered = title.toLowerCase();
+  if (!lowered.includes("independence")) {
+    return false;
+  }
+
+  const year = now.getUTCFullYear();
+  const independenceDayEndUtc = new Date(Date.UTC(year, 7, 15, 23, 59, 59, 999));
+  return now > independenceDayEndUtc;
 }
 
 const SEASONAL_KEYWORDS = new Set([
@@ -252,10 +322,40 @@ function resolveBannerImage(node: ShopifyCollectionNode) {
 function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
   const featured = parseBoolean(node.featuredMetafield?.value);
   const launchFlag = parseBoolean(node.launchMetafield?.value);
+  const explicitNewFlag = parseBoolean(node.isNewMetafield?.value);
   const normalizedTitle = toTitleCase(node.title?.trim() || "") || humanizeHandle(node.handle);
   const normalizedDescription = node.description?.trim() ?? "";
-  const badge = node.badgeMetafield?.value?.trim() || null;
-  const isFeatured = featured || launchFlag || isSeasonalTitle(node.title);
+  const seasonalByName = isSeasonalTitle(node.title);
+  const startDateRaw = node.campaignStartDateMetafield?.value?.trim() || null;
+  const endDateRaw = node.campaignEndDateMetafield?.value?.trim() || null;
+  const campaignActiveState = isCampaignActiveNow(startDateRaw, endDateRaw);
+  const hasCampaignWindow = campaignActiveState !== null;
+
+  // Seasonal collections should not stay featured forever based only on title.
+  // They must have an active campaign window to be treated as featured/new.
+  const fallbackSeasonalFeatured =
+    seasonalByName &&
+    !hasCampaignWindow &&
+    !isIndependenceCampaignExpired(normalizedTitle);
+
+  const isFeatured =
+    featured || launchFlag
+      ? hasCampaignWindow
+        ? campaignActiveState === true
+        : true
+      : seasonalByName
+        ? campaignActiveState === true || fallbackSeasonalFeatured
+        : false;
+
+  const isCampaignActive = hasCampaignWindow ? campaignActiveState === true : isFeatured;
+
+  const rawBadge = node.badgeMetafield?.value?.trim() || null;
+  const shouldShowBadge =
+    isFeatured ||
+    (explicitNewFlag && (campaignActiveState === null || campaignActiveState === true));
+  const badge = shouldShowBadge
+    ? rawBadge ?? (explicitNewFlag || seasonalByName ? "NEW" : null)
+    : null;
 
   return {
     id: node.id,
@@ -270,6 +370,9 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
     launchTitle: node.launchTitleMetafield?.value?.trim() || null,
     launchSubtitle: node.launchSubtitleMetafield?.value?.trim() || null,
     isFeatured,
+    isCampaignActive,
+    campaignStartDate: startDateRaw,
+    campaignEndDate: endDateRaw,
     priority: parsePriority(node.priorityMetafield?.value),
   };
 }

@@ -880,14 +880,13 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   };
 
   const resolvedFit =
-    product.fit ??
     deriveProductFit({
+      fitMetafields: [product.fit],
       tags: product.tags,
       subCategory: product.subCategory,
       productType: product.productType ?? product.category,
       title: product.name,
-    }) ??
-    "Fit varies by style";
+    }) ?? "Fit varies by style";
 
   const specs = [
     { label: "Material & Fabric", value: product.tags?.find((tag) => /cotton|silk|linen|viscose|wool/i.test(tag)) ?? "Premium woven fabric" },

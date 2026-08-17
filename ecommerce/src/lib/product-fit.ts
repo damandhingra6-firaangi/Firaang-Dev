@@ -12,18 +12,102 @@ type FitRule = {
 };
 
 const FIT_RULES: FitRule[] = [
-  { label: "Oversized fit", patterns: [/\boversi[sz]ed\b/i, /\boversized\s*fit\b/i] },
-  { label: "Boxy fit", patterns: [/\bboxy\b/i, /\bbox\s*fit\b/i] },
-  { label: "Relaxed fit", patterns: [/\brelaxed\b/i, /\brelax\s*fit\b/i, /\bloose\b/i] },
-  { label: "Regular fit", patterns: [/\bregular\b/i, /\bclassic\s*fit\b/i, /\bregular\s*fit\b/i] },
-  { label: "Slim fit", patterns: [/\bslim\b/i, /\bslim\s*fit\b/i, /\btailored\b/i] },
-  { label: "Straight fit", patterns: [/\bstraight\b/i, /\bstraight\s*fit\b/i] },
-  { label: "Athletic fit", patterns: [/\bathletic\b/i, /\bathletic\s*fit\b/i] },
-  { label: "Compression fit", patterns: [/\bcompression\b/i, /\bcompress(?:ion|ed)?\s*fit\b/i] },
+  { label: "Oversized", patterns: [/\boversi[sz]ed\b/i, /\boversized\s*fit\b/i] },
+  { label: "Boxy Fit", patterns: [/\bboxy\b/i, /\bbox\s*fit\b/i] },
+  { label: "Relaxed Fit", patterns: [/\brelaxed\b/i, /\brelax\s*fit\b/i, /\bloose\b/i] },
+  { label: "Regular Fit", patterns: [/\bregular\b/i, /\bclassic\s*fit\b/i, /\bregular\s*fit\b/i] },
+  { label: "Slim Fit", patterns: [/\bslim\b/i, /\bslim\s*fit\b/i, /\btailored\b/i] },
+  { label: "Straight Fit", patterns: [/\bstraight\b/i, /\bstraight\s*fit\b/i] },
+  { label: "Athletic Fit", patterns: [/\bathletic\b/i, /\bathletic\s*fit\b/i] },
+  { label: "Compression Fit", patterns: [/\bcompression\b/i, /\bcompress(?:ion|ed)?\s*fit\b/i] },
 ];
+
+const MONTH_WORDS = [
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "sept",
+  "oct",
+  "nov",
+  "dec",
+  "january",
+  "february",
+  "march",
+  "april",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+] as const;
 
 function normalizeWhitespace(value: string) {
   return value.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function toDisplayCase(value: string) {
+  return value
+    .split(" ")
+    .map((part) => {
+      if (!part) {
+        return part;
+      }
+
+      const lowered = part.toLowerCase();
+      if (lowered === "fit") {
+        return "Fit";
+      }
+
+      return lowered.charAt(0).toUpperCase() + lowered.slice(1);
+    })
+    .join(" ");
+}
+
+function looksLikeDateOrLaunchMarker(text: string) {
+  const lowered = text.toLowerCase();
+
+  if (MONTH_WORDS.some((month) => lowered.includes(month))) {
+    return true;
+  }
+
+  // Ex: 15/08/2026, 2026-08-15, 15 aug, launch-2026
+  return /\b\d{1,4}[\/\-.]\d{1,2}([\/\-.]\d{1,4})?\b/.test(lowered) || /\b(launch|drop|release)\b/.test(lowered) || /\b\d{4}\b/.test(lowered);
+}
+
+function isLikelyFitPhrase(text: string) {
+  const normalized = normalizeWhitespace(text);
+  if (!normalized) {
+    return false;
+  }
+
+  if (looksLikeDateOrLaunchMarker(normalized)) {
+    return false;
+  }
+
+  const fitKeywords = [
+    "fit",
+    "regular",
+    "oversized",
+    "slim",
+    "relaxed",
+    "boxy",
+    "straight",
+    "athletic",
+    "compression",
+    "tailored",
+    "loose",
+    "drop shoulder",
+  ];
+
+  return fitKeywords.some((keyword) => normalized.toLowerCase().includes(keyword));
 }
 
 function toCanonicalFit(rawValue: string) {
@@ -35,10 +119,10 @@ function toCanonicalFit(rawValue: string) {
     }
   }
 
-  // If the merchant stores fit as a custom phrase, preserve it as readable text
-  // instead of forcing an incorrect hardcoded default.
-  if (normalized.length > 0) {
-    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  // Preserve merchant-defined fit phrases only when they look like actual fit values.
+  // This blocks unrelated content (for example dates) from leaking into Product Details.
+  if (isLikelyFitPhrase(normalized)) {
+    return toDisplayCase(normalized);
   }
 
   return undefined;
@@ -48,13 +132,21 @@ function detectFromText(text: string) {
   const normalized = normalizeWhitespace(text);
 
   // Product taxonomy rule: "Oversized T-Shirts" should always map to
-  // "Oversized fit" unless an explicit fit metafield overrides it.
+  // "Oversized" unless an explicit fit metafield overrides it.
   if (/\boversized\s+t\s*shirts?\b/i.test(normalized)) {
-    return "Oversized fit";
+    return "Oversized";
   }
 
   if (/\bregular\s+fit\s+t\s*shirts?\b/i.test(normalized)) {
-    return "Regular fit";
+    return "Regular Fit";
+  }
+
+  if (/\bslim\s+fit\b/i.test(normalized)) {
+    return "Slim Fit";
+  }
+
+  if (/\brelaxed\s+fit\b/i.test(normalized)) {
+    return "Relaxed Fit";
   }
 
   return toCanonicalFit(normalized);
