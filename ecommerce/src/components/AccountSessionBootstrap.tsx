@@ -22,20 +22,24 @@ export default function AccountSessionBootstrap() {
         });
 
         if (!response.ok) {
-          throw new Error("Failed to fetch account session");
+          // Treat unavailable session endpoint as signed-out to avoid noisy bootstrap errors.
+          if (!cancelled) {
+            clearSession();
+          }
+          return;
         }
 
-        const payload = (await response.json()) as {
+        const payload = (await response.json().catch(() => null)) as {
           authenticated?: boolean;
           profile?: Parameters<typeof setSession>[0]["profile"];
           orders?: Parameters<typeof setSession>[0]["orders"];
-        };
+        } | null;
 
         if (cancelled) {
           return;
         }
 
-        if (payload.authenticated && payload.profile && payload.orders) {
+        if (payload?.authenticated && payload.profile && payload.orders) {
           setSession({
             profile: payload.profile,
             orders: payload.orders,

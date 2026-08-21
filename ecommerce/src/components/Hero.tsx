@@ -30,6 +30,11 @@ type HeroSlide = {
   mobileImageClassName?: string;
   overlayClassName?: string;
   actionsClassName?: string;
+  promoBadgeText?: string;
+  promoBadgeClassName?: string;
+  couponCode?: string;
+  couponHintText?: string;
+  couponClassName?: string;
 };
 
 const BASE_HERO_SLIDE: HeroSlide = {
@@ -68,6 +73,32 @@ const DEVOTIONAL_HERO_SLIDE: HeroSlide = {
   actionsClassName: "mt-5 md:mt-7",
 };
 
+const WELCOME_COUPON_HERO_SLIDE: HeroSlide = {
+  id: "welcome-coupon-hero",
+  image: "/Banner1.png",
+  mobileImage: "/Banner_Mobile.png",
+  alt: "Firaang welcome offer banner with fashion models",
+  eyebrow: "WELCOME TO FIRAANG",
+  title: ["EXTRA 5% OFF", ""],
+  subtitle: "Apply at checkout to save",
+  primaryCtaLabel: "SHOP NOW",
+  primaryCtaHref: "/shop",
+  promoBadgeText: "NEW CUSTOMER WELCOME OFFER",
+  couponCode: "WELCOME5",
+  couponHintText: "Use this code at checkout",
+  titleClassName:
+    "text-[clamp(2.9rem,13.5vw,5.7rem)] leading-[0.96] md:text-[clamp(4.8rem,7.3vw,6.35rem)]",
+  subtitleClassName:
+    "mt-3 max-w-[300px] text-[13px] font-semibold text-white/92 sm:max-w-[360px] md:mt-4 md:max-w-[430px] md:text-[17px]",
+  mobileImageClassName: "object-[50%_70%]",
+  imageClassName: "object-[50%_26%] lg:object-[50%_30%] xl:object-[50%_34%]",
+  overlayClassName:
+    "bg-[radial-gradient(circle_at_18%_24%,rgba(0,189,255,0.2)_0%,rgba(0,189,255,0)_38%),radial-gradient(circle_at_82%_20%,rgba(10,207,131,0.18)_0%,rgba(10,207,131,0)_36%),radial-gradient(circle_at_50%_84%,rgba(237,70,122,0.16)_0%,rgba(237,70,122,0)_42%),radial-gradient(circle_at_66%_50%,rgba(253,206,72,0.11)_0%,rgba(253,206,72,0)_46%),linear-gradient(112deg,rgba(12,10,18,0.2)_0%,rgba(20,14,26,0.14)_35%,rgba(14,12,22,0.2)_100%)]",
+  promoBadgeClassName: "mt-3 bg-white/22 text-white ring-1 ring-white/55 shadow-[0_8px_18px_rgba(0,0,0,0.18)] md:mt-4",
+  couponClassName: "border-white/58 bg-white/14 text-white shadow-[0_14px_26px_rgba(0,0,0,0.16)]",
+  actionsClassName: "mt-5 md:mt-7",
+};
+
 function splitHeadline(value: string) {
   const normalized = value.trim().replace(/\s+/g, " ");
 
@@ -84,9 +115,32 @@ function splitHeadline(value: string) {
   return [words.slice(0, pivot).join(" "), words.slice(pivot).join(" ")] as const;
 }
 
+function getFestivalSlideOverrides(collection: ShopifyCollectionLaunch): Partial<HeroSlide> | null {
+  const lowered = `${collection.title} ${collection.handle}`.toLowerCase();
+
+  if (lowered.includes("janmashtami")) {
+    return {
+      eyebrow: "✨ JANMASHTAMI SPECIAL",
+      title: ["Janmashtami", "Special"],
+      subtitle:
+        "Celebrate Krishna Janmashtami with expressive graphic essentials inspired by devotion, color, and festive energy.",
+      primaryCtaLabel: "EXPLORE COLLECTION",
+      overlayClassName:
+        "bg-[radial-gradient(circle_at_16%_24%,rgba(249,115,22,0.2)_0%,rgba(249,115,22,0)_38%),radial-gradient(circle_at_84%_18%,rgba(37,99,235,0.16)_0%,rgba(37,99,235,0)_38%),linear-gradient(110deg,rgba(8,8,12,0.62)_0%,rgba(12,12,20,0.52)_36%,rgba(20,12,8,0.48)_100%)]",
+      imageClassName: "object-[50%_22%] lg:object-[50%_24%] xl:object-[50%_26%]",
+      mobileImageClassName: "object-[50%_18%]",
+      subtitleClassName: "max-w-[320px] text-[13px] leading-[1.5] sm:max-w-[380px] md:max-w-[460px]",
+      actionsClassName: "mt-5 md:mt-7",
+    };
+  }
+
+  return null;
+}
+
 function mapFeaturedCollectionToSlide(collection: ShopifyCollectionLaunch): HeroSlide {
   const launchHeadline = collection.launchTitle ?? collection.title;
   const [headlineLineOne, headlineLineTwo] = splitHeadline(launchHeadline);
+  const festivalOverrides = getFestivalSlideOverrides(collection);
 
   return {
     id: collection.id,
@@ -101,12 +155,13 @@ function mapFeaturedCollectionToSlide(collection: ShopifyCollectionLaunch): Hero
       "Explore the latest limited campaign from Firaang (Fi-rang).",
     primaryCtaLabel: "EXPLORE COLLECTION",
     primaryCtaHref: collection.href,
+    ...festivalOverrides,
   };
 }
 
 export default function Hero({ featuredCollections = [] }: HeroProps) {
   const slides = useMemo(
-    () => [BASE_HERO_SLIDE, DEVOTIONAL_HERO_SLIDE, ...featuredCollections.map(mapFeaturedCollectionToSlide)],
+    () => [BASE_HERO_SLIDE, WELCOME_COUPON_HERO_SLIDE, DEVOTIONAL_HERO_SLIDE, ...featuredCollections.map(mapFeaturedCollectionToSlide)],
     [featuredCollections],
   );
   const [activeIndex, setActiveIndex] = useState(0);
@@ -225,6 +280,12 @@ export default function Hero({ featuredCollections = [] }: HeroProps) {
           {activeSlide.eyebrow}
         </p>
 
+        {activeSlide.promoBadgeText ? (
+          <p className={`mt-2 inline-flex self-center rounded-full px-3 py-1 font-sans text-[10px] font-semibold uppercase tracking-[0.16em] backdrop-blur-sm md:text-[11px] ${activeSlide.promoBadgeClassName ?? "bg-white/10 text-white/90"}`}>
+            {activeSlide.promoBadgeText}
+          </p>
+        ) : null}
+
         <h1 className={`hero-title mt-4 max-w-4xl font-sans text-[clamp(2.5rem,11vw,4.75rem)] font-semibold leading-[1.03] tracking-[-0.02em] md:mt-5 md:text-[clamp(4.4rem,6.8vw,6rem)] md:leading-[0.98] ${activeSlide.titleClassName ?? ""}`}>
           {activeSlide.title[0]}
           {activeSlide.title[1] ? (
@@ -238,6 +299,22 @@ export default function Hero({ featuredCollections = [] }: HeroProps) {
         <p className={`mt-4 max-w-[760px] font-sans text-[12px] font-medium leading-[1.5] text-[#f6f6f6] md:mt-6 md:text-[16px] md:leading-[1.35] lg:text-[18px] ${activeSlide.subtitleClassName ?? ""}`}>
           {activeSlide.subtitle}
         </p>
+
+        {activeSlide.couponCode ? (
+          <div className={`mt-4 inline-flex min-w-[220px] flex-col items-center self-center rounded-[14px] border px-5 py-3 backdrop-blur-md md:mt-5 md:min-w-[250px] md:px-6 ${activeSlide.couponClassName ?? "border-white/45 bg-black/28 text-white"}`}>
+            <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.18em] text-white/78 md:text-[11px]">
+              Coupon Code
+            </p>
+            <p className="mt-1.5 font-sans text-[29px] font-semibold uppercase tracking-[0.16em] leading-none md:text-[34px]">
+              {activeSlide.couponCode}
+            </p>
+            {activeSlide.couponHintText ? (
+              <p className="mt-1.5 font-sans text-[11px] font-medium text-white/74 md:text-[12px]">
+                {activeSlide.couponHintText}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className={`mt-6 flex flex-col gap-3 sm:flex-row sm:gap-2.5 md:mt-8 md:gap-4 ${activeSlide.actionsClassName ?? ""}`}>
           <Link

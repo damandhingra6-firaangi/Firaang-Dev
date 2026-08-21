@@ -406,8 +406,28 @@ export default function NavbarClient({
 
   return (
     <header className="fixed top-0 z-50 w-full">
-      <div className="bg-[var(--announcement-bg)] px-3 py-1 text-center text-[9px] font-medium uppercase tracking-[0.16em] text-[var(--announcement-fg)] md:py-1.5 md:text-[10px] md:tracking-[0.2em]">
-        <div className="home-shell flex items-center justify-center gap-4" />
+      <div className="overflow-hidden bg-[var(--announcement-bg)] text-[var(--announcement-fg)]">
+        <div className="relative flex w-full overflow-hidden">
+          <div
+            aria-label="Promotional offers"
+            className="promo-marquee-track flex min-w-max animate-[discount-marquee_28s_linear_infinite] items-center whitespace-nowrap py-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] hover:[animation-play-state:paused] md:py-2 md:text-[10px] md:tracking-[0.18em]"
+          >
+            {/* Set A */}
+            <span className="mx-6">GET 35% OFF ON ORDERS ABOVE ₹10,000</span>
+            <span className="text-[var(--nav-active)]" aria-hidden="true">✦</span>
+            <span className="mx-6">GET 25% OFF ON ORDERS ABOVE ₹5,000</span>
+            <span className="text-[var(--nav-active)]" aria-hidden="true">✦</span>
+            <span className="mx-6">GET 15% OFF ON ORDERS ABOVE ₹3,000</span>
+            <span className="text-[var(--nav-active)]" aria-hidden="true">✦</span>
+            {/* Set B — duplicate for seamless loop */}
+            <span className="mx-6" aria-hidden="true">GET 35% OFF ON ORDERS ABOVE ₹10,000</span>
+            <span className="text-[var(--nav-active)]" aria-hidden="true">✦</span>
+            <span className="mx-6" aria-hidden="true">GET 25% OFF ON ORDERS ABOVE ₹5,000</span>
+            <span className="text-[var(--nav-active)]" aria-hidden="true">✦</span>
+            <span className="mx-6" aria-hidden="true">GET 15% OFF ON ORDERS ABOVE ₹3,000</span>
+            <span className="text-[var(--nav-active)]" aria-hidden="true">✦</span>
+          </div>
+        </div>
       </div>
 
       <div className="border-b border-[color:var(--nav-border)]/70 bg-[var(--nav-bg)] text-[var(--nav-text)]">

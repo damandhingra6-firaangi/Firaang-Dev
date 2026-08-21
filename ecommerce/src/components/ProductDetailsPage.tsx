@@ -3,6 +3,7 @@
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   BadgeIndianRupee,
@@ -403,6 +404,7 @@ function RelatedRail({
 }
 
 export default function ProductDetailsPage({ product, catalogProducts }: ProductDetailsPageProps) {
+  const searchParams = useSearchParams();
   const wishlist = useShopStore((state) => state.wishlist);
   const toggleWishlist = useShopStore((state) => state.toggleWishlist);
   const addToCart = useShopStore((state) => state.addToCart);
@@ -484,6 +486,21 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
     setSelectedVariantId(initialVariant.id);
     setSelectedOptions(Object.fromEntries(initialVariant.options.map((option) => [option.name, option.value])));
   }, [product.id]);
+
+  useEffect(() => {
+    const requestedVariantId = searchParams.get("variant");
+    if (!requestedVariantId || variants.length === 0) {
+      return;
+    }
+
+    const requestedVariant = variants.find((variant) => variant.id === requestedVariantId);
+    if (!requestedVariant) {
+      return;
+    }
+
+    setSelectedVariantId(requestedVariant.id);
+    setSelectedOptions(Object.fromEntries(requestedVariant.options.map((option) => [option.name, option.value])));
+  }, [searchParams, variants]);
 
   const galleryItems = useMemo(() => {
     const unique = new Map<string, GalleryItem>();

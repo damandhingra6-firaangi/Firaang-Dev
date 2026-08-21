@@ -4,6 +4,29 @@ export const COD_PERCENTAGE_ABOVE_2000 = 2.5;
 export const DEFAULT_ITEM_WEIGHT_KG = 0.5;
 export const HIGH_LOGISTICS_SURCHARGE_INR = 25;
 
+// ── Tiered order discount tiers (highest applicable wins) ─────────
+export const TIERED_DISCOUNT_TIERS = [
+  { minSubtotal: 10000, percent: 35, label: "35% OFF" },
+  { minSubtotal: 5000,  percent: 25, label: "25% OFF" },
+  { minSubtotal: 3000,  percent: 15, label: "15% OFF" },
+] as const;
+
+export type TieredDiscountTier = (typeof TIERED_DISCOUNT_TIERS)[number];
+
+export function computeTieredOrderDiscount(subtotalAmount: number): {
+  percent: number;
+  amount: number;
+  label: string;
+} | null {
+  const tier = TIERED_DISCOUNT_TIERS.find((t) => subtotalAmount >= t.minSubtotal);
+  if (!tier) return null;
+  return {
+    percent: tier.percent,
+    amount: Math.round((subtotalAmount * tier.percent) / 100),
+    label: tier.label,
+  };
+}
+
 export const INDIAN_STATES = [
   "Andaman and Nicobar Islands",
   "Andhra Pradesh",
@@ -61,6 +84,10 @@ export type CheckoutPricingSummary = {
   baseShippingFee: number;
   regionSurchargeFee: number;
   discountAmount: number;
+  tieredDiscountAmount: number;
+  tieredDiscountPercent: number;
+  tieredDiscountLabel: string | null;
+  couponDiscountAmount: number;
   codFee: number;
   totalAmount: number;
   appliedCoupon: AppliedCheckoutCoupon | null;
@@ -285,11 +312,19 @@ export function calculateCheckoutPricing(input: {
 
   const validatedCoupon = input.validatedCoupon ?? null;
   const couponStatus: CheckoutPricingSummary["couponStatus"] = validatedCoupon ? "applied" : "none";
-  const discountAmount = validatedCoupon?.discountAmount ?? 0;
+  const couponDiscountAmount = validatedCoupon?.discountAmount ?? 0;
   const appliedCoupon: AppliedCheckoutCoupon | null = validatedCoupon
     ? { code: validatedCoupon.code, label: validatedCoupon.label, description: validatedCoupon.description }
     : null;
   const couponMessage: string | null = validatedCoupon ? `${validatedCoupon.code} applied successfully.` : null;
+
+  const tieredDiscount = computeTieredOrderDiscount(subtotalAmount);
+  const tieredDiscountAmount = tieredDiscount?.amount ?? 0;
+  const tieredDiscountPercent = tieredDiscount?.percent ?? 0;
+  const tieredDiscountLabel = tieredDiscount?.label ?? null;
+
+  // Total discount = tiered auto-discount + coupon discount (both applied)
+  const discountAmount = tieredDiscountAmount + couponDiscountAmount;
 
   const codFee = input.paymentMethod === "cod" ? calculateCodFee(subtotalAmount + resolvedShipping.shippingFee) : 0;
 
@@ -304,6 +339,10 @@ export function calculateCheckoutPricing(input: {
     baseShippingFee: resolvedShipping.baseShippingFee,
     regionSurchargeFee: resolvedShipping.regionSurchargeFee,
     discountAmount,
+    tieredDiscountAmount,
+    tieredDiscountPercent,
+    tieredDiscountLabel,
+    couponDiscountAmount,
     codFee,
     totalAmount: Math.max(0, subtotalAmount + resolvedShipping.shippingFee + codFee - discountAmount),
     appliedCoupon,

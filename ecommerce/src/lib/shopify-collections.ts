@@ -6,6 +6,7 @@ const DEFAULT_REVALIDATE_SECONDS = 300;
 
 const FEATURED_KEYWORDS = [
   "rakhi",
+  "janmashtami",
   "independence",
   "diwali",
   "holi",
@@ -253,6 +254,7 @@ function isIndependenceCampaignExpired(title: string, now = new Date()) {
 
 const SEASONAL_KEYWORDS = new Set([
   "rakhi",
+  "janmashtami",
   "independence",
   "diwali",
   "holi",

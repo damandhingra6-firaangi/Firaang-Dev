@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ChevronRight, Minus, Package, Plus, ShoppingBag, Tag, Trash2, X } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
@@ -256,6 +257,19 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
     cart: null,
     shipping: "cart",
     summary: "shipping",
+  };
+
+  const getProductDetailHref = (item: (typeof cartItems)[number]) => {
+    const routeKey = item.product.handle || item.product.parentId || item.product.id;
+    const params = new URLSearchParams();
+
+    // Preserve chosen variant on PDP when cart item came from a variant selection.
+    if (item.product.parentId && item.product.parentId !== item.product.id) {
+      params.set("variant", item.product.id);
+    }
+
+    const query = params.toString();
+    return `/product/${encodeURIComponent(routeKey)}${query ? `?${query}` : ""}`;
   };
 
   const loadRazorpayScript = async () => {
@@ -565,12 +579,17 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                 <div className="space-y-3">
                   {cartItems.map((item, index) => {
                     const lineTotal = lineDisplayTotals[index] ?? item.product.priceAmount * item.quantity;
+                    const productHref = getProductDetailHref(item);
                     return (
                       <article key={item.product.id} className="rounded-2xl border border-[#ff3f6c]/30 bg-white p-3">
                         <div className="flex gap-4">
-                          <SafeImage src={item.product.img} alt={item.product.name} className="h-24 w-24 shrink-0 rounded-xl object-cover" />
+                          <Link href={productHref} aria-label={`View ${item.product.name}`} className="shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff3f6c]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white">
+                            <SafeImage src={item.product.img} alt={item.product.name} className="h-24 w-24 rounded-xl object-cover" />
+                          </Link>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold leading-snug text-[#1f2430]">{item.product.name}</p>
+                            <Link href={productHref} className="text-sm font-semibold leading-snug text-[#1f2430] transition hover:text-[#ff3f6c] focus-visible:outline-none focus-visible:underline">
+                              {item.product.name}
+                            </Link>
                             {item.product.category ? (
                               <p className="mt-0.5 text-[11px] capitalize text-[#6b7280]">{item.product.category}</p>
                             ) : null}
@@ -721,16 +740,23 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
               <div className="rounded-2xl border border-[#ff3f6c]/30 bg-white p-4">
                 <p className="mb-3 text-[11px] uppercase tracking-[0.14em] text-[#ff3f6c]">Items ({cartCount})</p>
                 <div className="space-y-2.5">
-                  {cartItems.map((item, index) => (
-                    <div key={item.product.id} className="flex items-center gap-3">
-                      <SafeImage src={item.product.img} alt={item.product.name} className="h-10 w-10 shrink-0 rounded-lg object-cover" />
-                      <p className="flex-1 text-xs text-[#1f2430] line-clamp-1">{item.product.name}</p>
-                      <span className="text-xs text-[#6b7280]">x{item.quantity}</span>
-                      <span className="text-xs font-medium text-[#1f2430]">
-                        {formatCurrency(convertAmount(lineDisplayTotals[index] ?? item.product.priceAmount * item.quantity, "INR", displayCurrency), displayCurrency)}
-                      </span>
-                    </div>
-                  ))}
+                  {cartItems.map((item, index) => {
+                    const productHref = getProductDetailHref(item);
+                    return (
+                      <div key={item.product.id} className="flex items-center gap-3">
+                        <Link href={productHref} aria-label={`View ${item.product.name}`} className="shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff3f6c]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white">
+                          <SafeImage src={item.product.img} alt={item.product.name} className="h-10 w-10 rounded-lg object-cover" />
+                        </Link>
+                        <Link href={productHref} className="flex-1 text-xs text-[#1f2430] line-clamp-1 transition hover:text-[#ff3f6c] focus-visible:outline-none focus-visible:underline">
+                          {item.product.name}
+                        </Link>
+                        <span className="text-xs text-[#6b7280]">x{item.quantity}</span>
+                        <span className="text-xs font-medium text-[#1f2430]">
+                          {formatCurrency(convertAmount(lineDisplayTotals[index] ?? item.product.priceAmount * item.quantity, "INR", displayCurrency), displayCurrency)}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -781,10 +807,21 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                     {pricing.shippingStatus === "resolved" ? "FREE" : "-"}
                   </span>
                 </div>
-                {pricing.discountAmount > 0 ? (
-                  <div className="flex justify-between text-sm text-emerald-300">
-                    <span>Discount ({appliedCoupon?.code})</span>
-                    <span>-{formatCurrency(convertAmount(pricing.discountAmount, "INR", displayCurrency), displayCurrency)}</span>
+                {pricing.tieredDiscountAmount > 0 ? (
+                  <div className="flex justify-between text-sm text-emerald-500">
+                    <span className="flex items-center gap-1">
+                      <span className="rounded bg-emerald-50 px-1 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600">
+                        {pricing.tieredDiscountLabel}
+                      </span>
+                      Order Discount
+                    </span>
+                    <span>-{formatCurrency(convertAmount(pricing.tieredDiscountAmount, "INR", displayCurrency), displayCurrency)}</span>
+                  </div>
+                ) : null}
+                {pricing.couponDiscountAmount > 0 ? (
+                  <div className="flex justify-between text-sm text-emerald-400">
+                    <span>Coupon ({appliedCoupon?.code})</span>
+                    <span>-{formatCurrency(convertAmount(pricing.couponDiscountAmount, "INR", displayCurrency), displayCurrency)}</span>
                   </div>
                 ) : null}
                 <div className="flex justify-between border-t border-[#eceff5] pt-2.5 text-base font-semibold text-[#1f2430]">

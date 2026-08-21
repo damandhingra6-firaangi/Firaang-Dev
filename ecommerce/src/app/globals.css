@@ -274,3 +274,16 @@ h4 {
     animation: none;
   }
 }
+
+/* ── Promotional banner marquee ──────────────────────────────────── */
+@keyframes discount-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-marquee-track {
+    animation: none;
+    justify-content: center;
+  }
+}
