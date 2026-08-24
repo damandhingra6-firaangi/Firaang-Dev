@@ -64,7 +64,58 @@ if (Test-Path $staticRoot) {
 }
 
 if (Test-Path $publicRoot) {
-  Copy-Item $publicRoot $packageRoot -Recurse -Force
+  $packagePublicRoot = Join-Path $packageRoot "public"
+  if (Test-Path $packagePublicRoot) {
+    Remove-Item $packagePublicRoot -Recurse -Force
+  }
+
+  New-Item -ItemType Directory -Path $packagePublicRoot | Out-Null
+
+  # Only ship the assets that the app actually references. The full public folder
+  # includes legacy imagery that makes the cPanel upload archive too large.
+  $publicAssets = @(
+    "24-7Hrs.svg",
+    "AED.svg",
+    "apple-touch-icon.png",
+    "android-chrome-192x192.png",
+    "android-chrome-512x512.png",
+    "Banner1.png",
+    "Banner_Mobile.png",
+    "cat1.jpg",
+    "cat2.jpg",
+    "cat3.jpg",
+    "cat4.jpg",
+    "FiraangLogoDesign-black.svg",
+    "FiraangLogoDesign-white.svg",
+    "FiraangLogoDesign.png",
+    "FooterTransparentLogo.svg",
+    "FreeReturn.svg",
+    "FreeShipping.svg",
+    "GiftCard.svg",
+    "GoldenArrow.svg",
+    "hero.jpg",
+    "Home Page Banner.png",
+    "HomePageBannerDevotional.jpg",
+    "icon_v001.svg",
+    "India.svg",
+    "Mobile view_02.png",
+    "Mobile_banner_devotional.png",
+    "site.webmanifest",
+    "USD.svg",
+    "favicon.ico",
+    "favicon-16x16.png",
+    "favicon-32x32.png",
+    "favicon-48x48.png"
+  )
+
+  foreach ($asset in $publicAssets) {
+    $sourcePath = Join-Path $publicRoot $asset
+    if (-not (Test-Path $sourcePath)) {
+      throw "Required public asset not found: $asset"
+    }
+
+    Copy-Item $sourcePath $packagePublicRoot -Force
+  }
 }
 
 # Do not deploy local runtime upload artifacts from development.

@@ -9,6 +9,14 @@ export type InstagramShowcaseItem = {
   isNew: boolean;
 };
 
+export type StoryBannerItem = {
+  id: string;
+  href: string;
+  image: string;
+  alt: string;
+  title: string;
+};
+
 const ROTATION_WINDOW_DAYS = 5;
 const NEW_PRODUCT_WINDOW_DAYS = 21;
 
@@ -50,6 +58,34 @@ function normalizeProductImages(product: GridProduct) {
 function toProductHref(product: GridProduct) {
   const routeKey = product.handle || product.parentId || product.id;
   return `/product/${encodeURIComponent(routeKey)}`;
+}
+
+function scoreStoryProduct(product: GridProduct, index: number, total: number) {
+  const searchable = [product.name, product.category, product.subCategory, product.productType, ...(product.tags ?? [])]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  let score = (total - index) / Math.max(1, total);
+
+  if (/मैं\s*ही\s*कारण|main\s*hi\s*karan|karan\s*h?u?n?/i.test(searchable)) {
+    score += 4;
+  }
+
+  if (/मैं\s*ही\s*हल|main\s*hi\s*hal|hal\s*h?u?n?/i.test(searchable)) {
+    score += 3.8;
+  }
+
+  if (/krishna|कृष्ण|shiva|shiv|radha|janmashtami|devotional|bhakti|mandir|puja|spiritual/i.test(searchable)) {
+    score += 3.2;
+  }
+
+  if (/signature|statement|graphic|typography|art|cultural|streetwear/i.test(searchable)) {
+    score += 1.2;
+  }
+
+  score += hashToUnitInterval(`${product.id}:${product.name}`) * 0.25;
+  return score;
 }
 
 export function buildInstagramShowcaseItems(
@@ -133,6 +169,46 @@ export function buildInstagramShowcaseItems(
       title: candidate.title,
       isNew: candidate.isNew,
     });
+
+    if (selected.length >= maxItems) {
+      break;
+    }
+  }
+
+  return selected;
+}
+
+export function buildStoryBannerItems(products: GridProduct[], maxItems = 4): StoryBannerItem[] {
+  if (products.length === 0 || maxItems <= 0) {
+    return [];
+  }
+
+  const rankedProducts = [...products]
+    .map((product, index) => ({ product, index, score: scoreStoryProduct(product, index, products.length) }))
+    .sort((left, right) => right.score - left.score);
+
+  const selected: StoryBannerItem[] = [];
+  const seenProducts = new Set<string>();
+
+  for (const entry of rankedProducts) {
+    if (seenProducts.has(entry.product.id)) {
+      continue;
+    }
+
+    const images = normalizeProductImages(entry.product);
+    const image = images[0];
+    if (!image) {
+      continue;
+    }
+
+    selected.push({
+      id: `${entry.product.id}:story`,
+      href: toProductHref(entry.product),
+      image,
+      alt: entry.product.name,
+      title: entry.product.name,
+    });
+    seenProducts.add(entry.product.id);
 
     if (selected.length >= maxItems) {
       break;

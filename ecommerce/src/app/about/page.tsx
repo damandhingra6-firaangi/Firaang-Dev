@@ -8,7 +8,7 @@ import { createPageMetadata } from "@/lib/seo";
 export const metadata: Metadata = createPageMetadata({
   title: "About",
   description:
-    "Firaang is a modern Indian label creating bold, expressive designs for everyday wear, blending global inspiration with comfort and style.",
+    "Firaang is a premium Indian streetwear label shaped by an outsider mindset, familiar culture, and a different perspective.",
   path: "/about",
 });
 
@@ -37,10 +37,12 @@ const milestones = [
 ];
 
 const storyHighlights = [
-  "Inspired by the Hindi word फिरंग (firang).",
-  "Reimagined as a modern, expressive fashion label.",
-  "Built around cultural crossover and individuality.",
-  "Anchored in our philosophy: Different by Design.",
+  "Outsider mindset, not outsider identity.",
+  "Rooted in Indian culture, expressed differently.",
+  "Familiar ideas, reimagined through a new perspective.",
+  "Built around individuality and self-expression.",
+  "Contemporary streetwear with cultural influence.",
+  "Our philosophy: Different by Design.",
 ];
 
 export default function AboutPage() {
@@ -101,18 +103,21 @@ export default function AboutPage() {
                   The Story Behind Firaang
                 </p>
                 <h2 className="mt-4 text-3xl leading-tight text-[#f4efe8] md:text-5xl">
-                  How do you pronounce Firaang?
+                  Firaang is an outsider mindset, not an outsider identity.
                 </h2>
                 <p className="mt-4 max-w-3xl text-base leading-8 text-[#ddd5cc]">
-                  Firaang is pronounced <span className="font-semibold text-[#f8e2b0]">Fi-rang</span> (<span className="font-semibold text-[#f8e2b0]">फिरंग</span>). The name draws from the Hindi word फिरंग and is reimagined as a contemporary fashion identity that celebrates crossing boundaries, perspectives, and cultures.
+                  We believe you do not have to be an outsider to see things differently. Firaang was created for those who look at the familiar through a different lens.
                 </p>
                 <p className="mt-3 max-w-3xl text-sm leading-7 text-[#c8bfb5] md:text-base">
-                  It reflects exactly what we stand for: individuality with global influence, expressed through everyday style that is unapologetically Different by Design.
+                  Our designs draw from Indian culture, language, spirituality, humour and everyday life, then reinterpret them through a contemporary streetwear perspective. We take familiar ideas, challenge the expected and turn a different way of seeing into something you can wear.
+                </p>
+                <p className="mt-3 max-w-3xl text-sm font-medium uppercase tracking-[0.16em] text-[#f0d8a4] md:text-[13px]">
+                  Different by Design.
                 </p>
               </div>
 
               <div className="rounded-2xl border border-white/15 bg-white/[0.06] p-5 backdrop-blur-md">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gold)]">Brand Identity Notes</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gold)]">Brand Identity</p>
                 <ul className="mt-4 space-y-3 text-sm leading-6 text-[#e4ddd4]">
                   {storyHighlights.map((line) => (
                     <li key={line} className="flex items-start gap-2">
@@ -121,9 +126,6 @@ export default function AboutPage() {
                     </li>
                   ))}
                 </ul>
-                <p className="mt-5 rounded-xl border border-[var(--gold)]/30 bg-[rgba(211,167,54,0.12)] px-3 py-2 text-xs font-medium tracking-[0.02em] text-[#f0e1c7]">
-                  Pronunciation: <span className="font-semibold">Fi-rang</span> (short “a” sound, like फिरंग)
-                </p>
               </div>
             </div>
           </div>

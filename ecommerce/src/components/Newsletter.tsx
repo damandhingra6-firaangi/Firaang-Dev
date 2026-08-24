@@ -270,7 +270,7 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
           <div className="select-none text-center">
             <SafeImage
               src="/FooterTransparentLogo.svg"
-              alt="Different by design"
+              alt="Different by Design"
               className="mx-auto mt-1 aspect-[1220/269] h-auto max-h-full w-[clamp(760px,78vw,1280px)] max-w-full opacity-[0.25] [filter:invert(1)_brightness(1.15)]"
             />
           </div>
@@ -287,7 +287,7 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
                 Where fashion meets global elegance. Curated clothing and jewellery for the modern connoisseur.
               </p>
               <p className="mt-2 text-[11px] leading-relaxed text-white/65">
-                Firaang, pronounced <span className="font-semibold text-white/85">Fi-rang</span> (फिरंग).
+                Firaang is about seeing the familiar differently.
               </p>
               <p className="mt-4 inline-flex rounded-full border border-white/[0.15] bg-white/[0.05] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80">
                 Trusted Checkout by Razorpay

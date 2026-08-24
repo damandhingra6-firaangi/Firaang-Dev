@@ -1,7 +1,7 @@
 export const SITE_NAME = "Firaang";
 export const SITE_TITLE_DEFAULT = "Firaang | Different By Design";
 export const SITE_DESCRIPTION =
-  "Firaang crafts premium clothing and jewellery with bold, expressive design for modern wardrobes.";
+  "Firaang crafts premium clothing and jewellery rooted in Indian culture and expressed through a different perspective.";
 export const SITE_THEME_COLOR = "#fff8fa";
 export const SITE_BACKGROUND_COLOR = "#ffffff";
 export const SITE_LANGUAGE = "en-IN";

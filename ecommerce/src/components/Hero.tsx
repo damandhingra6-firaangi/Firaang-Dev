@@ -5,14 +5,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { TouchEvent } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
+import type { StoryBannerItem } from "@/lib/instagram-showcase";
 import type { ShopifyCollectionLaunch } from "@/lib/shopify-collections";
 
 type HeroProps = {
   featuredCollections?: ShopifyCollectionLaunch[];
+  storyBannerItems?: StoryBannerItem[];
 };
 
 type HeroSlide = {
   id: string;
+  variant?: "image" | "story";
   image: string;
   mobileImage: string;
   alt: string;
@@ -35,6 +38,7 @@ type HeroSlide = {
   couponCode?: string;
   couponHintText?: string;
   couponClassName?: string;
+  storyTiles?: StoryBannerItem[];
 };
 
 const BASE_HERO_SLIDE: HeroSlide = {
@@ -44,7 +48,7 @@ const BASE_HERO_SLIDE: HeroSlide = {
   alt: "Model in seasonal Firaang outfit",
   eyebrow: "AUTUMN / WINTER 2026",
   title: ["Define Your", "Style With Firaang"],
-  subtitle: "Premium Clothing And Jewellery, Sculpted For Those Who Treat Their Wardrobe Like An Archive. Firaang (Fi-rang) is different by design.",
+  subtitle: "Premium Clothing And Jewellery, Sculpted For Those Who See The Familiar Differently.",
   primaryCtaLabel: "SHOP WOMEN",
   primaryCtaHref: "/shop?audience=girls",
   secondaryCtaLabel: "SHOP MEN",
@@ -99,6 +103,30 @@ const WELCOME_COUPON_HERO_SLIDE: HeroSlide = {
   actionsClassName: "mt-5 md:mt-7",
 };
 
+function buildStoryHeroSlide(storyBannerItems: StoryBannerItem[]): HeroSlide | null {
+  if (storyBannerItems.length === 0) {
+    return null;
+  }
+
+  return {
+    id: "our-story-hero",
+    variant: "story",
+    image: storyBannerItems[0]?.image ?? "/Home Page Banner.png",
+    mobileImage: storyBannerItems[0]?.image ?? "/Mobile view_02.png",
+    alt: "Firaang story campaign featuring curated T-shirt designs",
+    eyebrow: "OUR STORY",
+    title: ["Different by", "Design."],
+    subtitle: "See the familiar differently. Wear the difference.",
+    primaryCtaLabel: "EXPLORE THE COLLECTION",
+    primaryCtaHref: "/shop?section=just-dropped",
+    contentClassName: "items-start justify-center text-left md:items-start",
+    titleClassName: "max-w-[9ch] text-[clamp(2.65rem,8.8vw,5.25rem)] leading-[0.93] md:text-[clamp(3.6rem,5.8vw,6.1rem)]",
+    subtitleClassName: "max-w-[420px] text-[13px] leading-[1.55] text-[#1f1b17]/82 md:max-w-[460px] md:text-[16px]",
+    actionsClassName: "mt-5 md:mt-7",
+    storyTiles: storyBannerItems.slice(0, 4),
+  };
+}
+
 function splitHeadline(value: string) {
   const normalized = value.trim().replace(/\s+/g, " ");
 
@@ -152,17 +180,20 @@ function mapFeaturedCollectionToSlide(collection: ShopifyCollectionLaunch): Hero
     subtitle:
       collection.launchSubtitle ||
       collection.description ||
-      "Explore the latest limited campaign from Firaang (Fi-rang).",
+      "Explore the latest limited campaign from Firaang.",
     primaryCtaLabel: "EXPLORE COLLECTION",
     primaryCtaHref: collection.href,
     ...festivalOverrides,
   };
 }
 
-export default function Hero({ featuredCollections = [] }: HeroProps) {
+export default function Hero({ featuredCollections = [], storyBannerItems = [] }: HeroProps) {
+  const storySlide = useMemo(() => buildStoryHeroSlide(storyBannerItems), [storyBannerItems]);
   const slides = useMemo(
-    () => [BASE_HERO_SLIDE, WELCOME_COUPON_HERO_SLIDE, DEVOTIONAL_HERO_SLIDE, ...featuredCollections.map(mapFeaturedCollectionToSlide)],
-    [featuredCollections],
+    () => [BASE_HERO_SLIDE, storySlide, WELCOME_COUPON_HERO_SLIDE, DEVOTIONAL_HERO_SLIDE, ...featuredCollections.map(mapFeaturedCollectionToSlide)].filter(
+      (slide): slide is HeroSlide => Boolean(slide),
+    ),
+    [featuredCollections, storySlide],
   );
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -258,81 +289,171 @@ export default function Hero({ featuredCollections = [] }: HeroProps) {
           }`}
           aria-hidden={index !== activeIndex}
         >
-          <SafeImage
-            src={slide.mobileImage}
-            alt={slide.alt}
-            className={`absolute left-0 top-0 h-full w-full object-cover object-[50%_15%] max-[374px]:object-[50%_12%] min-[375px]:object-[50%_14%] min-[390px]:object-[50%_15%] min-[414px]:object-[50%_18%] md:hidden ${slide.mobileImageClassName ?? ""}`}
-          />
-          <SafeImage
-            src={slide.image}
-            alt={slide.alt}
-            className={`absolute left-0 top-0 hidden h-full w-full object-cover object-[50%_20%] md:block lg:object-[50%_22%] xl:object-[50%_25%] ${slide.imageClassName ?? ""}`}
-          />
+          {slide.variant === "story" && slide.storyTiles ? (
+            <div className="absolute inset-0 overflow-hidden bg-[linear-gradient(135deg,#f8f4ef_0%,#f1ebe2_46%,#fbf8f4_100%)]">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(108,74,135,0.18),transparent_34%),radial-gradient(circle_at_85%_26%,rgba(0,189,255,0.14),transparent_30%),radial-gradient(circle_at_72%_88%,rgba(31,27,23,0.08),transparent_32%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.22)_0%,rgba(255,255,255,0)_25%,rgba(255,255,255,0.12)_100%)]" />
 
-          <div className="hero-overlay-primary absolute inset-0" />
-          <div className="hero-overlay-glow absolute inset-0" />
-          {slide.overlayClassName ? <div className={`absolute inset-0 ${slide.overlayClassName}`} /> : null}
+              <div className="home-shell relative flex h-full items-center py-6 md:py-10">
+                <div className="grid w-full items-center gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-8">
+                  <div className="relative z-10 max-w-[620px]">
+                    <p className="hero-eyebrow font-sans text-[12px] font-medium uppercase tracking-[0.26em] text-[#574f46] md:text-[16px] md:tracking-[0.22em]">
+                      {slide.eyebrow}
+                    </p>
+                    <h1 className="hero-title mt-4 max-w-[9ch] font-sans text-[clamp(2.8rem,9.5vw,5.3rem)] font-semibold leading-[0.93] tracking-[-0.04em] text-[#1d1916] md:text-[clamp(4rem,5.8vw,6.4rem)] md:leading-[0.92]">
+                      {slide.title[0]}
+                      {slide.title[1] ? (
+                        <>
+                          <br />
+                          {slide.title[1]}
+                        </>
+                      ) : null}
+                    </h1>
+                    <p className="mt-4 max-w-[420px] font-sans text-[13px] font-medium leading-[1.55] text-[#3b342f]/90 md:mt-6 md:text-[16px] md:leading-[1.45]">
+                      {slide.subtitle}
+                    </p>
+                    <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center md:mt-7">
+                      <Link
+                        href={slide.primaryCtaHref}
+                        className="inline-flex h-[44px] items-center justify-center rounded-full border border-[#1d1916] bg-[#1d1916] px-6 font-sans text-[13px] font-semibold uppercase tracking-[0.11em] text-[#f7f3ee] transition duration-200 hover:-translate-y-0.5 hover:border-[#6c4a87] hover:bg-[#2b2624]"
+                      >
+                        {slide.primaryCtaLabel}
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="relative z-0 min-h-[300px] md:min-h-[400px] lg:min-h-[560px]">
+                    <div className="absolute inset-0 hidden rounded-[34px] border border-black/5 bg-white/30 shadow-[0_30px_80px_rgba(31,27,23,0.08)] backdrop-blur-[1px] lg:block" />
+                    <div className="relative grid h-full grid-cols-2 gap-3 md:gap-4 lg:grid-cols-12 lg:grid-rows-12">
+                      {slide.storyTiles[0] ? (
+                        <Link
+                          href={slide.storyTiles[0].href}
+                          aria-label={slide.storyTiles[0].title}
+                          className="group relative col-span-2 row-span-6 overflow-hidden rounded-[24px] border border-black/8 bg-[#f5efe7] shadow-[0_18px_34px_rgba(31,27,23,0.14)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(31,27,23,0.18)] lg:col-start-1 lg:col-end-6 lg:row-start-2 lg:row-end-12"
+                        >
+                          <SafeImage src={slide.storyTiles[0].image} alt={slide.storyTiles[0].alt} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]" />
+                          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_30%,rgba(0,0,0,0.08)_62%,rgba(0,0,0,0.32)_100%)]" />
+                        </Link>
+                      ) : null}
+
+                      {slide.storyTiles[1] ? (
+                        <Link
+                          href={slide.storyTiles[1].href}
+                          aria-label={slide.storyTiles[1].title}
+                          className="group relative col-span-1 row-span-3 overflow-hidden rounded-[24px] border border-black/8 bg-[#f5efe7] shadow-[0_18px_34px_rgba(31,27,23,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(31,27,23,0.16)] lg:col-start-6 lg:col-end-9 lg:row-start-1 lg:row-end-6"
+                        >
+                          <SafeImage src={slide.storyTiles[1].image} alt={slide.storyTiles[1].alt} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]" />
+                          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_34%,rgba(0,0,0,0.12)_72%,rgba(0,0,0,0.32)_100%)]" />
+                        </Link>
+                      ) : null}
+
+                      {slide.storyTiles[2] ? (
+                        <Link
+                          href={slide.storyTiles[2].href}
+                          aria-label={slide.storyTiles[2].title}
+                          className="group relative col-span-1 row-span-4 overflow-hidden rounded-[24px] border border-black/8 bg-[#f5efe7] shadow-[0_18px_34px_rgba(31,27,23,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(31,27,23,0.16)] lg:col-start-9 lg:col-end-13 lg:row-start-3 lg:row-end-10"
+                        >
+                          <SafeImage src={slide.storyTiles[2].image} alt={slide.storyTiles[2].alt} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]" />
+                          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_28%,rgba(0,0,0,0.12)_72%,rgba(0,0,0,0.34)_100%)]" />
+                        </Link>
+                      ) : null}
+
+                      {slide.storyTiles[3] ? (
+                        <Link
+                          href={slide.storyTiles[3].href}
+                          aria-label={slide.storyTiles[3].title}
+                          className="group relative col-span-1 row-span-3 overflow-hidden rounded-[24px] border border-black/8 bg-[#f5efe7] shadow-[0_18px_34px_rgba(31,27,23,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(31,27,23,0.16)] lg:col-start-4 lg:col-end-8 lg:row-start-7 lg:row-end-13"
+                        >
+                          <SafeImage src={slide.storyTiles[3].image} alt={slide.storyTiles[3].alt} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]" />
+                          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_30%,rgba(0,0,0,0.12)_72%,rgba(0,0,0,0.36)_100%)]" />
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <SafeImage
+                src={slide.mobileImage}
+                alt={slide.alt}
+                className={`absolute left-0 top-0 h-full w-full object-cover object-[50%_15%] max-[374px]:object-[50%_12%] min-[375px]:object-[50%_14%] min-[390px]:object-[50%_15%] min-[414px]:object-[50%_18%] md:hidden ${slide.mobileImageClassName ?? ""}`}
+              />
+              <SafeImage
+                src={slide.image}
+                alt={slide.alt}
+                className={`absolute left-0 top-0 hidden h-full w-full object-cover object-[50%_20%] md:block lg:object-[50%_22%] xl:object-[50%_25%] ${slide.imageClassName ?? ""}`}
+              />
+
+              <div className="hero-overlay-primary absolute inset-0" />
+              <div className="hero-overlay-glow absolute inset-0" />
+              {slide.overlayClassName ? <div className={`absolute inset-0 ${slide.overlayClassName}`} /> : null}
+            </>
+          )}
         </div>
       ))}
 
-      <div className={`hero-content absolute inset-x-0 bottom-0 top-8 z-10 home-shell flex flex-col pt-4 fade-in-up md:inset-0 md:pt-0 ${activeSlide.contentClassName ?? "items-center justify-start text-center md:justify-center"}`}>
-        <p className="hero-eyebrow font-sans text-[12px] font-medium uppercase tracking-[0.26em] text-[#f4f4f4] md:text-[16px] md:tracking-[0.22em]">
-          {activeSlide.eyebrow}
-        </p>
-
-        {activeSlide.promoBadgeText ? (
-          <p className={`mt-2 inline-flex self-center rounded-full px-3 py-1 font-sans text-[10px] font-semibold uppercase tracking-[0.16em] backdrop-blur-sm md:text-[11px] ${activeSlide.promoBadgeClassName ?? "bg-white/10 text-white/90"}`}>
-            {activeSlide.promoBadgeText}
+      {activeSlide.variant !== "story" ? (
+        <div className={`hero-content absolute inset-x-0 bottom-0 top-8 z-10 home-shell flex flex-col pt-4 fade-in-up md:inset-0 md:pt-0 ${activeSlide.contentClassName ?? "items-center justify-start text-center md:justify-center"}`}>
+          <p className="hero-eyebrow font-sans text-[12px] font-medium uppercase tracking-[0.26em] text-[#f4f4f4] md:text-[16px] md:tracking-[0.22em]">
+            {activeSlide.eyebrow}
           </p>
-        ) : null}
 
-        <h1 className={`hero-title mt-4 max-w-4xl font-sans text-[clamp(2.5rem,11vw,4.75rem)] font-semibold leading-[1.03] tracking-[-0.02em] md:mt-5 md:text-[clamp(4.4rem,6.8vw,6rem)] md:leading-[0.98] ${activeSlide.titleClassName ?? ""}`}>
-          {activeSlide.title[0]}
-          {activeSlide.title[1] ? (
-            <>
-              <br />
-              {activeSlide.title[1]}
-            </>
+          {activeSlide.promoBadgeText ? (
+            <p className={`mt-2 inline-flex self-center rounded-full px-3 py-1 font-sans text-[10px] font-semibold uppercase tracking-[0.16em] backdrop-blur-sm md:text-[11px] ${activeSlide.promoBadgeClassName ?? "bg-white/10 text-white/90"}`}>
+              {activeSlide.promoBadgeText}
+            </p>
           ) : null}
-        </h1>
 
-        <p className={`mt-4 max-w-[760px] font-sans text-[12px] font-medium leading-[1.5] text-[#f6f6f6] md:mt-6 md:text-[16px] md:leading-[1.35] lg:text-[18px] ${activeSlide.subtitleClassName ?? ""}`}>
-          {activeSlide.subtitle}
-        </p>
+          <h1 className={`hero-title mt-4 max-w-4xl font-sans text-[clamp(2.5rem,11vw,4.75rem)] font-semibold leading-[1.03] tracking-[-0.02em] md:mt-5 md:text-[clamp(4.4rem,6.8vw,6rem)] md:leading-[0.98] ${activeSlide.titleClassName ?? ""}`}>
+            {activeSlide.title[0]}
+            {activeSlide.title[1] ? (
+              <>
+                <br />
+                {activeSlide.title[1]}
+              </>
+            ) : null}
+          </h1>
 
-        {activeSlide.couponCode ? (
-          <div className={`mt-4 inline-flex min-w-[220px] flex-col items-center self-center rounded-[14px] border px-5 py-3 backdrop-blur-md md:mt-5 md:min-w-[250px] md:px-6 ${activeSlide.couponClassName ?? "border-white/45 bg-black/28 text-white"}`}>
-            <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.18em] text-white/78 md:text-[11px]">
-              Coupon Code
-            </p>
-            <p className="mt-1.5 font-sans text-[29px] font-semibold uppercase tracking-[0.16em] leading-none md:text-[34px]">
-              {activeSlide.couponCode}
-            </p>
-            {activeSlide.couponHintText ? (
-              <p className="mt-1.5 font-sans text-[11px] font-medium text-white/74 md:text-[12px]">
-                {activeSlide.couponHintText}
+          <p className={`mt-4 max-w-[760px] font-sans text-[12px] font-medium leading-[1.5] text-[#f6f6f6] md:mt-6 md:text-[16px] md:leading-[1.35] lg:text-[18px] ${activeSlide.subtitleClassName ?? ""}`}>
+            {activeSlide.subtitle}
+          </p>
+
+          {activeSlide.couponCode ? (
+            <div className={`mt-4 inline-flex min-w-[220px] flex-col items-center self-center rounded-[14px] border px-5 py-3 backdrop-blur-md md:mt-5 md:min-w-[250px] md:px-6 ${activeSlide.couponClassName ?? "border-white/45 bg-black/28 text-white"}`}>
+              <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.18em] text-white/78 md:text-[11px]">
+                Coupon Code
               </p>
+              <p className="mt-1.5 font-sans text-[29px] font-semibold uppercase tracking-[0.16em] leading-none md:text-[34px]">
+                {activeSlide.couponCode}
+              </p>
+              {activeSlide.couponHintText ? (
+                <p className="mt-1.5 font-sans text-[11px] font-medium text-white/74 md:text-[12px]">
+                  {activeSlide.couponHintText}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className={`mt-6 flex flex-col gap-3 sm:flex-row sm:gap-2.5 md:mt-8 md:gap-4 ${activeSlide.actionsClassName ?? ""}`}>
+            <Link
+              href={activeSlide.primaryCtaHref}
+              className="inline-flex h-[42px] items-center justify-center rounded-[4px] border border-white bg-white px-6 font-sans text-[15px] font-medium uppercase tracking-[0.02em] text-[#222222] transition duration-200 hover:bg-[#f2f2f2]"
+            >
+              {activeSlide.primaryCtaLabel}
+            </Link>
+            {activeSlide.secondaryCtaHref && activeSlide.secondaryCtaLabel ? (
+              <Link
+                href={activeSlide.secondaryCtaHref}
+                className="inline-flex h-[42px] items-center justify-center rounded-[4px] border border-white/85 bg-transparent px-6 font-sans text-[15px] font-medium uppercase tracking-[0.02em] text-white transition duration-200 hover:bg-white/15"
+              >
+                {activeSlide.secondaryCtaLabel}
+              </Link>
             ) : null}
           </div>
-        ) : null}
-
-        <div className={`mt-6 flex flex-col gap-3 sm:flex-row sm:gap-2.5 md:mt-8 md:gap-4 ${activeSlide.actionsClassName ?? ""}`}>
-          <Link
-            href={activeSlide.primaryCtaHref}
-            className="inline-flex h-[42px] items-center justify-center rounded-[4px] border border-white bg-white px-6 font-sans text-[15px] font-medium uppercase tracking-[0.02em] text-[#222222] transition duration-200 hover:bg-[#f2f2f2]"
-          >
-            {activeSlide.primaryCtaLabel}
-          </Link>
-          {activeSlide.secondaryCtaHref && activeSlide.secondaryCtaLabel ? (
-            <Link
-              href={activeSlide.secondaryCtaHref}
-              className="inline-flex h-[42px] items-center justify-center rounded-[4px] border border-white/85 bg-transparent px-6 font-sans text-[15px] font-medium uppercase tracking-[0.02em] text-white transition duration-200 hover:bg-white/15"
-            >
-              {activeSlide.secondaryCtaLabel}
-            </Link>
-          ) : null}
         </div>
-      </div>
+      ) : null}
 
       {slides.length > 1 ? (
         <>

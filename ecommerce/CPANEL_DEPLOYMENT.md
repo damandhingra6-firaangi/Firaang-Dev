@@ -31,6 +31,8 @@ The packaging step also creates a ready-to-upload archive at:
 
 - `dist/cpanel-deploy.zip`
 
+The archive is trimmed to the public assets the app actually uses so it stays small enough for cPanel file-manager upload.
+
 ## 3. Upload the deployment files
 
 Upload the contents needed to run the standalone build into your cPanel application directory.
@@ -56,6 +58,8 @@ app-root/
   public/
   package.json
 ```
+
+Note: the upload archive only contains the public assets required by the app, not the full legacy `public/` folder.
 
 Notes:
 

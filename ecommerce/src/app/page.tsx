@@ -10,7 +10,7 @@ import NewLaunchSection from "@/components/NewLaunchSection";
 import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
 import { fallbackProducts, GridProduct } from "@/lib/catalog";
-import { buildInstagramShowcaseItems } from "@/lib/instagram-showcase";
+import { buildInstagramShowcaseItems, buildStoryBannerItems } from "@/lib/instagram-showcase";
 import { slugify } from "@/lib/product-taxonomy";
 import { createPageMetadata } from "@/lib/seo";
 import { SITE_TITLE_DEFAULT } from "@/lib/site";
@@ -88,13 +88,14 @@ export default async function Home() {
   const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
   const homeCategories = buildHomeCategories(products);
   const instagramShowcaseItems = buildInstagramShowcaseItems(products, 5);
+  const storyBannerItems = buildStoryBannerItems(products, 4);
   const featuredCollections = collectionsContent.featuredCollections;
   const featuredCollection = featuredCollections[0] ?? null;
 
   return (
     <main>
       <Navbar />
-      <Hero featuredCollections={featuredCollections} />
+      <Hero featuredCollections={featuredCollections} storyBannerItems={storyBannerItems} />
       {featuredCollection ? <NewLaunchSection collection={featuredCollection} /> : null}
       <RedRibbon />
       <Category categories={homeCategories} />
