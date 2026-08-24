@@ -67,6 +67,16 @@ if (Test-Path $publicRoot) {
   Copy-Item $publicRoot $packageRoot -Recurse -Force
 }
 
+# Do not deploy local runtime upload artifacts from development.
+# The app creates this folder on-demand in production.
+$packagedDataRoot = Join-Path $packageRoot ".data"
+if (Test-Path $packagedDataRoot) {
+  Remove-Item $packagedDataRoot -Recurse -Force
+}
+
+$packagedUploadsRoot = Join-Path $packagedDataRoot "design-uploads"
+New-Item -ItemType Directory -Path $packagedUploadsRoot -Force | Out-Null
+
 Copy-Item $packageJsonPath $packageRoot -Force
 
 if (Test-Path $packageLockPath) {

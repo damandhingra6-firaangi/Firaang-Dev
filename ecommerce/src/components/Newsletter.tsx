@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { ChevronDown, Mail, MapPin, Phone } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Mail, MapPin, Phone } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
+import type { InstagramShowcaseItem } from "@/lib/instagram-showcase";
 import {
   BRAND_LOGO_LIGHT,
   COMPANY_MANUFACTURER_DETAILS,
@@ -21,14 +22,16 @@ const CURRENCY_ICON_MAP: Record<"INR" | "USD" | "AED", string> = {
   AED: "/AED.svg",
 };
 
-const instagramGallery = ["/insta1.svg", "/inst2.svg", "/insta3.svg", "/insta4.svg", "/insta5.svg"];
-
 const socialLinks = [
   { label: "Instagram", href: COMPANY_SOCIAL_LINKS.instagram },
   { label: "Facebook", href: COMPANY_SOCIAL_LINKS.facebook },
 //   { label: "X", href: "https://www.x.com/firaang" },
   { label: "YouTube", href: COMPANY_SOCIAL_LINKS.youtube },
 ] as const;
+
+type NewsletterProps = {
+  instagramShowcaseItems?: InstagramShowcaseItem[];
+};
 
 function InstagramMark({ className }: { className?: string }) {
   return (
@@ -75,7 +78,7 @@ function FooterSocialBadge({ label, href }: { label: string; href: string }) {
   );
 }
 
-export default function Newsletter() {
+export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterProps) {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
@@ -189,34 +192,73 @@ export default function Newsletter() {
         </div>
       </section> */}
 
-      <section className="bg-[#efefef] py-12 md:py-14 lg:py-[58px]">
+      <section className="overflow-hidden bg-[#f8f6f1] py-12 md:py-14 lg:py-16">
         <div className="home-shell">
-          <div className="text-center">
-            <p className="font-sans text-[13px] font-medium uppercase tracking-[0.06em] text-[#3f3f3f]">FOLLOW US ON INSTAGRAM</p>
-            <h2 className="mt-2 font-sans text-[48px] font-semibold leading-[0.94] tracking-[-0.02em] text-[#2d2d2d] md:text-[54px]">
-              @Fir.aang
-            </h2>
+          <div className="mx-auto flex max-w-[760px] flex-col items-center text-center">
+            <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.24em] text-[#7a7268] md:text-[11px]">
+              FOLLOW US ON INSTAGRAM
+            </p>
+            <a
+              href={COMPANY_SOCIAL_LINKS.instagram}
+              target="_blank"
+              rel="noreferrer"
+              className="group mt-3 inline-flex items-center gap-2.5 rounded-full border border-[#e4dccc] bg-[#fffdf8] px-4 py-2.5 transition duration-300 hover:border-[#cfd7ef] hover:bg-[#fbfbfe]"
+            >
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d7d2ea] bg-[linear-gradient(135deg,rgba(108,74,135,0.12),rgba(0,189,255,0.12))] text-[#302a39] transition duration-300 group-hover:border-[#bfc7eb] group-hover:bg-[linear-gradient(135deg,rgba(108,74,135,0.16),rgba(0,189,255,0.16))] group-hover:shadow-[0_0_0_1px_rgba(0,189,255,0.08)]">
+                <InstagramMark className="h-[18px] w-[18px]" />
+              </span>
+              <h2 className="font-sans text-[clamp(1.9rem,5.2vw,3.1rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-[#1e1a17] md:text-[clamp(2.15rem,4.1vw,3.45rem)]">
+                @Fir.aang
+              </h2>
+            </a>
+            <p className="mt-4 max-w-[620px] text-[14px] leading-6 text-[#615a53] md:text-[15px]">
+              Latest drops and design stories, curated for fresh inspiration.
+            </p>
+            <a
+              href={COMPANY_SOCIAL_LINKS.instagram}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#1f1b17] bg-[#1f1b17] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#f8f4ef] shadow-[0_8px_18px_rgba(31,27,23,0.12)] transition duration-300 hover:-translate-y-0.5 hover:border-[#6c4a87] hover:bg-[#211c1a] hover:shadow-[0_12px_24px_rgba(31,27,23,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c4a87]/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f8f6f1]"
+            >
+              Visit Instagram
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
           </div>
 
-          <div className="mt-9 flex gap-4 overflow-x-auto pb-2 md:justify-center md:gap-5 lg:gap-6">
-            {instagramGallery.map((image, index) => (
+          <div className="mx-auto mt-8 flex max-w-[1220px] snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:gap-3.5 md:mt-9 md:gap-4 lg:mt-10 lg:grid lg:grid-cols-5 lg:overflow-visible lg:px-0 lg:pb-0">
+            {instagramShowcaseItems.map((item) => (
               <Link
-                key={`${image}-${index}`}
-                href={COMPANY_SOCIAL_LINKS.instagram}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`Open Instagram image ${index + 1}`}
-                className="group relative h-[140px] w-[140px] shrink-0 overflow-hidden rounded-[16px] sm:h-[162px] sm:w-[162px] md:h-[180px] md:w-[180px] lg:h-[198px] lg:w-[198px]"
+                key={item.id}
+                href={item.href}
+                aria-label={`Open design: ${item.title}`}
+                className="group relative aspect-[4/5] w-[64vw] min-w-[182px] max-w-[236px] shrink-0 snap-start overflow-hidden rounded-[18px] border border-[#e3ddd3] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.06)] transition duration-300 hover:-translate-y-0.5 hover:border-[#cfd7ef] hover:shadow-[0_14px_26px_rgba(0,0,0,0.1)] sm:w-[44vw] sm:min-w-[198px] sm:max-w-[244px] md:w-[31vw] md:min-w-[210px] md:max-w-[250px] lg:w-auto lg:max-w-none"
               >
                 <SafeImage
-                  src={image}
-                  alt={`Instagram post ${index + 1}`}
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  src={item.image}
+                  alt={item.alt}
+                  loading="lazy"
+                  className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.04]"
                 />
-                <div className="absolute inset-0 bg-black/0 transition duration-300 group-hover:bg-black/35" />
-                <span className="absolute inset-0 flex items-center justify-center opacity-0 transition duration-300 group-hover:opacity-100">
-                  <InstagramMark className="h-8 w-8 text-white" />
-                </span>
+
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(13,11,8,0)_56%,rgba(13,11,8,0.14)_78%,rgba(13,11,8,0.68)_100%)] opacity-95 transition duration-300 group-hover:opacity-100" />
+
+                {item.isNew ? (
+                  <span className="absolute left-3 top-3 inline-flex rounded-full border border-[#cfd7ef] bg-[rgba(255,255,255,0.72)] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-[#322b3c] backdrop-blur-md shadow-[0_0_0_1px_rgba(108,74,135,0.06)]">
+                    New
+                  </span>
+                ) : null}
+
+                <div className="absolute inset-x-0 bottom-0 p-3 md:p-3.5">
+                  <div className="translate-y-2 opacity-0 transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100">
+                    <p className="line-clamp-2 text-[11px] font-medium leading-[1.35] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] md:text-[12px]">
+                      {item.title}
+                    </p>
+                    <div className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#f4eefe] transition duration-300 group-hover:text-white">
+                      View Design
+                      <ArrowUpRight className="h-3.5 w-3.5 text-[#7dd6ff] transition duration-300 group-hover:text-[#c88cff]" />
+                    </div>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>
