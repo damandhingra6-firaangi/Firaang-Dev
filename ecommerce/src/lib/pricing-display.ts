@@ -1,93 +1,17 @@
-const DEFAULT_INCLUDED_SHIPPING_INR = 65;
-const MIN_RETAIL_PRICE_INR = 99;
-const RETAIL_PRICE_POINT_OFFSETS = [-1, 99, 199, 299, 499] as const;
-
-function isTruthy(value: string | undefined) {
-  const normalized = (value ?? "").trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
-}
-
-function isFalsy(value: string | undefined) {
-  const normalized = (value ?? "").trim().toLowerCase();
-  return normalized === "0" || normalized === "false" || normalized === "no" || normalized === "off";
-}
-
-function parseIntegerEnv(value: string | undefined, fallback: number) {
-  const parsed = Number.parseInt((value ?? "").trim(), 10);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
-}
+const DISPLAY_PRICE_INCREMENT_INR = 100;
 
 export function isInclusiveDisplayPricingEnabled() {
-  const mode = (process.env.NEXT_PUBLIC_PRICE_MODE ?? "inclusive").trim().toLowerCase();
-  return mode !== "base";
-}
-
-export function getIncludedShippingContributionInr() {
-  return parseIntegerEnv(process.env.NEXT_PUBLIC_INCLUDED_SHIPPING_INR, DEFAULT_INCLUDED_SHIPPING_INR);
-}
-
-export function isRetailPriceRoundingEnabled() {
-  const flag = process.env.NEXT_PUBLIC_RETAIL_PRICE_ROUNDING;
-  if (isFalsy(flag)) {
-    return false;
-  }
-  if (isTruthy(flag)) {
-    return true;
-  }
+  // Always apply display uplift: customer-facing price = Shopify price + 100.
   return true;
 }
 
-function buildRetailCandidates(amount: number) {
-  const anchorThousand = Math.floor(amount / 1000) * 1000;
-  const candidates = new Set<number>();
-
-  for (const thousandShift of [-1000, 0, 1000, 2000] as const) {
-    const base = anchorThousand + thousandShift;
-    for (const offset of RETAIL_PRICE_POINT_OFFSETS) {
-      const candidate = base + offset;
-      if (candidate >= MIN_RETAIL_PRICE_INR) {
-        candidates.add(candidate);
-      }
-    }
-  }
-
-  return Array.from(candidates).sort((a, b) => a - b);
+export function getIncludedShippingContributionInr() {
+  return DISPLAY_PRICE_INCREMENT_INR;
 }
 
-function roundToRetailPrice(amount: number) {
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return 0;
-  }
-
-  const candidates = buildRetailCandidates(amount);
-  let nearest = candidates[0] ?? MIN_RETAIL_PRICE_INR;
-  let nearestDistance = Math.abs(amount - nearest);
-
-  for (let index = 1; index < candidates.length; index += 1) {
-    const candidate = candidates[index];
-    const distance = Math.abs(amount - candidate);
-    if (distance < nearestDistance || (distance === nearestDistance && candidate < nearest)) {
-      nearest = candidate;
-      nearestDistance = distance;
-    }
-  }
-
-  return nearest;
-}
-
-function roundUpToRetailPrice(amount: number) {
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return MIN_RETAIL_PRICE_INR;
-  }
-
-  const candidates = buildRetailCandidates(amount);
-  const next = candidates.find((candidate) => candidate >= amount);
-  if (next) {
-    return next;
-  }
-
-  const anchorThousand = Math.floor(amount / 1000) * 1000;
-  return anchorThousand + 1999;
+export function isRetailPriceRoundingEnabled() {
+  // Display price must be an exact +100 delta from Shopify price.
+  return false;
 }
 
 export function parsePriceNumber(input: string | number | null | undefined) {
@@ -108,11 +32,9 @@ export function getDisplayPricing(input: {
   compareAt?: string | number | null;
 }) {
   const includeShipping = isInclusiveDisplayPricingEnabled();
-  const shouldRound = isRetailPriceRoundingEnabled();
   const shippingContribution = includeShipping ? getIncludedShippingContributionInr() : 0;
   const safeBasePrice = Number.isFinite(input.priceAmount) ? Math.max(0, input.priceAmount) : 0;
-  const rawDisplayPriceAmount = safeBasePrice + shippingContribution;
-  const displayPriceAmount = shouldRound ? roundToRetailPrice(rawDisplayPriceAmount) : rawDisplayPriceAmount;
+  const displayPriceAmount = safeBasePrice + shippingContribution;
 
   const compareAtRaw = parsePriceNumber(input.compareAt);
   const rawDisplayCompareAtAmount =
@@ -120,14 +42,7 @@ export function getDisplayPricing(input: {
       ? compareAtRaw + shippingContribution
       : null;
 
-  let displayCompareAtAmount = rawDisplayCompareAtAmount;
-  if (shouldRound && rawDisplayCompareAtAmount) {
-    const roundedCompareAtAmount = roundToRetailPrice(rawDisplayCompareAtAmount);
-    displayCompareAtAmount =
-      roundedCompareAtAmount > displayPriceAmount
-        ? roundedCompareAtAmount
-        : roundUpToRetailPrice(displayPriceAmount + 100);
-  }
+  const displayCompareAtAmount = rawDisplayCompareAtAmount;
 
   const discountPercent =
     displayCompareAtAmount && displayCompareAtAmount > displayPriceAmount

@@ -20,6 +20,26 @@ export type StoryBannerItem = {
 const ROTATION_WINDOW_DAYS = 5;
 const NEW_PRODUCT_WINDOW_DAYS = 21;
 
+const SIZE_CHART_IMAGE_PATTERN =
+  /size\s*chart|size[-_\s]*guide|measurement|measurements|bust|waist|length|sleeve|shoulder|inches?|\bcm\b|xs[-_/\s]*s|\bxxl\b/i;
+const TSHIRT_PATTERN =
+  /t[-\s]*shirt|tee\b|oversized\s*tee|drop\s*shoulder|graphic\s*tee|printed\s*tee|streetwear\s*tee/i;
+const DESIGN_FOCUSED_PATTERN =
+  /graphic|print|printed|art|artwork|illustration|back\s*print|front\s*print|statement|devotional|typography|streetwear|vintage|anime|retro|acid\s*wash|embroider|pattern/i;
+const PLAIN_PRODUCT_PATTERN =
+  /\bplain\b|\bbasic\b|\bsolid\b|\bblank\b|minimal|minimalist|essential|essentials|core|classic|simple/i;
+const NON_PROMOTIONAL_IMAGE_PATTERN =
+  /size[-_\s]*chart|chart|table|measurement|template|guide|mockup|flat[-_\s]*lay|spec|dimension|care[-_\s]*label/i;
+const MODEL_LIFESTYLE_IMAGE_PATTERN =
+  /model|lifestyle|on[-_\s]*body|wearing|lookbook|studio\s*shoot|campaign/i;
+
+type ShowcaseImageCandidate = {
+  src: string;
+  searchText: string;
+  sourceRank: number;
+  imageIndex: number;
+};
+
 function toUnixMs(value: string | undefined) {
   if (!value) {
     return 0;
@@ -41,18 +61,122 @@ function hashToUnitInterval(value: string) {
   return positive / 4294967295;
 }
 
-function normalizeProductImages(product: GridProduct) {
-  const images = [
-    product.img,
-    ...(product.galleryImages ?? []),
-    ...(product.productMedia ?? [])
-      .filter((media) => media.type === "image")
-      .map((media) => media.src),
-  ]
-    .map((image) => image.trim())
-    .filter(Boolean);
+function toProductSearchableText(product: GridProduct) {
+  return [product.name, product.category, product.subCategory, product.productType, ...(product.tags ?? [])]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
 
-  return Array.from(new Set(images));
+function normalizeProductImages(product: GridProduct) {
+  const productText = toProductSearchableText(product);
+  const candidates: ShowcaseImageCandidate[] = [];
+
+  if (product.img?.trim()) {
+    candidates.push({
+      src: product.img.trim(),
+      searchText: `${productText} ${product.img}`.toLowerCase(),
+      sourceRank: 3,
+      imageIndex: 0,
+    });
+  }
+
+  (product.galleryImages ?? []).forEach((image, index) => {
+    const normalized = image.trim();
+    if (!normalized) {
+      return;
+    }
+
+    candidates.push({
+      src: normalized,
+      searchText: `${productText} ${normalized}`.toLowerCase(),
+      sourceRank: 2,
+      imageIndex: index + 1,
+    });
+  });
+
+  (product.productMedia ?? [])
+    .filter((media) => media.type === "image")
+    .forEach((media, index) => {
+      const normalized = media.src.trim();
+      if (!normalized) {
+        return;
+      }
+
+      candidates.push({
+        src: normalized,
+        searchText: `${productText} ${media.alt ?? ""} ${normalized}`.toLowerCase(),
+        sourceRank: 4,
+        imageIndex: index,
+      });
+    });
+
+  const dedupedBySrc = new Map<string, ShowcaseImageCandidate>();
+
+  for (const candidate of candidates) {
+    const existing = dedupedBySrc.get(candidate.src);
+    if (!existing) {
+      dedupedBySrc.set(candidate.src, candidate);
+      continue;
+    }
+
+    const merged: ShowcaseImageCandidate = {
+      src: candidate.src,
+      searchText: `${existing.searchText} ${candidate.searchText}`,
+      sourceRank: Math.max(existing.sourceRank, candidate.sourceRank),
+      imageIndex: Math.min(existing.imageIndex, candidate.imageIndex),
+    };
+
+    dedupedBySrc.set(candidate.src, merged);
+  }
+
+  return Array.from(dedupedBySrc.values());
+}
+
+function isLikelyTShirt(productText: string) {
+  return TSHIRT_PATTERN.test(productText);
+}
+
+function isLikelyDesignFocusedProduct(productText: string) {
+  return DESIGN_FOCUSED_PATTERN.test(productText);
+}
+
+function isLikelyPlainProduct(productText: string) {
+  return PLAIN_PRODUCT_PATTERN.test(productText);
+}
+
+function isFiraangSignatureProduct(productText: string) {
+  return /firaang\s*signature/.test(productText);
+}
+
+function isDisallowedInstagramImage(imageText: string) {
+  if (SIZE_CHART_IMAGE_PATTERN.test(imageText)) {
+    return true;
+  }
+
+  if (NON_PROMOTIONAL_IMAGE_PATTERN.test(imageText)) {
+    return true;
+  }
+
+  return false;
+}
+
+function imageQualityBoost(imageText: string) {
+  let score = 0;
+
+  if (MODEL_LIFESTYLE_IMAGE_PATTERN.test(imageText)) {
+    score += 0.2;
+  }
+
+  if (DESIGN_FOCUSED_PATTERN.test(imageText)) {
+    score += 0.18;
+  }
+
+  if (PLAIN_PRODUCT_PATTERN.test(imageText)) {
+    score -= 0.26;
+  }
+
+  return score;
 }
 
 function toProductHref(product: GridProduct) {
@@ -100,10 +224,21 @@ export function buildInstagramShowcaseItems(
   const windowMs = ROTATION_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const rotationBucket = Math.floor(now.getTime() / windowMs);
   const newestFirst = [...products].sort((left, right) => toUnixMs(right.publishedAt) - toUnixMs(left.publishedAt));
-  const candidateProducts = newestFirst.slice(0, Math.max(maxItems * 8, 36));
+  const tShirtProducts = newestFirst.filter((product) => isLikelyTShirt(toProductSearchableText(product)));
+  const productPool = tShirtProducts.length > 0 ? tShirtProducts : newestFirst;
+  const candidateProducts = productPool.slice(0, Math.max(maxItems * 10, 48));
 
   const scoredCandidates = candidateProducts.flatMap((product, productIndex) => {
-    const images = normalizeProductImages(product);
+    const productText = toProductSearchableText(product);
+    const hasDesignSignal = isLikelyDesignFocusedProduct(productText);
+    const isPlainProduct = isLikelyPlainProduct(productText);
+
+    // Exclude plain items from Firaang Signature, and generally deprioritize plain/basic products.
+    if (isFiraangSignatureProduct(productText) && isPlainProduct) {
+      return [];
+    }
+
+    const images = normalizeProductImages(product).filter((image) => !isDisallowedInstagramImage(image.searchText));
     if (images.length === 0) {
       return [];
     }
@@ -111,18 +246,43 @@ export function buildInstagramShowcaseItems(
     const isNew = now.getTime() - toUnixMs(product.publishedAt) <= NEW_PRODUCT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
     const recencyScore = (candidateProducts.length - productIndex) / candidateProducts.length;
     const href = toProductHref(product);
+    const productDesignBoost = hasDesignSignal ? 0.42 : isPlainProduct ? -0.38 : 0;
 
-    return images.slice(0, 3).map((image, imageIndex) => {
-      const tiebreaker = hashToUnitInterval(`${rotationBucket}:${product.id}:${image}`);
+    // Keep plain/basic items out unless we run out of stronger promotional options.
+    const imageLimit = hasDesignSignal ? 4 : 2;
+    const topImages = images
+      .sort((left, right) => {
+        const qualityDelta = imageQualityBoost(right.searchText) - imageQualityBoost(left.searchText);
+        if (qualityDelta !== 0) {
+          return qualityDelta;
+        }
+
+        if (right.sourceRank !== left.sourceRank) {
+          return right.sourceRank - left.sourceRank;
+        }
+
+        return left.imageIndex - right.imageIndex;
+      })
+      .slice(0, imageLimit);
+
+    return topImages.map((image, imageIndex) => {
+      const tiebreaker = hashToUnitInterval(`${rotationBucket}:${product.id}:${image.src}`);
+      const imageBoost = imageQualityBoost(image.searchText);
       return {
         id: `${product.id}:${imageIndex}`,
         productKey: product.id,
         href,
-        image,
+        image: image.src,
         alt: product.name,
         title: product.name,
         isNew,
-        score: recencyScore * 0.72 + (imageIndex === 0 ? 0.08 : 0) + tiebreaker * 0.2,
+        score:
+          recencyScore * 0.64 +
+          (image.sourceRank >= 4 ? 0.08 : 0) +
+          (imageIndex === 0 ? 0.06 : 0) +
+          productDesignBoost +
+          imageBoost +
+          tiebreaker * 0.2,
       };
     });
   });
@@ -196,7 +356,7 @@ export function buildStoryBannerItems(products: GridProduct[], maxItems = 4): St
     }
 
     const images = normalizeProductImages(entry.product);
-    const image = images[0];
+    const image = images[0]?.src;
     if (!image) {
       continue;
     }
