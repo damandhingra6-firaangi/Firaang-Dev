@@ -9,6 +9,7 @@ import { normalizeShopPromoSection } from "@/lib/shop-promo-banners";
 import { createPageMetadata } from "@/lib/seo";
 import { getStorefrontProducts, getStorefrontProductsByCollection } from "@/lib/shopify";
 import { humanizeHandle } from "@/lib/text";
+import { getCollectionDisplayTitle } from "@/lib/shopify-collections";
 import { isJewellerySlug } from "@/lib/jewellery";
 
 export const metadata: Metadata = createPageMetadata({
@@ -70,7 +71,9 @@ async function ShopProducts({ collection, query, category, subCategory, audience
     collection ? getStorefrontProductsByCollection(collection, 250) : getStorefrontProducts(250)
   );
 
-  const collectionTitle = collection ? humanizeHandle(collection) : "";
+  const collectionTitle = collection
+    ? (getCollectionDisplayTitle(collection) ?? humanizeHandle(collection))
+    : "";
 
   // Apply fallback for both collection and general pages so users always see
   // products rather than an empty grid when the Shopify API is temporarily slow

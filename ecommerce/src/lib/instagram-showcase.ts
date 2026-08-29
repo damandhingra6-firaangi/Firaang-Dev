@@ -25,13 +25,17 @@ const SIZE_CHART_IMAGE_PATTERN =
 const TSHIRT_PATTERN =
   /t[-\s]*shirt|tee\b|oversized\s*tee|drop\s*shoulder|graphic\s*tee|printed\s*tee|streetwear\s*tee/i;
 const DESIGN_FOCUSED_PATTERN =
-  /graphic|print|printed|art|artwork|illustration|back\s*print|front\s*print|statement|devotional|typography|streetwear|vintage|anime|retro|acid\s*wash|embroider|pattern/i;
+  /graphic|print|printed|art|artwork|illustration|back\s*print|front\s*print|statement|devotional|typography|vintage|anime|retro|acid\s*wash|embroider|pattern/i;
 const PLAIN_PRODUCT_PATTERN =
   /\bplain\b|\bbasic\b|\bsolid\b|\bblank\b|minimal|minimalist|essential|essentials|core|classic|simple/i;
 const NON_PROMOTIONAL_IMAGE_PATTERN =
   /size[-_\s]*chart|chart|table|measurement|template|guide|mockup|flat[-_\s]*lay|spec|dimension|care[-_\s]*label/i;
 const MODEL_LIFESTYLE_IMAGE_PATTERN =
   /model|lifestyle|on[-_\s]*body|wearing|lookbook|studio\s*shoot|campaign/i;
+// Back-view images that don't mention a visible print/design (e.g. plain back of a shirt).
+// Matched against searchText which combines product text, alt text, and image URL.
+const BACK_VIEW_IMAGE_PATTERN =
+  /\bback\s*view\b|\bback[-_\s]*of\b|\bback[-_\s]*image\b|[-_]back[-_.]|[/_]back[._-]/i;
 
 type ShowcaseImageCandidate = {
   src: string;
@@ -158,6 +162,12 @@ function isDisallowedInstagramImage(imageText: string) {
     return true;
   }
 
+  // Exclude back-view images unless the product/image explicitly features a back-print design.
+  // This prevents plain shirt-back shots from appearing in the showcase.
+  if (BACK_VIEW_IMAGE_PATTERN.test(imageText) && !DESIGN_FOCUSED_PATTERN.test(imageText)) {
+    return true;
+  }
+
   return false;
 }
 
@@ -174,6 +184,11 @@ function imageQualityBoost(imageText: string) {
 
   if (PLAIN_PRODUCT_PATTERN.test(imageText)) {
     score -= 0.26;
+  }
+
+  // Penalise back-view images that lack an explicit design/print signal.
+  if (BACK_VIEW_IMAGE_PATTERN.test(imageText) && !DESIGN_FOCUSED_PATTERN.test(imageText)) {
+    score -= 0.28;
   }
 
   return score;
@@ -212,6 +227,27 @@ function scoreStoryProduct(product: GridProduct, index: number, total: number) {
   return score;
 }
 
+/**
+ * Builds the Instagram / "Latest Drops" showcase items from the live product catalog.
+ *
+ * Selection rules (in order):
+ *  1. Sort all products newest-first by publishedAt.
+ *  2. Prefer T-shirt products; fall back to all products only if there are fewer than
+ *     `maxItems` qualifying T-shirts after filtering.
+ *  3. Exclude the entire Firaang Signature collection.
+ *  4. Exclude products whose images are all disallowed (size charts, flat-lay mockups,
+ *     back-view plain shots, etc.).
+ *  5. Quality gate — the product must pass at least one of:
+ *       a. Its name OR description contains a specific design keyword (graphic, print,
+ *          artwork, illustration, statement, devotional, typography, vintage, anime,
+ *          retro, etc.). Checking name/description rather than broad category tags
+ *          prevents plain solid T-shirts tagged "streetwear" or "printed" from qualifying.
+ *       b. At least one of its images is flagged as a model/lifestyle shot.
+ *  6. Pick the single highest-quality image for the product (model shots > design shots >
+ *     neutral > penalised).
+ *  7. Return up to `maxItems` results. When a new product is published it automatically
+ *     displaces the oldest qualifying product.
+ */
 export function buildInstagramShowcaseItems(
   products: GridProduct[],
   maxItems = 5,
@@ -221,118 +257,60 @@ export function buildInstagramShowcaseItems(
     return [];
   }
 
-  const windowMs = ROTATION_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-  const rotationBucket = Math.floor(now.getTime() / windowMs);
-  const newestFirst = [...products].sort((left, right) => toUnixMs(right.publishedAt) - toUnixMs(left.publishedAt));
-  const tShirtProducts = newestFirst.filter((product) => isLikelyTShirt(toProductSearchableText(product)));
-  const productPool = tShirtProducts.length > 0 ? tShirtProducts : newestFirst;
-  const candidateProducts = productPool.slice(0, Math.max(maxItems * 10, 48));
+  // ── 1. Sort newest-first ────────────────────────────────────────────────────
+  const newestFirst = [...products].sort((l, r) => toUnixMs(r.publishedAt) - toUnixMs(l.publishedAt));
 
-  const scoredCandidates = candidateProducts.flatMap((product, productIndex) => {
-    const productText = toProductSearchableText(product);
-    const hasDesignSignal = isLikelyDesignFocusedProduct(productText);
-    const isPlainProduct = isLikelyPlainProduct(productText);
+  // ── 2. Prefer T-shirt products ──────────────────────────────────────────────
+  const tShirtPool = newestFirst.filter((p) => isLikelyTShirt(toProductSearchableText(p)));
+  // Use the T-shirt pool only when it's large enough to fill all slots; otherwise
+  // fall back to the full catalog so the section is never under-populated.
+  const productPool = tShirtPool.length >= maxItems ? tShirtPool : newestFirst;
 
-    // Exclude plain items from Firaang Signature, and generally deprioritize plain/basic products.
-    if (isFiraangSignatureProduct(productText) && isPlainProduct) {
-      return [];
-    }
-
-    const images = normalizeProductImages(product).filter((image) => !isDisallowedInstagramImage(image.searchText));
-    if (images.length === 0) {
-      return [];
-    }
-
-    const isNew = now.getTime() - toUnixMs(product.publishedAt) <= NEW_PRODUCT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-    const recencyScore = (candidateProducts.length - productIndex) / candidateProducts.length;
-    const href = toProductHref(product);
-    const productDesignBoost = hasDesignSignal ? 0.42 : isPlainProduct ? -0.38 : 0;
-
-    // Keep plain/basic items out unless we run out of stronger promotional options.
-    const imageLimit = hasDesignSignal ? 4 : 2;
-    const topImages = images
-      .sort((left, right) => {
-        const qualityDelta = imageQualityBoost(right.searchText) - imageQualityBoost(left.searchText);
-        if (qualityDelta !== 0) {
-          return qualityDelta;
-        }
-
-        if (right.sourceRank !== left.sourceRank) {
-          return right.sourceRank - left.sourceRank;
-        }
-
-        return left.imageIndex - right.imageIndex;
-      })
-      .slice(0, imageLimit);
-
-    return topImages.map((image, imageIndex) => {
-      const tiebreaker = hashToUnitInterval(`${rotationBucket}:${product.id}:${image.src}`);
-      const imageBoost = imageQualityBoost(image.searchText);
-      return {
-        id: `${product.id}:${imageIndex}`,
-        productKey: product.id,
-        href,
-        image: image.src,
-        alt: product.name,
-        title: product.name,
-        isNew,
-        score:
-          recencyScore * 0.64 +
-          (image.sourceRank >= 4 ? 0.08 : 0) +
-          (imageIndex === 0 ? 0.06 : 0) +
-          productDesignBoost +
-          imageBoost +
-          tiebreaker * 0.2,
-      };
-    });
-  });
-
-  scoredCandidates.sort((left, right) => right.score - left.score);
-
+  const newWindow = NEW_PRODUCT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const selected: InstagramShowcaseItem[] = [];
-  const seenProducts = new Set<string>();
 
-  for (const candidate of scoredCandidates) {
-    if (seenProducts.has(candidate.productKey)) {
-      continue;
-    }
+  for (const product of productPool) {
+    if (selected.length >= maxItems) break;
+
+    const productText = toProductSearchableText(product);
+
+    // ── 3. Exclude Firaang Signature entirely ───────────────────────────────
+    if (isFiraangSignatureProduct(productText)) continue;
+
+    // ── 4. Filter images ────────────────────────────────────────────────────
+    const images = normalizeProductImages(product).filter(
+      (img) => !isDisallowedInstagramImage(img.searchText),
+    );
+    if (images.length === 0) continue;
+
+    // ── 5. Quality gate ─────────────────────────────────────────────────────
+    // Check the product's NAME and DESCRIPTION specifically — not the full tag
+    // set — because tags like "printed", "streetwear", or "graphic tee" are
+    // often applied to entire collections including plain-colour products.
+    const nameAndDesc = `${product.name ?? ""} ${product.description ?? ""}`.toLowerCase();
+    const hasDesignSignal = DESIGN_FOCUSED_PATTERN.test(nameAndDesc);
+    const hasModelImage = images.some((img) => MODEL_LIFESTYLE_IMAGE_PATTERN.test(img.searchText));
+    if (!hasDesignSignal && !hasModelImage) continue;
+
+    // ── 6. Best image ───────────────────────────────────────────────────────
+    const bestImage = [...images].sort((l, r) => {
+      const boostDelta = imageQualityBoost(r.searchText) - imageQualityBoost(l.searchText);
+      if (boostDelta !== 0) return boostDelta;
+      if (r.sourceRank !== l.sourceRank) return r.sourceRank - l.sourceRank;
+      return l.imageIndex - r.imageIndex;
+    })[0];
+    if (!bestImage) continue;
+
+    const isNew = now.getTime() - toUnixMs(product.publishedAt) <= newWindow;
 
     selected.push({
-      id: candidate.id,
-      href: candidate.href,
-      image: candidate.image,
-      alt: candidate.alt,
-      title: candidate.title,
-      isNew: candidate.isNew,
+      id: `${product.id}:showcase`,
+      href: toProductHref(product),
+      image: bestImage.src,
+      alt: product.name,
+      title: product.name,
+      isNew,
     });
-    seenProducts.add(candidate.productKey);
-
-    if (selected.length >= maxItems) {
-      break;
-    }
-  }
-
-  if (selected.length >= maxItems) {
-    return selected;
-  }
-
-  for (const candidate of scoredCandidates) {
-    if (selected.some((item) => item.id === candidate.id)) {
-      continue;
-    }
-
-    selected.push({
-      id: candidate.id,
-      href: candidate.href,
-      image: candidate.image,
-      alt: candidate.alt,
-      title: candidate.title,
-      isNew: candidate.isNew,
-    });
-
-    if (selected.length >= maxItems) {
-      break;
-    }
   }
 
   return selected;

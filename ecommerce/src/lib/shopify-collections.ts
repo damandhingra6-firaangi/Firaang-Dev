@@ -5,7 +5,6 @@ const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
 const DEFAULT_REVALIDATE_SECONDS = 300;
 
 const FEATURED_KEYWORDS = [
-  "rakhi",
   "janmashtami",
   "independence",
   "diwali",
@@ -19,6 +18,25 @@ const FEATURED_KEYWORDS = [
 ];
 
 const PERMANENT_COLLECTION_SLUGS = new Set(["men", "women", "genz", "gen-z"]);
+
+// Collections permanently retired from seasonal/featured treatment and homepage promotion.
+// They will not appear as featured hero slides or in the NewLaunchSection even if Shopify
+// metafields still mark them as featured.
+const RETIRED_COLLECTION_HANDLES = new Set(["rakhi-special"]);
+
+// Evergreen display title overrides keyed by Shopify collection handle.
+// Use this to present a renamed, always-relevant title without a Shopify admin change.
+const COLLECTION_TITLE_OVERRIDES: Record<string, string> = {
+  "rakhi-special": "Sibling Stories",
+};
+
+/**
+ * Returns the evergreen display title for a given collection handle,
+ * or null if no override is configured.
+ */
+export function getCollectionDisplayTitle(handle: string): string | null {
+  return COLLECTION_TITLE_OVERRIDES[handle.trim().toLowerCase()] ?? null;
+}
 
 type ShopifyCollectionNode = {
   id: string;
@@ -253,7 +271,6 @@ function isIndependenceCampaignExpired(title: string, now = new Date()) {
 }
 
 const SEASONAL_KEYWORDS = new Set([
-  "rakhi",
   "janmashtami",
   "independence",
   "diwali",
@@ -325,7 +342,12 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
   const featured = parseBoolean(node.featuredMetafield?.value);
   const launchFlag = parseBoolean(node.launchMetafield?.value);
   const explicitNewFlag = parseBoolean(node.isNewMetafield?.value);
-  const normalizedTitle = toTitleCase(node.title?.trim() || "") || humanizeHandle(node.handle);
+  const normalizedHandle = node.handle?.trim().toLowerCase() ?? "";
+  const isRetired = RETIRED_COLLECTION_HANDLES.has(normalizedHandle);
+  const normalizedTitle =
+    COLLECTION_TITLE_OVERRIDES[normalizedHandle] ??
+    toTitleCase(node.title?.trim() || "") ??
+    humanizeHandle(node.handle);
   const normalizedDescription = node.description?.trim() ?? "";
   const seasonalByName = isSeasonalTitle(node.title);
   const startDateRaw = node.campaignStartDateMetafield?.value?.trim() || null;
@@ -353,11 +375,15 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
 
   const rawBadge = node.badgeMetafield?.value?.trim() || null;
   const shouldShowBadge =
-    isFeatured ||
-    (explicitNewFlag && (campaignActiveState === null || campaignActiveState === true));
+    !isRetired &&
+    (isFeatured ||
+      (explicitNewFlag && (campaignActiveState === null || campaignActiveState === true)));
   const badge = shouldShowBadge
     ? rawBadge ?? (explicitNewFlag || seasonalByName ? "NEW" : null)
     : null;
+
+  const effectiveIsFeatured = isRetired ? false : isFeatured;
+  const effectiveIsCampaignActive = isRetired ? false : isCampaignActive;
 
   return {
     id: node.id,
@@ -368,11 +394,11 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
     updatedAt: node.updatedAt,
     imageUrl: resolveBannerImage(node),
     badge,
-    badgeType: getBadgeType(normalizedTitle, badge, isFeatured),
+    badgeType: getBadgeType(normalizedTitle, badge, effectiveIsFeatured),
     launchTitle: node.launchTitleMetafield?.value?.trim() || null,
     launchSubtitle: node.launchSubtitleMetafield?.value?.trim() || null,
-    isFeatured,
-    isCampaignActive,
+    isFeatured: effectiveIsFeatured,
+    isCampaignActive: effectiveIsCampaignActive,
     campaignStartDate: startDateRaw,
     campaignEndDate: endDateRaw,
     priority: parsePriority(node.priorityMetafield?.value),

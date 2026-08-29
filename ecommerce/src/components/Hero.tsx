@@ -294,13 +294,13 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(108,74,135,0.18),transparent_34%),radial-gradient(circle_at_85%_26%,rgba(0,189,255,0.14),transparent_30%),radial-gradient(circle_at_72%_88%,rgba(31,27,23,0.08),transparent_32%)]" />
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.22)_0%,rgba(255,255,255,0)_25%,rgba(255,255,255,0.12)_100%)]" />
 
-              <div className="home-shell relative flex h-full items-center py-6 md:py-10">
-                <div className="grid w-full items-center gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-8">
+              <div className="home-shell relative flex h-full items-center py-4 md:py-10">
+                <div className="grid w-full items-center gap-3 sm:gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:gap-8">
                   <div className="relative z-10 max-w-[620px]">
                     <p className="hero-eyebrow font-sans text-[12px] font-medium uppercase tracking-[0.26em] text-[#574f46] md:text-[16px] md:tracking-[0.22em]">
                       {slide.eyebrow}
                     </p>
-                    <h1 className="hero-title mt-4 max-w-[9ch] font-sans text-[clamp(2.8rem,9.5vw,5.3rem)] font-semibold leading-[0.93] tracking-[-0.04em] text-[#1d1916] md:text-[clamp(4rem,5.8vw,6.4rem)] md:leading-[0.92]">
+                    <h1 className="hero-title mt-2 max-w-[9ch] font-sans text-[clamp(2.8rem,9.5vw,5.3rem)] font-semibold leading-[0.93] tracking-[-0.04em] text-[#1d1916] md:mt-4 md:text-[clamp(4rem,5.8vw,6.4rem)] md:leading-[0.92]">
                       {slide.title[0]}
                       {slide.title[1] ? (
                         <>
@@ -309,10 +309,10 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
                         </>
                       ) : null}
                     </h1>
-                    <p className="mt-4 max-w-[420px] font-sans text-[13px] font-medium leading-[1.55] text-[#3b342f]/90 md:mt-6 md:text-[16px] md:leading-[1.45]">
+                    <p className="mt-2 max-w-[420px] font-sans text-[12px] font-medium leading-[1.55] text-[#3b342f]/90 md:mt-4 md:text-[16px] md:leading-[1.45]">
                       {slide.subtitle}
                     </p>
-                    <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center md:mt-7">
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center md:mt-7">
                       <Link
                         href={slide.primaryCtaHref}
                         className="inline-flex h-[44px] items-center justify-center rounded-full border border-[#1d1916] bg-[#1d1916] px-6 font-sans text-[13px] font-semibold uppercase tracking-[0.11em] text-[#f7f3ee] transition duration-200 hover:-translate-y-0.5 hover:border-[#6c4a87] hover:bg-[#2b2624]"
@@ -322,14 +322,14 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
                     </div>
                   </div>
 
-                  <div className="relative z-0 min-h-[300px] md:min-h-[400px] lg:min-h-[560px]">
+                  <div className="relative z-0 h-[175px] min-[390px]:h-[195px] sm:h-auto sm:min-h-[260px] md:min-h-[400px] lg:min-h-[560px]">
                     <div className="absolute inset-0 hidden rounded-[34px] border border-black/5 bg-white/30 shadow-[0_30px_80px_rgba(31,27,23,0.08)] backdrop-blur-[1px] lg:block" />
-                    <div className="relative grid h-full grid-cols-2 gap-3 md:gap-4 lg:grid-cols-12 lg:grid-rows-12">
+                    <div className="relative grid h-full grid-cols-2 gap-2 sm:gap-3 md:gap-4 lg:grid-cols-12 lg:grid-rows-12">
                       {slide.storyTiles[0] ? (
                         <Link
                           href={slide.storyTiles[0].href}
                           aria-label={slide.storyTiles[0].title}
-                          className="group relative col-span-2 row-span-6 overflow-hidden rounded-[24px] border border-black/8 bg-[#f5efe7] shadow-[0_18px_34px_rgba(31,27,23,0.14)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(31,27,23,0.18)] lg:col-start-1 lg:col-end-6 lg:row-start-2 lg:row-end-12"
+                          className="group relative col-span-1 row-span-1 overflow-hidden rounded-[24px] border border-black/8 bg-[#f5efe7] shadow-[0_18px_34px_rgba(31,27,23,0.14)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(31,27,23,0.18)] sm:col-span-2 sm:row-span-6 lg:col-start-1 lg:col-end-6 lg:row-start-2 lg:row-end-12"
                         >
                           <SafeImage src={slide.storyTiles[0].image} alt={slide.storyTiles[0].alt} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]" />
                           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_30%,rgba(0,0,0,0.08)_62%,rgba(0,0,0,0.32)_100%)]" />
@@ -340,7 +340,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
                         <Link
                           href={slide.storyTiles[1].href}
                           aria-label={slide.storyTiles[1].title}
-                          className="group relative col-span-1 row-span-3 overflow-hidden rounded-[24px] border border-black/8 bg-[#f5efe7] shadow-[0_18px_34px_rgba(31,27,23,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(31,27,23,0.16)] lg:col-start-6 lg:col-end-9 lg:row-start-1 lg:row-end-6"
+                          className="group relative col-span-1 row-span-1 overflow-hidden rounded-[24px] border border-black/8 bg-[#f5efe7] shadow-[0_18px_34px_rgba(31,27,23,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(31,27,23,0.16)] sm:row-span-3 lg:col-start-6 lg:col-end-9 lg:row-start-1 lg:row-end-6"
                         >
                           <SafeImage src={slide.storyTiles[1].image} alt={slide.storyTiles[1].alt} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]" />
                           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_34%,rgba(0,0,0,0.12)_72%,rgba(0,0,0,0.32)_100%)]" />
@@ -351,7 +351,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
                         <Link
                           href={slide.storyTiles[2].href}
                           aria-label={slide.storyTiles[2].title}
-                          className="group relative col-span-1 row-span-4 overflow-hidden rounded-[24px] border border-black/8 bg-[#f5efe7] shadow-[0_18px_34px_rgba(31,27,23,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(31,27,23,0.16)] lg:col-start-9 lg:col-end-13 lg:row-start-3 lg:row-end-10"
+                          className="group relative hidden overflow-hidden rounded-[24px] border border-black/8 bg-[#f5efe7] shadow-[0_18px_34px_rgba(31,27,23,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(31,27,23,0.16)] sm:block sm:col-span-1 sm:row-span-4 lg:col-start-9 lg:col-end-13 lg:row-start-3 lg:row-end-10"
                         >
                           <SafeImage src={slide.storyTiles[2].image} alt={slide.storyTiles[2].alt} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]" />
                           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_28%,rgba(0,0,0,0.12)_72%,rgba(0,0,0,0.34)_100%)]" />
@@ -362,7 +362,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
                         <Link
                           href={slide.storyTiles[3].href}
                           aria-label={slide.storyTiles[3].title}
-                          className="group relative col-span-1 row-span-3 overflow-hidden rounded-[24px] border border-black/8 bg-[#f5efe7] shadow-[0_18px_34px_rgba(31,27,23,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(31,27,23,0.16)] lg:col-start-4 lg:col-end-8 lg:row-start-7 lg:row-end-13"
+                          className="group relative hidden overflow-hidden rounded-[24px] border border-black/8 bg-[#f5efe7] shadow-[0_18px_34px_rgba(31,27,23,0.12)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(31,27,23,0.16)] sm:block sm:col-span-1 sm:row-span-3 lg:col-start-4 lg:col-end-8 lg:row-start-7 lg:row-end-13"
                         >
                           <SafeImage src={slide.storyTiles[3].image} alt={slide.storyTiles[3].alt} className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]" />
                           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_30%,rgba(0,0,0,0.12)_72%,rgba(0,0,0,0.36)_100%)]" />

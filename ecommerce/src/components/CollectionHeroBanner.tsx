@@ -281,7 +281,7 @@ export default function CollectionHeroBanner({ title, product, subtitle, ctaHref
             <div className="relative z-10">
               <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${style.badge}`}>
                 <Sparkles className="h-3.5 w-3.5" style={{ color: style.accent }} />
-                {styleKey === "sale" ? "Limited Time Offer" : styleKey === "bestseller" ? "Customer Favourite" : styleKey === "drop" ? "Just Launched" : title.toUpperCase().includes("RAKHI") ? "Festival Edit" : "Curated Collection"}
+                {styleKey === "sale" ? "Limited Time Offer" : styleKey === "bestseller" ? "Customer Favourite" : styleKey === "drop" ? "Just Launched" : "Curated Collection"}
               </span>
 
               <h1 className={`mt-2.5 max-w-[16ch] text-3xl font-semibold tracking-[-0.04em] md:text-4xl lg:text-5xl ${style.text}`}>
