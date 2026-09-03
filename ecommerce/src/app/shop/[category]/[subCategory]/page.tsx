@@ -65,6 +65,18 @@ export default async function CategorySubCategoryPage({
 
   return (
     <main>
+      <nav aria-label="SEO subcategory product links" className="sr-only">
+        <ul>
+          {products
+            .filter((product) => Boolean(product.handle?.trim()))
+            .slice(0, 300)
+            .map((product) => (
+              <li key={`seo-subcategory-product-${product.id}`}>
+                <a href={`/product/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
+              </li>
+            ))}
+        </ul>
+      </nav>
       <Navbar activeSection="shop" />
       <div className="h-[68px] md:h-[72px]" />
       <ShopListing

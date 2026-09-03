@@ -82,6 +82,18 @@ async function ShopProducts({ collection, query, category, subCategory, audience
 
   return (
     <>
+      <nav aria-label="SEO shop product links" className="sr-only">
+        <ul>
+          {products
+            .filter((product) => Boolean(product.handle?.trim()))
+            .slice(0, 300)
+            .map((product) => (
+              <li key={`seo-shop-product-${product.id}`}>
+                <a href={`/product/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
+              </li>
+            ))}
+        </ul>
+      </nav>
       <ShopListing
         products={products}
         initialQuery={query}

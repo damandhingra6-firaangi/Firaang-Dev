@@ -94,6 +94,23 @@ export default async function Home() {
 
   return (
     <main>
+      <nav aria-label="SEO discovery links" className="sr-only">
+        <ul>
+          {products
+            .filter((product) => Boolean(product.handle?.trim()))
+            .slice(0, 200)
+            .map((product) => (
+              <li key={`seo-product-${product.id}`}>
+                <a href={`/product/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
+              </li>
+            ))}
+          {homeCategories.slice(0, 30).map((category) => (
+            <li key={`seo-category-${category.href}`}>
+              <a href={category.href}>{category.name}</a>
+            </li>
+          ))}
+        </ul>
+      </nav>
       <Navbar />
       <Hero featuredCollections={featuredCollections} storyBannerItems={storyBannerItems} />
       {featuredCollection ? <NewLaunchSection collection={featuredCollection} /> : null}

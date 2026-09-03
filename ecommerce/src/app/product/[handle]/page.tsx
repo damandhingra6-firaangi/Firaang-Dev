@@ -5,7 +5,8 @@ import Newsletter from "@/components/Newsletter";
 import ProductDetailsPage, { type ProductCardLite } from "@/components/ProductDetailsPage";
 import { fallbackProducts } from "@/lib/catalog";
 import { getCatalogProducts } from "@/lib/products";
-import { SITE_NAME } from "@/lib/site";
+import { SITE_NAME, getSiteUrl } from "@/lib/site";
+import { buildBreadcrumbSchema, buildProductSchema } from "@/lib/structured-data";
 
 export const dynamic = "force-dynamic";
 
@@ -55,25 +56,45 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     };
   }
 
+  const canonicalHandle = product.handle?.trim();
+  const canonicalPath = canonicalHandle
+    ? `/product/${encodeURIComponent(canonicalHandle)}`
+    : `/product/${encodeURIComponent(handle)}`;
+
+  const normalizedDescription = product.description?.trim() || `Shop ${product.name} from ${SITE_NAME}.`;
+  const description = normalizedDescription.slice(0, 160);
+  const isIndexableProduct = Boolean(canonicalHandle);
+
   return {
     title: product.name,
-    description: product.description.slice(0, 160),
+    description,
     alternates: {
-      canonical: `/product/${encodeURIComponent(product.handle || handle)}`,
+      canonical: canonicalPath,
     },
     openGraph: {
       title: product.name,
-      description: product.description.slice(0, 160),
-      url: `/product/${encodeURIComponent(product.handle || handle)}`,
+      description,
+      url: canonicalPath,
       type: "website",
       images: [{ url: product.img, width: 1200, height: 1600, alt: product.name }],
     },
     twitter: {
       card: "summary_large_image",
       title: product.name,
-      description: product.description.slice(0, 160),
+      description,
       images: [product.img],
     },
+    robots: isIndexableProduct
+      ? undefined
+      : {
+          index: false,
+          follow: false,
+          googleBot: {
+            index: false,
+            follow: false,
+            noimageindex: true,
+          },
+        },
   };
 }
 
@@ -85,8 +106,44 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound();
   }
 
+  const siteUrl = getSiteUrl();
+  const canonicalHandle = product.handle?.trim() || handle;
+  const productPath = `/product/${encodeURIComponent(canonicalHandle)}`;
+  const productUrl = `${siteUrl}${productPath}`;
+  const categoryPath = product.categorySlug ? `/shop/${encodeURIComponent(product.categorySlug)}` : "/shop";
+  const subCategoryPath =
+    product.categorySlug && product.subCategorySlug
+      ? `/shop/${encodeURIComponent(product.categorySlug)}/${encodeURIComponent(product.subCategorySlug)}`
+      : null;
+
+  const breadcrumbItems = [
+    { name: "Home", url: `${siteUrl}/` },
+    { name: "Shop", url: `${siteUrl}/shop` },
+    subCategoryPath
+      ? {
+          name: product.subCategory || "Category",
+          url: `${siteUrl}${subCategoryPath}`,
+        }
+      : {
+          name: product.category || "Shop",
+          url: `${siteUrl}${categoryPath}`,
+        },
+    { name: product.name, url: productUrl },
+  ];
+
+  const productSchema = buildProductSchema(product, productUrl);
+  const breadcrumbSchema = buildBreadcrumbSchema(breadcrumbItems);
+
   return (
     <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
       <Navbar />
       <div className="h-24 md:h-28" />
       <ProductDetailsPage product={product} catalogProducts={(products.length > 0 ? products : fallbackProducts).map(toProductCardLite)} />

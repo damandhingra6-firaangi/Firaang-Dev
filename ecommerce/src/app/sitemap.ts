@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
-import { fallbackProducts } from "@/lib/catalog";
-import { getCatalogProducts } from "@/lib/products";
+import { getStorefrontProducts } from "@/lib/shopify";
 import { buildCategoryTree } from "@/lib/product-taxonomy";
 import { getSiteUrl } from "@/lib/site";
 
@@ -11,8 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = getSiteUrl();
   const now = new Date();
 
-  const catalogProducts = await getCatalogProducts(250);
-  const products = catalogProducts.length > 0 ? catalogProducts : fallbackProducts;
+  const products = await getStorefrontProducts(1000);
   const categoryTree = buildCategoryTree(products);
 
   const staticEntries: SitemapEntry[] = STATIC_ROUTES.map((path) => ({
@@ -41,11 +39,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ];
   });
 
+  const seenHandles = new Set<string>();
   const productEntries: SitemapEntry[] = products
-    .filter((product) => Boolean(product.handle?.trim()))
+    .filter((product) => {
+      const handle = product.handle?.trim().toLowerCase();
+      if (!handle || seenHandles.has(handle)) {
+        return false;
+      }
+
+      seenHandles.add(handle);
+      return true;
+    })
     .map((product) => ({
       url: `${siteUrl}/product/${encodeURIComponent(product.handle!.trim())}`,
-      lastModified: now,
+      lastModified: product.publishedAt ? new Date(product.publishedAt) : now,
       changeFrequency: "weekly" as const,
       priority: 0.64,
     }));

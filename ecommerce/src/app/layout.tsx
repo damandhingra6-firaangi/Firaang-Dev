@@ -17,6 +17,7 @@ import {
   getSiteUrl,
   toAbsoluteUrl,
 } from "@/lib/site";
+import { buildOrganizationSchema, buildWebSiteSchema } from "@/lib/structured-data";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -109,12 +110,23 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const organizationSchema = buildOrganizationSchema();
+  const webSiteSchema = buildWebSiteSchema();
+
   return (
     <html
       lang={SITE_LANGUAGE}
       className={`${poppins.variable} ${playfair.variable} h-full antialiased`}
     >
       <body className="min-h-full">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteSchema) }}
+        />
         <AccountSessionBootstrap />
         <Suspense>
           <AnalyticsTracker />

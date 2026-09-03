@@ -1,7 +1,16 @@
+import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import AccountModal from "@/components/AccountModal";
 import Link from "next/link";
 import { BookMarked, CreditCard, Heart, MapPin, Package, User } from "lucide-react";
+import { createPageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = createPageMetadata({
+  title: "Account",
+  description: "Secure account dashboard for profile, orders, and saved preferences.",
+  path: "/account",
+  noIndex: true,
+});
 
 type AccountPageProps = {
   searchParams?: Promise<{ tab?: string }>;
