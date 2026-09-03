@@ -130,7 +130,7 @@ type ShopifyRestDraftCompleteResponse = {
   errors?: unknown;
 };
 
-function getShopifyCustomerEmail(customer: { email: string; authProvider: "google" | "email" | "mobile" } | null) {
+function getShopifyCustomerEmail(customer: { email: string; authProvider: "google" | "email" | "mobile" | "credentials" } | null) {
   if (!customer || customer.authProvider === "mobile") {
     return undefined;
   }

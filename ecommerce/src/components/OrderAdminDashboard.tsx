@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Loader2, RefreshCw, Save, ShieldCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, RefreshCw, Save, ShieldCheck } from "lucide-react";
 
 type AdminOrderItem = {
   productId: string;
@@ -86,6 +87,25 @@ type OrderUpdateDraft = {
   cancelReason?: string;
 };
 
+type AdminCustomerDraft = {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  generatePassword: boolean;
+};
+
+type AdminCustomerResult = {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  authProvider: string;
+  initialPassword: string;
+  generatedPassword: boolean;
+  existingAccount: boolean;
+};
+
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
@@ -139,10 +159,21 @@ function badgeClass(status?: string) {
 }
 
 export default function OrderAdminDashboard() {
+  const router = useRouter();
   const [adminKey, setAdminKey] = useState("");
   const [orders, setOrders] = useState<AdminOrderRecord[]>([]);
   const [drafts, setDrafts] = useState<Record<string, OrderUpdateDraft>>({});
+  const [customerDraft, setCustomerDraft] = useState<AdminCustomerDraft>({
+    fullName: "",
+    email: "",
+    phone: "",
+    password: "",
+    generatePassword: true,
+  });
+  const [createdCustomer, setCreatedCustomer] = useState<AdminCustomerResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [isSwitchingCustomer, setIsSwitchingCustomer] = useState(false);
   const [isSavingId, setIsSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -317,6 +348,97 @@ export default function OrderAdminDashboard() {
     }
   };
 
+  const createCustomerAccount = async () => {
+    if (!adminKey.trim()) {
+      setError("Enter the admin key to continue.");
+      return;
+    }
+
+    setIsCreatingCustomer(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch("/api/admin/customers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-key": adminKey.trim(),
+        },
+        body: JSON.stringify(customerDraft),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        customer?: {
+          id: string;
+          fullName: string;
+          email: string;
+          phone: string;
+          authProvider: string;
+        };
+        initialPassword?: string;
+        generatedPassword?: boolean;
+        existingAccount?: boolean;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.customer || !payload.initialPassword) {
+        throw new Error(payload.error ?? "Could not create customer account");
+      }
+
+      setCreatedCustomer({
+        ...payload.customer,
+        initialPassword: payload.initialPassword,
+        generatedPassword: Boolean(payload.generatedPassword),
+        existingAccount: Boolean(payload.existingAccount),
+      });
+      setCustomerDraft((current) => ({
+        ...current,
+        password: "",
+      }));
+      setSuccessMessage(payload.existingAccount ? "Linked password login to the existing customer account." : "Customer account created.");
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : "Could not create customer account");
+    } finally {
+      setIsCreatingCustomer(false);
+    }
+  };
+
+  const switchToCustomerSession = async () => {
+    if (!adminKey.trim() || !createdCustomer) {
+      setError("Create a customer account first.");
+      return;
+    }
+
+    setIsSwitchingCustomer(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch("/api/admin/customers/session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-key": adminKey.trim(),
+        },
+        body: JSON.stringify({ userId: createdCustomer.id }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Could not switch to customer account");
+      }
+
+      router.push("/account?tab=profile");
+      router.refresh();
+    } catch (switchError) {
+      setError(switchError instanceof Error ? switchError.message : "Could not switch to customer account");
+    } finally {
+      setIsSwitchingCustomer(false);
+    }
+  };
+
   return (
     <section className="section-shell py-10 md:py-14">
       <div className="mb-6 rounded-[28px] border border-[var(--gold)]/25 bg-[rgba(43,6,11,0.82)] p-6 shadow-2xl backdrop-blur md:p-8">
@@ -364,6 +486,80 @@ export default function OrderAdminDashboard() {
 
         {error ? <p className="mt-4 rounded-xl border border-rose-400/40 bg-rose-950/50 px-4 py-3 text-sm text-rose-100">{error}</p> : null}
         {successMessage ? <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-100">{successMessage}</p> : null}
+      </div>
+
+      <div className="mb-6 rounded-[28px] border border-[var(--gold)]/20 bg-[var(--popup-card)] p-5 shadow-xl md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--gold)]">Assisted Customer Login</p>
+            <h2 className="mt-2 text-2xl text-[var(--popup-footer-text)]">Create a customer account for phone orders</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--popup-subtext)]">
+              Create or enable password login for a customer, then switch this browser into that customer session to place an order on their behalf.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="text-xs uppercase tracking-[0.1em] text-[var(--popup-muted)] md:col-span-2">
+              Full Name
+              <input value={customerDraft.fullName} onChange={(event) => setCustomerDraft((current) => ({ ...current, fullName: event.target.value }))} className="mt-1 w-full rounded-xl border border-[var(--gold)]/25 bg-[var(--popup-bg)] px-3 py-2 text-sm text-[var(--popup-footer-text)]" placeholder="Customer full name" />
+            </label>
+            <label className="text-xs uppercase tracking-[0.1em] text-[var(--popup-muted)]">
+              Email
+              <input value={customerDraft.email} onChange={(event) => setCustomerDraft((current) => ({ ...current, email: event.target.value }))} className="mt-1 w-full rounded-xl border border-[var(--gold)]/25 bg-[var(--popup-bg)] px-3 py-2 text-sm text-[var(--popup-footer-text)]" placeholder="name@example.com" />
+            </label>
+            <label className="text-xs uppercase tracking-[0.1em] text-[var(--popup-muted)]">
+              Phone
+              <input value={customerDraft.phone} onChange={(event) => setCustomerDraft((current) => ({ ...current, phone: event.target.value }))} className="mt-1 w-full rounded-xl border border-[var(--gold)]/25 bg-[var(--popup-bg)] px-3 py-2 text-sm text-[var(--popup-footer-text)]" placeholder="9876543210" />
+            </label>
+            <label className="text-xs uppercase tracking-[0.1em] text-[var(--popup-muted)] md:col-span-2">
+              Initial Password
+              <input value={customerDraft.password} onChange={(event) => setCustomerDraft((current) => ({ ...current, password: event.target.value, generatePassword: false }))} className="mt-1 w-full rounded-xl border border-[var(--gold)]/25 bg-[var(--popup-bg)] px-3 py-2 text-sm text-[var(--popup-footer-text)]" placeholder="Leave blank to generate securely" />
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-[var(--popup-subtext)] md:col-span-2">
+              <input type="checkbox" checked={customerDraft.generatePassword} onChange={(event) => setCustomerDraft((current) => ({ ...current, generatePassword: event.target.checked }))} />
+              Generate a secure initial password automatically
+            </label>
+            <div className="md:col-span-2 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => void createCustomerAccount()}
+                disabled={isCreatingCustomer}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--gold)] px-5 py-3 text-sm font-semibold text-[#2b060b] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isCreatingCustomer ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {isCreatingCustomer ? "Creating..." : "Create Customer Account"}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--gold)]">Latest Credential Set</p>
+            {createdCustomer ? (
+              <div className="mt-3 space-y-2 text-sm text-[var(--popup-footer-text)]">
+                <p>{createdCustomer.fullName}</p>
+                <p>{createdCustomer.email || createdCustomer.phone || "No identifier"}</p>
+                <p>Password: {createdCustomer.initialPassword}</p>
+                <p className="text-xs text-[var(--popup-muted)]">
+                  {createdCustomer.existingAccount ? "Existing customer account updated with password login." : "New customer account created."}
+                  {createdCustomer.generatedPassword ? " Password was generated for you." : " Password was set manually."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void switchToCustomerSession()}
+                  disabled={isSwitchingCustomer}
+                  className="mt-3 inline-flex items-center justify-center gap-2 rounded-full border border-[var(--gold)]/35 px-4 py-2.5 text-sm font-semibold text-[var(--gold)] transition hover:bg-[var(--gold)]/10 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isSwitchingCustomer ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {isSwitchingCustomer ? "Switching..." : "Use This Customer For Order Placement"}
+                </button>
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-[var(--popup-subtext)]">Created customer credentials will appear here once generated.</p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="space-y-5">

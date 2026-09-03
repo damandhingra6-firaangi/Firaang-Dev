@@ -1,10 +1,12 @@
 import { randomBytes, createHash, randomInt, scrypt as scryptCallback, scryptSync, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import { ObjectId, type Collection } from "mongodb";
+import { ObjectId, type Collection, type WithId } from "mongodb";
 import { ORDER_CANCELLATION_WINDOW_DAYS } from "@/lib/checkout-config";
 import { getMongoDb } from "@/lib/mongodb";
 
 const scrypt = promisify(scryptCallback);
+
+export type AccountAuthProvider = "google" | "email" | "mobile" | "credentials";
 
 export type AccountProfile = {
   fullName: string;
@@ -15,7 +17,7 @@ export type AccountProfile = {
   city: string;
   state: string;
   pinCode: string;
-  authProvider: "google" | "email" | "mobile";
+  authProvider: AccountAuthProvider;
   savedAddresses?: AccountSavedAddress[];
 };
 
@@ -140,9 +142,14 @@ type AccountUserDocument = {
     tag?: "HOME" | "OFFICE" | "OTHER";
     updatedAt: Date;
   }>;
-  authProvider: "google" | "email" | "mobile";
+  authProvider: AccountAuthProvider;
   googleSub: string;
   passwordHash?: string;
+  passwordUpdatedAt?: Date;
+  accountSource?: "google" | "mobile-otp" | "self-signup" | "admin-created";
+  createdByAdminEmail?: string;
+  createdByAdminName?: string;
+  createdByAdminAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   lastSignedInAt: Date;
@@ -230,11 +237,19 @@ const ORDERS_COLLECTION_NAME = process.env.MONGODB_ORDERS_COLLECTION ?? "orders"
 const MOBILE_OTPS_COLLECTION_NAME = process.env.MONGODB_MOBILE_OTPS_COLLECTION ?? "account_mobile_otps";
 const INVENTORY_MOVEMENTS_COLLECTION_NAME = process.env.MONGODB_INVENTORY_COLLECTION ?? "inventory_movements";
 const MOBILE_OTP_COOLDOWN_MS = 45 * 1000;
+const SUCCESSFUL_COUPON_PAYMENT_STATUSES = ["authorized", "captured", "refunded"] as const;
+const SUCCESSFUL_COUPON_ORDER_STATUSES = ["paid", "cancelled"] as const;
 
 let ensureAccountIndexesPromise: Promise<void> | null = null;
 
+const accountEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
+}
+
+function isEmailAddress(value: string) {
+  return accountEmailRegex.test(value.trim());
 }
 
 function normalizeShopifyNumericId(value: string) {
@@ -301,6 +316,17 @@ async function hashPassword(password: string) {
   const salt = randomBytes(16);
   const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
   return `${salt.toString("hex")}:${derivedKey.toString("hex")}`;
+}
+
+function generateSecurePassword(length = 14) {
+  const charset = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*_-";
+  let password = "";
+
+  for (let index = 0; index < length; index += 1) {
+    password += charset[randomInt(0, charset.length)] ?? "A";
+  }
+
+  return password;
 }
 
 function verifyPassword(password: string, storedHash: string) {
@@ -377,6 +403,269 @@ async function ensureUsersEmailIndex(users: Collection<AccountUserDocument>) {
   );
 }
 
+function isDuplicateKeyError(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
+}
+
+function buildCredentialSubject(input: { email?: string; phone?: string }) {
+  if (input.email) {
+    return `credentials:email:${input.email}`;
+  }
+
+  if (input.phone) {
+    return `credentials:phone:${input.phone}`;
+  }
+
+  return `credentials:${randomBytes(6).toString("hex")}`;
+}
+
+async function findUsersByIdentifiers(
+  users: Collection<AccountUserDocument>,
+  input: { email?: string; phone?: string },
+) {
+  const filters: Array<{ email: string } | { phone: string }> = [];
+
+  if (input.email) {
+    filters.push({ email: input.email });
+  }
+
+  if (input.phone) {
+    filters.push({ phone: input.phone });
+  }
+
+  if (filters.length === 0) {
+    return [];
+  }
+
+  return users.find({ $or: filters }).toArray();
+}
+
+function getUserByEmail(users: WithId<AccountUserDocument>[], email: string) {
+  return users.find((user) => normalizeEmail(user.email ?? "") === email) ?? null;
+}
+
+function getUserByPhone(users: WithId<AccountUserDocument>[], phone: string) {
+  return users.find((user) => (user.phone ?? "") === phone) ?? null;
+}
+
+async function findUserByLoginIdentifier(users: Collection<AccountUserDocument>, identifier: string) {
+  const raw = identifier.trim();
+
+  if (!raw) {
+    return null;
+  }
+
+  if (isEmailAddress(raw)) {
+    return users.findOne({ email: normalizeEmail(raw) });
+  }
+
+  const phone = normalizePhoneNumber(raw);
+
+  if (!phone || !isSupportedMobileNumber(phone)) {
+    return null;
+  }
+
+  return users.findOne({ phone });
+}
+
+async function ensureUniqueProfileIdentifiers(
+  users: Collection<AccountUserDocument>,
+  currentUserId: ObjectId,
+  input: { email?: string; phone?: string },
+) {
+  const filters: Array<{ email: string } | { phone: string }> = [];
+
+  if (input.email) {
+    filters.push({ email: input.email });
+  }
+
+  if (input.phone) {
+    filters.push({ phone: input.phone });
+  }
+
+  if (filters.length === 0) {
+    return;
+  }
+
+  const conflict = await users.findOne({
+    _id: { $ne: currentUserId },
+    $or: filters,
+  });
+
+  if (!conflict) {
+    return;
+  }
+
+  if (input.email && normalizeEmail(conflict.email ?? "") === input.email) {
+    throw new Error("EMAIL_EXISTS");
+  }
+
+  if (input.phone && (conflict.phone ?? "") === input.phone) {
+    throw new Error("PHONE_EXISTS");
+  }
+}
+
+async function createOrAttachPasswordAccount(input: {
+  fullName: string;
+  password: string;
+  email?: string;
+  phone?: string;
+  createdByAdmin?: { email?: string; fullName?: string } | null;
+}) {
+  const { users } = await getCollections();
+  const now = new Date();
+  const fullName = input.fullName.trim();
+  const email = input.email?.trim() ? normalizeEmail(input.email) : "";
+  const rawPhone = input.phone?.trim() ?? "";
+  const phone = rawPhone ? normalizePhoneNumber(rawPhone) : "";
+
+  if (!email && !rawPhone) {
+    throw new Error("EMAIL_OR_PHONE_REQUIRED");
+  }
+
+  if (email && !isEmailAddress(email)) {
+    throw new Error("EMAIL_INVALID");
+  }
+
+  if (rawPhone && (!phone || !isSupportedMobileNumber(phone))) {
+    throw new Error("PHONE_INVALID");
+  }
+
+  const matchedUsers = await findUsersByIdentifiers(users, {
+    email: email || undefined,
+    phone: phone || undefined,
+  });
+  const matchedByEmail = email ? getUserByEmail(matchedUsers, email) : null;
+  const matchedByPhone = phone ? getUserByPhone(matchedUsers, phone) : null;
+
+  if (matchedByEmail && matchedByPhone && !matchedByEmail._id.equals(matchedByPhone._id)) {
+    throw new Error("IDENTIFIER_CONFLICT");
+  }
+
+  const existing = matchedByEmail ?? matchedByPhone;
+  const passwordHash = await hashPassword(input.password);
+  const createdByAdminEmail = input.createdByAdmin?.email ? normalizeEmail(input.createdByAdmin.email) : "";
+  const createdByAdminName = input.createdByAdmin?.fullName?.trim() ?? "";
+
+  if (existing) {
+    if (existing.passwordHash) {
+      if (email && matchedByEmail?._id.equals(existing._id)) {
+        throw new Error("EMAIL_EXISTS");
+      }
+
+      if (phone && matchedByPhone?._id.equals(existing._id)) {
+        throw new Error("PHONE_EXISTS");
+      }
+
+      throw new Error("ACCOUNT_EXISTS");
+    }
+
+    const setFields: Record<string, unknown> = {
+      passwordHash,
+      passwordUpdatedAt: now,
+      updatedAt: now,
+    };
+
+    if (fullName && (!existing.fullName.trim() || existing.fullName === "Firaang Shopper")) {
+      setFields.fullName = fullName;
+    }
+
+    if (email && normalizeEmail(existing.email ?? "") !== email) {
+      setFields.email = email;
+    }
+
+    if (phone && (existing.phone ?? "") !== phone) {
+      setFields.phone = phone;
+    }
+
+    if (createdByAdminEmail || createdByAdminName) {
+      setFields.accountSource = "admin-created";
+      if (createdByAdminEmail) {
+        setFields.createdByAdminEmail = createdByAdminEmail;
+      }
+      if (createdByAdminName) {
+        setFields.createdByAdminName = createdByAdminName;
+      }
+      setFields.createdByAdminAt = now;
+    }
+
+    const updateOps: {
+      $set: Record<string, unknown>;
+      $unset?: Record<string, "">;
+    } = { $set: setFields };
+
+    if (!email && isSyntheticMobilePlaceholderEmail(existing.email)) {
+      updateOps.$unset = { email: "" };
+    }
+
+    try {
+      await users.updateOne({ _id: existing._id }, updateOps);
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        throw new Error("ACCOUNT_EXISTS");
+      }
+
+      throw error;
+    }
+
+    const updatedUser = await users.findOne({ _id: existing._id });
+
+    if (!updatedUser) {
+      throw new Error("FAILED_TO_LOAD_PASSWORD_ACCOUNT");
+    }
+
+    return {
+      userId: updatedUser._id.toHexString(),
+      profile: mapProfile(updatedUser),
+      created: false,
+      linkedExistingAccount: true,
+    };
+  }
+
+  try {
+    const insertResult = await users.insertOne({
+      email: email || undefined,
+      fullName,
+      avatarUrl: "",
+      phone: phone || "",
+      address: "",
+      city: "",
+      state: "",
+      pinCode: "",
+      authProvider: "credentials",
+      googleSub: buildCredentialSubject({ email: email || undefined, phone: phone || undefined }),
+      passwordHash,
+      passwordUpdatedAt: now,
+      accountSource: createdByAdminEmail || createdByAdminName ? "admin-created" : "self-signup",
+      createdByAdminEmail: createdByAdminEmail || undefined,
+      createdByAdminName: createdByAdminName || undefined,
+      createdByAdminAt: createdByAdminEmail || createdByAdminName ? now : undefined,
+      createdAt: now,
+      updatedAt: now,
+      lastSignedInAt: now,
+    });
+
+    const user = await users.findOne({ _id: insertResult.insertedId });
+
+    if (!user) {
+      throw new Error("FAILED_TO_CREATE_PASSWORD_ACCOUNT");
+    }
+
+    return {
+      userId: user._id.toHexString(),
+      profile: mapProfile(user),
+      created: true,
+      linkedExistingAccount: false,
+    };
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      throw new Error("ACCOUNT_EXISTS");
+    }
+
+    throw error;
+  }
+}
+
 function mapOrder(document: AccountOrderDocument): AccountOrder {
   return {
     id: document.orderId,
@@ -450,6 +739,7 @@ async function getCollections() {
       orders.createIndex({ orderId: 1 }, { name: "order_id_unique", unique: true }),
       orders.createIndex({ shopifyOrderId: 1 }, { name: "order_shopify_id_lookup", sparse: true }),
       orders.createIndex({ userId: 1, createdAt: -1 }, { name: "order_user_created_desc" }),
+      orders.createIndex({ userId: 1, couponCode: 1, status: 1 }, { name: "order_user_coupon_status_lookup" }),
       orders.createIndex({ paymentId: 1 }, { name: "order_payment_id_lookup", sparse: true }),
       inventoryMovements.createIndex({ orderId: 1, type: 1 }, { name: "inventory_order_type_unique", unique: true }),
       inventoryMovements.createIndex({ createdAt: -1 }, { name: "inventory_created_desc" }),
@@ -483,6 +773,41 @@ async function getCollections() {
 async function listOrdersForUserId(orders: Collection<AccountOrderDocument>, userId: ObjectId) {
   const documents = await orders.find({ userId }, { sort: { createdAt: -1 }, limit: 50 }).toArray();
   return documents.map(mapOrder);
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function hasSuccessfullyUsedCouponForUserId(userId: ObjectId, couponCode: string) {
+  const { orders } = await getCollections();
+  const normalizedCode = couponCode.trim().toUpperCase();
+
+  if (!normalizedCode) {
+    return false;
+  }
+
+  const existingOrder = await orders.findOne({
+    userId,
+    couponCode: { $regex: `^${escapeRegex(normalizedCode)}$`, $options: "i" },
+    $or: [
+      { paymentStatus: { $in: [...SUCCESSFUL_COUPON_PAYMENT_STATUSES] } },
+      { status: { $in: [...SUCCESSFUL_COUPON_ORDER_STATUSES] } },
+    ],
+  });
+
+  return Boolean(existingOrder);
+}
+
+export async function hasSuccessfullyUsedCouponForSessionToken(token: string, couponCode: string) {
+  const { sessions } = await getCollections();
+  const session = await sessions.findOne({ tokenHash: hashSessionToken(token) });
+
+  if (!session) {
+    return false;
+  }
+
+  return hasSuccessfullyUsedCouponForUserId(session.userId, couponCode);
 }
 
 export async function upsertGoogleAccount(input: {
@@ -535,45 +860,64 @@ export async function createEmailAccount(input: {
   email: string;
   fullName: string;
   password: string;
+  phone?: string;
 }) {
-  const { users } = await getCollections();
-  const now = new Date();
-  const email = normalizeEmail(input.email);
-
-  const existing = await users.findOne({ email });
-
-  if (existing) {
-    throw new Error(existing.authProvider === "google" ? "EMAIL_EXISTS_GOOGLE" : "EMAIL_EXISTS");
-  }
-
-  const passwordHash = await hashPassword(input.password);
-
-  const insertResult = await users.insertOne({
-    email,
+  const account = await createOrAttachPasswordAccount({
     fullName: input.fullName,
-    avatarUrl: "",
-    phone: "",
-    address: "",
-    city: "",
-    state: "",
-    pinCode: "",
-    authProvider: "email",
-    googleSub: `email:${email}`,
-    passwordHash,
-    createdAt: now,
-    updatedAt: now,
-    lastSignedInAt: now,
+    email: input.email,
+    phone: input.phone,
+    password: input.password,
   });
 
-  const user = await users.findOne({ _id: insertResult.insertedId });
+  return {
+    userId: account.userId,
+    profile: account.profile,
+  };
+}
 
-  if (!user) {
-    throw new Error("FAILED_TO_CREATE_EMAIL_ACCOUNT");
+export async function createPasswordAccount(input: {
+  fullName: string;
+  email?: string;
+  phone?: string;
+  password: string;
+}) {
+  return createOrAttachPasswordAccount(input);
+}
+
+export async function createCustomerPasswordAccountByAdmin(input: {
+  fullName: string;
+  email?: string;
+  phone?: string;
+  password?: string;
+  generatePassword?: boolean;
+  createdByAdmin: {
+    email?: string;
+    fullName?: string;
+  };
+}) {
+  const rawPassword = input.password ?? "";
+  const initialPassword = rawPassword || (input.generatePassword ? generateSecurePassword() : "");
+
+  if (!initialPassword) {
+    throw new Error("PASSWORD_REQUIRED");
   }
 
+  if (initialPassword.length < 8 || initialPassword.length > 72) {
+    throw new Error("PASSWORD_INVALID_LENGTH");
+  }
+
+  const account = await createOrAttachPasswordAccount({
+    fullName: input.fullName,
+    email: input.email,
+    phone: input.phone,
+    password: initialPassword,
+    createdByAdmin: input.createdByAdmin,
+  });
+
   return {
-    userId: user._id.toHexString(),
-    profile: mapProfile(user),
+    ...account,
+    initialPassword,
+    generatedPassword: !rawPassword,
   };
 }
 
@@ -712,11 +1056,14 @@ export async function upsertMobileAccount(input: { phone: string }) {
 }
 
 export async function authenticateEmailAccount(input: { email: string; password: string }) {
-  const { users } = await getCollections();
-  const email = normalizeEmail(input.email);
-  const user = await users.findOne({ email });
+  return authenticatePasswordAccount({ identifier: input.email, password: input.password });
+}
 
-  if (!user || user.authProvider !== "email" || !user.passwordHash) {
+export async function authenticatePasswordAccount(input: { identifier: string; password: string }) {
+  const { users } = await getCollections();
+  const user = await findUserByLoginIdentifier(users, input.identifier);
+
+  if (!user || !user.passwordHash) {
     return null;
   }
 
@@ -729,6 +1076,7 @@ export async function authenticateEmailAccount(input: { email: string; password:
     {
       $set: {
         lastSignedInAt: new Date(),
+        updatedAt: new Date(),
       },
     },
   );
@@ -791,6 +1139,27 @@ export async function getAccountSnapshotBySessionToken(token: string): Promise<A
   };
 }
 
+export async function getAccountSnapshotByUserId(userId: string): Promise<AccountSessionSnapshot | null> {
+  if (!ObjectId.isValid(userId)) {
+    return null;
+  }
+
+  const { users, orders } = await getCollections();
+  const objectId = new ObjectId(userId);
+  const user = await users.findOne({ _id: objectId });
+
+  if (!user) {
+    return null;
+  }
+
+  const mappedOrders = await listOrdersForUserId(orders, objectId);
+
+  return {
+    profile: mapProfile(user),
+    orders: mappedOrders,
+  };
+}
+
 export async function updateAccountProfileBySessionToken(
   token: string,
   updates: Partial<Omit<AccountProfile, "authProvider">>,
@@ -802,22 +1171,43 @@ export async function updateAccountProfileBySessionToken(
     return null;
   }
 
-  await users.updateOne(
-    { _id: session.userId },
-    {
-      $set: {
-        fullName: updates.fullName,
-        email: updates.email ? normalizeEmail(updates.email) : "",
-        avatarUrl: updates.avatarUrl,
-        phone: updates.phone,
-        address: updates.address,
-        city: updates.city,
-        state: updates.state,
-        pinCode: updates.pinCode,
-        updatedAt: new Date(),
+  const normalizedEmail = updates.email ? normalizeEmail(updates.email) : "";
+  const rawPhone = updates.phone?.trim() ?? "";
+  const normalizedPhone = rawPhone ? normalizePhoneNumber(rawPhone) : "";
+
+  if (rawPhone && (!normalizedPhone || !isSupportedMobileNumber(normalizedPhone))) {
+    throw new Error("PHONE_INVALID");
+  }
+
+  await ensureUniqueProfileIdentifiers(users, session.userId, {
+    email: normalizedEmail || undefined,
+    phone: normalizedPhone || undefined,
+  });
+
+  try {
+    await users.updateOne(
+      { _id: session.userId },
+      {
+        $set: {
+          fullName: updates.fullName,
+          email: normalizedEmail,
+          avatarUrl: updates.avatarUrl,
+          phone: normalizedPhone,
+          address: updates.address,
+          city: updates.city,
+          state: updates.state,
+          pinCode: updates.pinCode,
+          updatedAt: new Date(),
+        },
       },
-    },
-  );
+    );
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      throw new Error("ACCOUNT_EXISTS");
+    }
+
+    throw error;
+  }
 
   const updatedUser = await users.findOne({ _id: session.userId });
   return updatedUser ? mapProfile(updatedUser) : null;

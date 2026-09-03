@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createPendingOrderForSessionToken, saveShippingAddressForSessionToken } from "@/lib/account-data";
+import { createPendingOrderForSessionToken, hasSuccessfullyUsedCouponForSessionToken, saveShippingAddressForSessionToken } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { calculateCheckoutPricing, computeCouponDiscount, estimateOrderWeightKg, type ShippingMethod } from "@/lib/checkout-config";
@@ -9,6 +9,9 @@ import { getRazorpayClient } from "@/lib/razorpay";
 import { resolveCheckoutItems } from "@/lib/products";
 import { getActiveCouponByCode } from "@/lib/coupon-store";
 import { syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
+
+const WELCOME5_COUPON_CODE = "WELCOME5";
+const WELCOME5_SINGLE_USE_MESSAGE = "WELCOME5 can only be used once per customer.";
 
 function parseCookieValue(cookieHeader: string, name: string) {
   return cookieHeader
@@ -60,6 +63,10 @@ export async function POST(request: Request) {
 
     if (!shippingEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingEmail)) {
       return NextResponse.json({ error: "A valid shipping email is required" }, { status: 400 });
+    }
+
+    if (!sessionToken) {
+      return NextResponse.json({ error: "Sign in required to place an order" }, { status: 401 });
     }
 
     if (shippingPinCode && !/^\d{6}$/.test(shippingPinCode)) {
@@ -139,6 +146,15 @@ export async function POST(request: Request) {
       if (!couponRecord) {
         return NextResponse.json({ error: "Coupon code is not valid or has expired" }, { status: 400 });
       }
+
+      if (couponRecord.code === WELCOME5_COUPON_CODE) {
+        const alreadyUsed = await hasSuccessfullyUsedCouponForSessionToken(sessionToken, couponRecord.code);
+
+        if (alreadyUsed) {
+          return NextResponse.json({ error: WELCOME5_SINGLE_USE_MESSAGE }, { status: 409 });
+        }
+      }
+
       const { eligible, discountAmount } = computeCouponDiscount(pricingSubtotalAmount, couponRecord);
       if (!eligible) {
         return NextResponse.json(
@@ -201,10 +217,6 @@ export async function POST(request: Request) {
     });
 
     const totalAmount = Math.round(Number(order.amount) / 100);
-
-    if (!sessionToken) {
-      return NextResponse.json({ error: "Sign in required to place an order" }, { status: 401 });
-    }
 
     let persistedOrder = null;
 
