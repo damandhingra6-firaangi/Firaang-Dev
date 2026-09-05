@@ -146,15 +146,15 @@ function splitHeadline(value: string) {
 function getFestivalSlideOverrides(collection: ShopifyCollectionLaunch): Partial<HeroSlide> | null {
   const lowered = `${collection.title} ${collection.handle}`.toLowerCase();
 
-  if (lowered.includes("janmashtami")) {
+  if (lowered.includes("ganesh")) {
     return {
-      eyebrow: "✨ JANMASHTAMI SPECIAL",
-      title: ["Janmashtami", "Special"],
+      eyebrow: "✨ GANESH CHATURTHI SPECIAL",
+      title: ["Ganesh Chaturthi", "Special"],
       subtitle:
-        "Celebrate Krishna Janmashtami with expressive graphic essentials inspired by devotion, color, and festive energy.",
+        "Celebrate the festive spirit of Ganesh Chaturthi with expressive graphic essentials inspired by devotion, color, and celebration.",
       primaryCtaLabel: "EXPLORE COLLECTION",
       overlayClassName:
-        "bg-[radial-gradient(circle_at_16%_24%,rgba(249,115,22,0.2)_0%,rgba(249,115,22,0)_38%),radial-gradient(circle_at_84%_18%,rgba(37,99,235,0.16)_0%,rgba(37,99,235,0)_38%),linear-gradient(110deg,rgba(8,8,12,0.62)_0%,rgba(12,12,20,0.52)_36%,rgba(20,12,8,0.48)_100%)]",
+        "bg-[radial-gradient(circle_at_16%_24%,rgba(249,190,69,0.18)_0%,rgba(249,190,69,0)_38%),radial-gradient(circle_at_84%_18%,rgba(237,107,52,0.16)_0%,rgba(237,107,52,0)_38%),linear-gradient(110deg,rgba(15,10,8,0.66)_0%,rgba(31,16,12,0.56)_36%,rgba(16,16,12,0.48)_100%)]",
       imageClassName: "object-[50%_22%] lg:object-[50%_24%] xl:object-[50%_26%]",
       mobileImageClassName: "object-[50%_18%]",
       subtitleClassName: "max-w-[320px] text-[13px] leading-[1.5] sm:max-w-[380px] md:max-w-[460px]",
@@ -198,10 +198,8 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const touchStartXRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    setActiveIndex((currentIndex) => Math.min(currentIndex, Math.max(0, slides.length - 1)));
-  }, [slides.length]);
+  const maxIndex = Math.max(0, slides.length - 1);
+  const safeActiveIndex = Math.min(activeIndex, maxIndex);
 
   const goToSlide = (index: number) => {
     if (slides.length <= 0) {
@@ -213,10 +211,18 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
   };
 
   const goToNextSlide = () => {
+    if (slides.length <= 0) {
+      return;
+    }
+
     setActiveIndex((currentIndex) => (currentIndex + 1) % slides.length);
   };
 
   const goToPreviousSlide = () => {
+    if (slides.length <= 0) {
+      return;
+    }
+
     setActiveIndex((currentIndex) => (currentIndex - 1 + slides.length) % slides.length);
   };
 
@@ -232,7 +238,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
     return () => window.clearInterval(intervalId);
   }, [isPaused, slides.length]);
 
-  const activeSlide = slides[activeIndex] ?? BASE_HERO_SLIDE;
+  const activeSlide = slides[safeActiveIndex] ?? BASE_HERO_SLIDE;
 
   const handleTouchStart = (event: TouchEvent<HTMLElement>) => {
     touchStartXRef.current = event.touches[0]?.clientX ?? null;

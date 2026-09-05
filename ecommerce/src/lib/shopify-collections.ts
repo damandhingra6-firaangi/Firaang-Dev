@@ -5,7 +5,7 @@ const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
 const DEFAULT_REVALIDATE_SECONDS = 300;
 
 const FEATURED_KEYWORDS = [
-  "janmashtami",
+  "ganesh",
   "independence",
   "diwali",
   "holi",
@@ -22,12 +22,14 @@ const PERMANENT_COLLECTION_SLUGS = new Set(["men", "women", "genz", "gen-z"]);
 // Collections permanently retired from seasonal/featured treatment and homepage promotion.
 // They will not appear as featured hero slides or in the NewLaunchSection even if Shopify
 // metafields still mark them as featured.
-const RETIRED_COLLECTION_HANDLES = new Set(["rakhi-special"]);
+const RETIRED_COLLECTION_HANDLES = new Set(["rakhi-special", "janmashtami"]);
 
 // Evergreen display title overrides keyed by Shopify collection handle.
 // Use this to present a renamed, always-relevant title without a Shopify admin change.
 const COLLECTION_TITLE_OVERRIDES: Record<string, string> = {
   "rakhi-special": "Sibling Stories",
+  "ganesh": "Ganesh Chaturthi",
+  "ganesh-chaturthi": "Ganesh Chaturthi",
 };
 
 /**
@@ -271,7 +273,7 @@ function isIndependenceCampaignExpired(title: string, now = new Date()) {
 }
 
 const SEASONAL_KEYWORDS = new Set([
-  "janmashtami",
+  "ganesh",
   "independence",
   "diwali",
   "holi",
@@ -285,7 +287,6 @@ const SEASONAL_KEYWORDS = new Set([
   "pongal",
   "ugadi",
   "baisakhi",
-  "ganesh",
 ]);
 
 function isSeasonalTitle(title: string) {
@@ -343,11 +344,13 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
   const launchFlag = parseBoolean(node.launchMetafield?.value);
   const explicitNewFlag = parseBoolean(node.isNewMetafield?.value);
   const normalizedHandle = node.handle?.trim().toLowerCase() ?? "";
-  const isRetired = RETIRED_COLLECTION_HANDLES.has(normalizedHandle);
   const normalizedTitle =
     COLLECTION_TITLE_OVERRIDES[normalizedHandle] ??
     toTitleCase(node.title?.trim() || "") ??
     humanizeHandle(node.handle);
+  const isJanmashtamiCollection =
+    normalizedHandle.includes("janmashtami") || normalizedTitle.toLowerCase().includes("janmashtami");
+  const isRetired = RETIRED_COLLECTION_HANDLES.has(normalizedHandle) || isJanmashtamiCollection;
   const normalizedDescription = node.description?.trim() ?? "";
   const seasonalByName = isSeasonalTitle(node.title);
   const startDateRaw = node.campaignStartDateMetafield?.value?.trim() || null;
