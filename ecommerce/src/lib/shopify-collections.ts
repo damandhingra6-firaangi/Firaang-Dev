@@ -20,8 +20,7 @@ const FEATURED_KEYWORDS = [
 const PERMANENT_COLLECTION_SLUGS = new Set(["men", "women", "genz", "gen-z"]);
 
 // Collections permanently retired from seasonal/featured treatment and homepage promotion.
-// They will not appear as featured hero slides or in the NewLaunchSection even if Shopify
-// metafields still mark them as featured.
+// They will not appear as featured hero slides even if Shopify metafields still mark them as featured.
 const RETIRED_COLLECTION_HANDLES = new Set(["rakhi-special", "janmashtami"]);
 
 // Evergreen display title overrides keyed by Shopify collection handle.

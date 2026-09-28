@@ -6,7 +6,7 @@ export const COMPANY_SUPPORT_PHONE_TEL = "+919878619783";
 
 export const COMPANY_SOCIAL_LINKS = {
 	instagram: "https://www.instagram.com/fir.aang",
-	facebook: "https://www.facebook.com/share/18urRNaaEq",
+	facebook: "https://www.facebook.com/profile.php?id=61594253017586",
 	youtube: "https://www.youtube.com/@Firaang-m5r",
 } as const;
 

@@ -6,7 +6,6 @@ import Hero from "@/components/Hero";
 import Category from "@/components/Category";
 import RedRibbon from "@/components/RedRibbon";
 import ProductGrid from "@/components/ProductGrid";
-import NewLaunchSection from "@/components/NewLaunchSection";
 import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
 import { fallbackProducts, GridProduct } from "@/lib/catalog";
@@ -90,7 +89,6 @@ export default async function Home() {
   const instagramShowcaseItems = buildInstagramShowcaseItems(products, 5);
   const storyBannerItems = buildStoryBannerItems(products, 4);
   const featuredCollections = collectionsContent.featuredCollections;
-  const featuredCollection = featuredCollections[0] ?? null;
 
   return (
     <main>
@@ -113,7 +111,6 @@ export default async function Home() {
       </nav>
       <Navbar />
       <Hero featuredCollections={featuredCollections} storyBannerItems={storyBannerItems} />
-      {featuredCollection ? <NewLaunchSection collection={featuredCollection} /> : null}
       <RedRibbon />
       <Category categories={homeCategories} />
       <ProductGrid products={products} />

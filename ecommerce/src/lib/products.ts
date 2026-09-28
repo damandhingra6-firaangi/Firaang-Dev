@@ -6,8 +6,12 @@ export type CheckoutLineItem = {
   quantity: number;
 };
 
-export async function getCatalogProducts(limit = 80): Promise<GridProduct[]> {
-  const storefrontProducts = await getStorefrontProducts(limit);
+type CatalogFetchOptions = {
+  cacheMode?: RequestCache;
+};
+
+export async function getCatalogProducts(limit = 80, options: CatalogFetchOptions = {}): Promise<GridProduct[]> {
+  const storefrontProducts = await getStorefrontProducts(limit, options);
   return storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
 }
 

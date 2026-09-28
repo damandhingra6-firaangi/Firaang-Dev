@@ -754,7 +754,11 @@ function parseSizeChart(value: string | null | undefined) {
   }
 }
 
-export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> {
+type StorefrontFetchOptions = {
+  cacheMode?: RequestCache;
+};
+
+export async function getStorefrontProducts(limit = 10, options: StorefrontFetchOptions = {}): Promise<GridProduct[]> {
   const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
   const storefrontAccessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
 
@@ -778,14 +782,19 @@ export async function getStorefrontProducts(limit = 10): Promise<GridProduct[]> 
           "Content-Type": "application/json",
           "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
         },
+        ...(options.cacheMode ? { cache: options.cacheMode } : {}),
         body: JSON.stringify({
           query: productsQuery,
           variables: { first: Math.min(pageSize, safeLimit - productEdges.length), after: cursor },
         }),
-        next: {
-          revalidate: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
-          tags: ["shopify-products"],
-        },
+        ...(!options.cacheMode
+          ? {
+              next: {
+                revalidate: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
+                tags: ["shopify-products"],
+              },
+            }
+          : {}),
       });
 
       if (!response.ok) {
