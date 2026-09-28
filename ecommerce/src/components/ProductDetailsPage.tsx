@@ -34,9 +34,8 @@ import CustomDesignSection from "@/components/CustomDesignSection";
 import type { DesignCustomization } from "@/components/DesignStudio";
 import { CUSTOM_DESIGN_SURCHARGE_INR, GridProduct } from "@/lib/catalog";
 import { isSignatureProduct } from "@/lib/design-inquiry";
-import { COMPANY_MANUFACTURER_DETAILS } from "@/lib/company";
 import { convertAmount, formatCurrency } from "@/lib/currency";
-import { deriveProductFit } from "@/lib/product-fit";
+import { buildProductDetailSpecs } from "@/lib/product-details";
 import { getDisplayPricing } from "@/lib/pricing-display";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useAccountStore } from "@/store/useAccountStore";
@@ -896,26 +895,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
     setSelectedMediaId(galleryItems[nextIndex]?.id ?? null);
   };
 
-  const resolvedFit =
-    deriveProductFit({
-      fitMetafields: [product.fit],
-      tags: product.tags,
-      subCategory: product.subCategory,
-      productType: product.productType ?? product.category,
-      title: product.name,
-    }) ?? "Fit varies by style";
-
-  const specs = [
-    { label: "Material & Fabric", value: product.tags?.find((tag) => /cotton|silk|linen|viscose|wool/i.test(tag)) ?? "Premium woven fabric" },
-    { label: "Fit", value: resolvedFit },
-    { label: "Pattern", value: product.tags?.find((tag) => /embroider|printed|woven|solid|checked/i.test(tag)) ?? "Contemporary solid finish" },
-    { label: "Sleeve Type", value: product.tags?.find((tag) => /sleeve/i.test(tag)) ?? "Three-quarter sleeves" },
-    { label: "Neck Type", value: product.tags?.find((tag) => /neck/i.test(tag)) ?? "Round neck" },
-    { label: "Occasion", value: product.audience ?? product.category ?? "Everyday and occasion wear" },
-    { label: "Care Instructions", value: "Hand wash separately or gentle machine wash; dry in shade." },
-    { label: "Country of Origin", value: "India" },
-    { label: "Manufacturer Details", value: COMPANY_MANUFACTURER_DETAILS },
-  ];
+  const specs = useMemo(() => buildProductDetailSpecs(product), [product]);
 
   return (
     <section className="section-shell w-full max-w-full overflow-x-clip pb-16 pt-6 md:pb-20 md:pt-8">
@@ -1077,179 +1057,342 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
               ))}
             </div>
           </SectionShell>
+
+          <div className="hidden lg:block">
+            <SectionShell title="Specifications" subtitle="Structured product attributes for quick scanning.">
+              <div className="grid gap-3 md:grid-cols-2">
+                <SpecCard label="Brand" value={getBrand(product)} />
+                <SpecCard label="Style" value={getSubtitle(product)} />
+                <SpecCard label="Color" value={selectedOptions[colorGroup?.name ?? ""] ?? "As shown"} />
+                <SpecCard label="Size range" value={sizeGroup?.values.join(" • ") ?? "Multiple sizes available"} />
+                <SpecCard label="Tax" value="Inclusive of all taxes" />
+              </div>
+            </SectionShell>
+          </div>
+
+          <div className="hidden lg:block space-y-6">
+            <SectionShell title="Product Description" subtitle="A richer look at the fit, finish, and styling context.">
+              <p className="max-w-3xl text-sm leading-7 text-[#4f4641] break-words">{product.description}</p>
+            </SectionShell>
+
+            <SectionShell title="Ratings & Reviews" subtitle="Average rating, distribution, and customer opinions.">
+              <div className="grid gap-5 lg:grid-cols-[240px_1fr]">
+                <div className="rounded-3xl border border-[#eaded3] bg-white p-4 text-center md:p-5">
+                  <p className="text-5xl font-semibold text-[var(--page-fg)]">{averageRating.toFixed(1)}</p>
+                  <div className="mt-3 flex items-center justify-center gap-1">{renderStars(averageRating)}</div>
+                  <p className="mt-3 text-sm text-[#685d57]">{reviewSource.length.toLocaleString()} reviews</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isSignedIn) {
+                        openAccountModal();
+                        return;
+                      }
+                      document.getElementById("product-review-form")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-[var(--secondary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#9f3940]"
+                  >
+                    <MessageSquarePlus className="h-4 w-4" />
+                    {isSignedIn ? "Write a review" : "Sign in to review"}
+                  </button>
+                </div>
+
+                <div className="space-y-3 rounded-3xl border border-[#eaded3] bg-white p-4 md:p-5">
+                  {reviewDistribution.map((item) => (
+                    <div key={item.rating} className="flex items-center gap-3 text-sm">
+                      <div className="flex w-14 items-center gap-1 text-[#625751]">
+                        <span>{item.rating}</span>
+                        <Star className="h-3.5 w-3.5 fill-[var(--gold)] text-[var(--gold)]" />
+                      </div>
+                      <div className="h-2 flex-1 rounded-full bg-[#f3e7df]">
+                        <div className="h-2 rounded-full bg-[var(--secondary)]" style={{ width: `${Math.max(8, item.percentage)}%` }} />
+                      </div>
+                      <span className="w-10 text-right text-[#6f6159]">{item.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {reviewSource.map((review) => (
+                  <article key={review.id} className="rounded-3xl border border-[#eaded3] bg-white p-4 md:p-5">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-[var(--page-fg)]">{review.reviewerName || "Verified buyer"}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[#8f7f74]">{review.verifiedPurchase ? "Verified purchase" : "Customer review"}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 justify-self-end">{renderStars(review.rating)}</div>
+                    </div>
+                    <p className="mt-4 text-sm font-semibold text-[#352f2c]">{review.title ?? "Customer review"}</p>
+                    <p className="mt-2 text-sm leading-7 text-[#5d534d] break-words">{review.message}</p>
+                    <p className="mt-4 text-xs text-[#998981]">{formatRelativeDate(review.createdAt)}</p>
+                  </article>
+                ))}
+              </div>
+
+              <form id="product-review-form" className="mt-6 rounded-3xl border border-[#eaded3] bg-[#fffaf7] p-4 md:p-5" onSubmit={handleReviewSubmit}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8e7f75]">Write a review</p>
+                    <h3 className="mt-1 text-xl font-semibold text-[var(--page-fg)]">Share your experience</h3>
+                  </div>
+                  <p className="text-sm text-[#685d57]">{isSignedIn ? "Eligible users can post a review." : "Sign in to post a review."}</p>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <label className="text-sm text-[#5c534d]">
+                    Name
+                    <input
+                      value={reviewForm.reviewerName}
+                      onChange={(event) => setReviewForm((current) => ({ ...current, reviewerName: event.target.value }))}
+                      className="mt-2 w-full rounded-2xl border border-[#e1d5ca] bg-white px-4 py-3 outline-none transition focus:border-[var(--secondary)]"
+                      placeholder="Your name"
+                      disabled={!isSignedIn}
+                    />
+                  </label>
+                  <label className="text-sm text-[#5c534d]">
+                    Rating
+                    <select
+                      value={reviewForm.rating}
+                      onChange={(event) => setReviewForm((current) => ({ ...current, rating: Number.parseInt(event.target.value, 10) }))}
+                      className="mt-2 w-full rounded-2xl border border-[#e1d5ca] bg-white px-4 py-3 outline-none transition focus:border-[var(--secondary)]"
+                      disabled={!isSignedIn}
+                    >
+                      {[5, 4, 3, 2, 1].map((rating) => (
+                        <option key={rating} value={rating}>
+                          {rating} stars
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm text-[#5c534d]">
+                    Title
+                    <input
+                      value={reviewForm.title}
+                      onChange={(event) => setReviewForm((current) => ({ ...current, title: event.target.value }))}
+                      className="mt-2 w-full rounded-2xl border border-[#e1d5ca] bg-white px-4 py-3 outline-none transition focus:border-[var(--secondary)]"
+                      placeholder="What stood out?"
+                      disabled={!isSignedIn}
+                    />
+                  </label>
+                  <label className="text-sm text-[#5c534d] md:col-span-2">
+                    Review
+                    <textarea
+                      value={reviewForm.message}
+                      onChange={(event) => setReviewForm((current) => ({ ...current, message: event.target.value }))}
+                      className="mt-2 min-h-32 w-full rounded-2xl border border-[#e1d5ca] bg-white px-4 py-3 outline-none transition focus:border-[var(--secondary)]"
+                      placeholder="Describe fit, material feel, styling, and value."
+                      disabled={!isSignedIn}
+                    />
+                  </label>
+                </div>
+
+                {reviewStatus ? <p className="mt-4 rounded-2xl bg-[#f4eadf] px-4 py-3 text-sm text-[#715c4a]">{reviewStatus}</p> : null}
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    disabled={isSubmittingReview || !isSignedIn}
+                    className="inline-flex items-center gap-2 rounded-full bg-[var(--secondary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#9f3940] disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isSubmittingReview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    Submit review
+                  </button>
+                  {!isSignedIn ? (
+                    <button type="button" onClick={openAccountModal} className="inline-flex items-center gap-2 rounded-full border border-[#d9cbbf] px-5 py-3 text-sm font-semibold text-[var(--page-fg)] transition hover:border-[var(--secondary)] hover:text-[var(--secondary)]">
+                      Sign in to continue
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            </SectionShell>
+          </div>
         </div>
 
-        <div className="min-w-0 space-y-6 rounded-[30px] border border-white/80 bg-[rgba(255,253,250,0.96)] p-5 shadow-[0_18px_60px_rgba(97,52,27,0.08)] md:p-6 lg:sticky lg:top-28 lg:self-start">
-          <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#f2e6dc] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7e5a45]">
-              {getBrand(product)}
-            </span>
-            <div className="flex items-center gap-2 text-sm text-[#6b605a]">
-              <button type="button" onClick={handleShare} className="inline-flex items-center gap-1.5 rounded-full border border-[#e4d7cc] px-3 py-1.5 transition hover:border-[var(--secondary)] hover:text-[var(--secondary)]">
-                <Share2 className="h-4 w-4" />
-                Share
-              </button>
-              <button type="button" onClick={handleCopyLink} className="inline-flex items-center gap-1.5 rounded-full border border-[#e4d7cc] px-3 py-1.5 transition hover:border-[var(--secondary)] hover:text-[var(--secondary)]">
-                <Copy className="h-4 w-4" />
-                {copyFeedback ?? "Copy"}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-sm font-medium uppercase tracking-[0.16em] text-[#8b7d75]">{getSubtitle(product)}</p>
-            <h1 className="mt-2 text-3xl font-semibold leading-tight text-[var(--page-fg)] md:text-[2.55rem]">{product.name}</h1>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[#655a54]">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f6eee4] px-3 py-1 font-medium text-[#594e48]">
-                <Star className="h-4 w-4 fill-[var(--gold)] text-[var(--gold)]" />
-                {averageRating.toFixed(1)}
-              </span>
-              <span>{reviewSource.length.toLocaleString()} ratings</span>
-              <span>•</span>
-              <span>{reviewSource.length.toLocaleString()} reviews</span>
-            </div>
-          </div>
-
-          <div className="rounded-[24px] bg-[linear-gradient(135deg,#fff7f0_0%,#f4ebe3_100%)] p-4">
-            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-              <p className="text-4xl font-semibold tracking-tight text-[#271e1b] md:text-[2.85rem]">{displayPrice}</p>
-              {displayOldPrice ? <p className="text-lg text-[#917d72] line-through">{displayOldPrice}</p> : null}
-              {discountPercent > 0 ? <p className="rounded-full bg-[#ffe7d7] px-3 py-1 text-sm font-semibold text-[#b2552b]">{discountPercent}% OFF</p> : null}
-              {hasAnyDesign && (
-                <p className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
-                  +{formatCurrency(convertAmount(CUSTOM_DESIGN_SURCHARGE_INR, "INR", displayCurrency), displayCurrency)} Custom Print
-                </p>
-              )}
-            </div>
-            <p className="mt-2 text-sm text-[#6f625b]">Inclusive of all taxes. Additional discounts may apply at checkout.</p>
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[#5d534d]">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5">
-                <BadgeIndianRupee className="h-4 w-4 text-[var(--secondary)]" />
-                Price locked for today
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5">
-                <PackageCheck className="h-4 w-4 text-[var(--secondary)]" />
-                {activeVariant?.availableForSale === false ? "Out of stock" : "In stock"}
-              </span>
-            </div>
-          </div>
-
-          {hasColorOptions ? (
-            <OptionGroup
-              title="Color"
-              subtitle="Switch shades and preview the catalog images immediately."
-              values={colorGroup?.values ?? []}
-              selected={selectedOptions[colorGroup?.name ?? ""] ?? selectedOptions.Color ?? selectedOptions.colour ?? ""}
-              renderSwatch
-              onSelect={(value) => selectOptionValue(colorGroup?.name ?? "Color", value)}
-            />
-          ) : null}
-
-          {hasSizeOptions ? (
-            <OptionGroup
-              title="Size"
-              subtitle="Choose the size that fits your look best."
-              values={sizeGroup?.values ?? []}
-              selected={selectedOptions[sizeGroup?.name ?? ""] ?? selectedOptions.Size ?? selectedOptions.size ?? ""}
-              onSelect={(value) => selectOptionValue(sizeGroup?.name ?? "Size", value)}
-              isDisabled={(value) => !optionAvailability(sizeGroup?.name ?? "Size", value)}
-              showSizeGuide
-              onSizeChartClick={() => setIsSizeChartOpen(true)}
-            />
-          ) : null}
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={handleAddToBag}
-              disabled={isAdding}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--secondary)] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#9f3940] disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
-              {hasAnyDesign ? "Add Custom Design to Bag" : "Add to Bag"}
-            </button>
-            <button
-              type="button"
-              onClick={handleWishlistToggle}
-              disabled={isWishlisting}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#dbcbbf] bg-white px-5 py-4 text-sm font-semibold text-[var(--page-fg)] transition hover:border-[var(--secondary)] hover:text-[var(--secondary)] disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              <Heart className={`h-4 w-4 ${wishlistIds.has(resolvedProduct.id) ? "fill-[var(--secondary)] text-[var(--secondary)]" : ""}`} />
-              Wishlist
-            </button>
-          </div>
-
-          {hasAnyDesign && (
-            <div className="flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-              <Sparkles className="h-4 w-4 shrink-0 mt-0.5 text-emerald-500" />
-              <span>
-                <strong>Custom design attached</strong>
-                {designCustomization?.front && <span className="ml-1">— front print</span>}
-                {designCustomization?.front && designCustomization?.back && <span>, </span>}
-                {designCustomization?.back && <span className={designCustomization?.front ? "" : "ml-1"}>— back print</span>}
-                . Your artwork will be printed exactly as positioned.
-              </span>
-            </div>
-          )}
-
-          <div className="rounded-[24px] border border-[#ede2d7] bg-[#fffaf5] p-4">
+        <div className="min-w-0 space-y-6">
+          <div className="min-w-0 space-y-6 rounded-[30px] border border-white/80 bg-[rgba(255,253,250,0.96)] p-5 shadow-[0_18px_60px_rgba(97,52,27,0.08)] md:p-6 lg:sticky lg:top-28 lg:self-start">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8b7d75]">Delivery options</p>
-                <h2 className="mt-1 text-lg font-semibold text-[var(--page-fg)]">Check delivery by pincode</h2>
+              <span className="inline-flex items-center gap-2 rounded-full bg-[#f2e6dc] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7e5a45]">
+                {getBrand(product)}
+              </span>
+              <div className="flex items-center gap-2 text-sm text-[#6b605a]">
+                <button type="button" onClick={handleShare} className="inline-flex items-center gap-1.5 rounded-full border border-[#e4d7cc] px-3 py-1.5 transition hover:border-[var(--secondary)] hover:text-[var(--secondary)]">
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </button>
+                <button type="button" onClick={handleCopyLink} className="inline-flex items-center gap-1.5 rounded-full border border-[#e4d7cc] px-3 py-1.5 transition hover:border-[var(--secondary)] hover:text-[var(--secondary)]">
+                  <Copy className="h-4 w-4" />
+                  {copyFeedback ?? "Copy"}
+                </button>
               </div>
-              <Truck className="h-5 w-5 text-[var(--secondary)]" />
             </div>
-            <div className="mt-4 flex gap-2">
-              <input
-                value={deliveryPin}
-                onChange={(event) => setDeliveryPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                maxLength={6}
-                inputMode="numeric"
-                placeholder="Enter pincode"
-                className="min-w-0 flex-1 rounded-xl border border-[#e2d5c9] bg-white px-4 py-3 text-sm outline-none transition focus:border-[var(--secondary)]"
+
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.16em] text-[#8b7d75]">{getSubtitle(product)}</p>
+              <h1 className="mt-2 text-3xl font-semibold leading-tight text-[var(--page-fg)] md:text-[2.55rem]">{product.name}</h1>
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[#655a54]">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f6eee4] px-3 py-1 font-medium text-[#594e48]">
+                  <Star className="h-4 w-4 fill-[var(--gold)] text-[var(--gold)]" />
+                  {averageRating.toFixed(1)}
+                </span>
+                <span>{reviewSource.length.toLocaleString()} ratings</span>
+                <span>•</span>
+                <span>{reviewSource.length.toLocaleString()} reviews</span>
+              </div>
+            </div>
+
+            <div className="rounded-[24px] bg-[linear-gradient(135deg,#fff7f0_0%,#f4ebe3_100%)] p-4">
+              <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+                <p className="text-4xl font-semibold tracking-tight text-[#271e1b] md:text-[2.85rem]">{displayPrice}</p>
+                {displayOldPrice ? <p className="text-lg text-[#917d72] line-through">{displayOldPrice}</p> : null}
+                {discountPercent > 0 ? <p className="rounded-full bg-[#ffe7d7] px-3 py-1 text-sm font-semibold text-[#b2552b]">{discountPercent}% OFF</p> : null}
+                {hasAnyDesign && (
+                  <p className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
+                    +{formatCurrency(convertAmount(CUSTOM_DESIGN_SURCHARGE_INR, "INR", displayCurrency), displayCurrency)} Custom Print
+                  </p>
+                )}
+              </div>
+              <p className="mt-2 text-sm text-[#6f625b]">Inclusive of all taxes. Additional discounts may apply at checkout.</p>
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[#5d534d]">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5">
+                  <BadgeIndianRupee className="h-4 w-4 text-[var(--secondary)]" />
+                  Price locked for today
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5">
+                  <PackageCheck className="h-4 w-4 text-[var(--secondary)]" />
+                  {activeVariant?.availableForSale === false ? "Out of stock" : "In stock"}
+                </span>
+              </div>
+            </div>
+
+            {hasColorOptions ? (
+              <OptionGroup
+                title="Color"
+                subtitle="Switch shades and preview the catalog images immediately."
+                values={colorGroup?.values ?? []}
+                selected={selectedOptions[colorGroup?.name ?? ""] ?? selectedOptions.Color ?? selectedOptions.colour ?? ""}
+                renderSwatch
+                onSelect={(value) => selectOptionValue(colorGroup?.name ?? "Color", value)}
               />
+            ) : null}
+
+            {hasSizeOptions ? (
+              <OptionGroup
+                title="Size"
+                subtitle="Choose the size that fits your look best."
+                values={sizeGroup?.values ?? []}
+                selected={selectedOptions[sizeGroup?.name ?? ""] ?? selectedOptions.Size ?? selectedOptions.size ?? ""}
+                onSelect={(value) => selectOptionValue(sizeGroup?.name ?? "Size", value)}
+                isDisabled={(value) => !optionAvailability(sizeGroup?.name ?? "Size", value)}
+                showSizeGuide
+                onSizeChartClick={() => setIsSizeChartOpen(true)}
+              />
+            ) : null}
+
+            <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={handleCheckDelivery}
-                disabled={deliveryState === "checking"}
-                className="rounded-xl bg-[#f3e0d3] px-4 py-3 text-sm font-semibold text-[#5f4338] transition hover:bg-[#ead1c0] disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={handleAddToBag}
+                disabled={isAdding}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--secondary)] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#9f3940] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {deliveryState === "checking" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Check"}
+                {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
+                {hasAnyDesign ? "Add Custom Design to Bag" : "Add to Bag"}
+              </button>
+              <button
+                type="button"
+                onClick={handleWishlistToggle}
+                disabled={isWishlisting}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#dbcbbf] bg-white px-5 py-4 text-sm font-semibold text-[var(--page-fg)] transition hover:border-[var(--secondary)] hover:text-[var(--secondary)] disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <Heart className={`h-4 w-4 ${wishlistIds.has(resolvedProduct.id) ? "fill-[var(--secondary)] text-[var(--secondary)]" : ""}`} />
+                Wishlist
               </button>
             </div>
-            <div className="mt-4 space-y-3 text-sm text-[#5f544e]">
-              <DetailLine icon={<Clock3 className="h-4 w-4" />} label="Estimated delivery" value={deliveryMessage && deliveryState === "success" ? deliveryMessage : `Arrives by ${getShippingEstimate(5)}`} />
-              <DetailLine icon={<MapPin className="h-4 w-4" />} label="Availability" value={deliveryState === "error" ? deliveryMessage ?? "Unavailable" : "Delivery available across major serviceable pincodes."} />
-              <DetailLine icon={<Check className="h-4 w-4" />} label="Cash on Delivery" value="Available on selected orders." />
-              <DetailLine icon={<RefreshCcw className="h-4 w-4" />} label="Return & Exchange" value="Easy return and exchange within the policy window." />
-              <DetailLine icon={<Truck className="h-4 w-4" />} label="Shipping charges" value="Shipping charges may apply on low-value orders or remote locations." />
+
+            {hasAnyDesign && (
+              <div className="flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                <Sparkles className="h-4 w-4 shrink-0 mt-0.5 text-emerald-500" />
+                <span>
+                  <strong>Custom design attached</strong>
+                  {designCustomization?.front && <span className="ml-1">— front print</span>}
+                  {designCustomization?.front && designCustomization?.back && <span>, </span>}
+                  {designCustomization?.back && <span className={designCustomization?.front ? "" : "ml-1"}>— back print</span>}
+                  . Your artwork will be printed exactly as positioned.
+                </span>
+              </div>
+            )}
+
+            <div className="rounded-[24px] border border-[#ede2d7] bg-[#fffaf5] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8b7d75]">Delivery options</p>
+                  <h2 className="mt-1 text-lg font-semibold text-[var(--page-fg)]">Check delivery by pincode</h2>
+                </div>
+                <Truck className="h-5 w-5 text-[var(--secondary)]" />
+              </div>
+              <div className="mt-4 flex gap-2">
+                <input
+                  value={deliveryPin}
+                  onChange={(event) => setDeliveryPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  maxLength={6}
+                  inputMode="numeric"
+                  placeholder="Enter pincode"
+                  className="min-w-0 flex-1 rounded-xl border border-[#e2d5c9] bg-white px-4 py-3 text-sm outline-none transition focus:border-[var(--secondary)]"
+                />
+                <button
+                  type="button"
+                  onClick={handleCheckDelivery}
+                  disabled={deliveryState === "checking"}
+                  className="rounded-xl bg-[#f3e0d3] px-4 py-3 text-sm font-semibold text-[#5f4338] transition hover:bg-[#ead1c0] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {deliveryState === "checking" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Check"}
+                </button>
+              </div>
+              <div className="mt-4 space-y-3 text-sm text-[#5f544e]">
+                <DetailLine icon={<Clock3 className="h-4 w-4" />} label="Estimated delivery" value={deliveryMessage && deliveryState === "success" ? deliveryMessage : `Arrives by ${getShippingEstimate(5)}`} />
+                <DetailLine icon={<MapPin className="h-4 w-4" />} label="Availability" value={deliveryState === "error" ? deliveryMessage ?? "Unavailable" : "Delivery available across major serviceable pincodes."} />
+                <DetailLine icon={<Check className="h-4 w-4" />} label="Cash on Delivery" value="Available on selected orders." />
+                <DetailLine icon={<RefreshCcw className="h-4 w-4" />} label="Return & Exchange" value="Easy return and exchange within the policy window." />
+                <DetailLine icon={<Truck className="h-4 w-4" />} label="Shipping charges" value="Shipping charges may apply on low-value orders or remote locations." />
+              </div>
+            </div>
+
+            <div className="rounded-[24px] border border-[#ede2d7] bg-[#fffaf5] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8b7d75]">Why this product stands out</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <InfoCard title="Premium finish" text="Refined detailing and a polished visual hierarchy." />
+                <InfoCard title="Touch friendly" text="Larger targets for clean mobile size selection." />
+                <InfoCard title="Smart preview" text="Images update with colors and selected variants." />
+                <InfoCard title="Fast actions" text="Quick add, wishlist, copy link, and share support." />
+              </div>
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-[#ede2d7] bg-[#fffaf5] p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8b7d75]">Why this product stands out</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <InfoCard title="Premium finish" text="Refined detailing and a polished visual hierarchy." />
-              <InfoCard title="Touch friendly" text="Larger targets for clean mobile size selection." />
-              <InfoCard title="Smart preview" text="Images update with colors and selected variants." />
-              <InfoCard title="Fast actions" text="Quick add, wishlist, copy link, and share support." />
-            </div>
+          <div className="hidden lg:block">
+            <RelatedRail title="Similar Products" items={similarProducts} currencyCode={displayCurrency} />
+          </div>
+
+          <div className="hidden lg:block space-y-6">
+            <RelatedRail title="You May Also Like" items={alsoLikeProducts} currencyCode={displayCurrency} />
+            <RelatedRail title="Frequently Bought Together" items={frequentlyBoughtTogether} currencyCode={displayCurrency} compact />
+            <RelatedRail title="Recently Viewed" items={recentlyViewedProducts} currencyCode={displayCurrency} emptyMessage="Your recently viewed products will appear here." compact />
           </div>
         </div>
       </div>
 
-      <div className="mt-8 grid gap-7 lg:mt-6 lg:gap-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] xl:gap-12">
+      <div className="mt-8 grid gap-7 lg:hidden">
         <div className="min-w-0 space-y-6">
-          <SectionShell title="Specifications" subtitle="Structured product attributes for quick scanning.">
-            <div className="grid gap-3 md:grid-cols-2">
-              <SpecCard label="Brand" value={getBrand(product)} />
-              <SpecCard label="Style" value={getSubtitle(product)} />
-              <SpecCard label="Color" value={selectedOptions[colorGroup?.name ?? ""] ?? "As shown"} />
-              <SpecCard label="Size range" value={sizeGroup?.values.join(" • ") ?? "Multiple sizes available"} />
-              <SpecCard label="Tax" value="Inclusive of all taxes" />
-            </div>
-          </SectionShell>
+          <div className="lg:hidden">
+            <SectionShell title="Specifications" subtitle="Structured product attributes for quick scanning.">
+              <div className="grid gap-3 md:grid-cols-2">
+                <SpecCard label="Brand" value={getBrand(product)} />
+                <SpecCard label="Style" value={getSubtitle(product)} />
+                <SpecCard label="Color" value={selectedOptions[colorGroup?.name ?? ""] ?? "As shown"} />
+                <SpecCard label="Size range" value={sizeGroup?.values.join(" • ") ?? "Multiple sizes available"} />
+                <SpecCard label="Tax" value="Inclusive of all taxes" />
+              </div>
+            </SectionShell>
+          </div>
 
           <SectionShell title="Product Description" subtitle="A richer look at the fit, finish, and styling context.">
             <p className="max-w-3xl text-sm leading-7 text-[#4f4641] break-words">{product.description}</p>
@@ -1388,7 +1531,9 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
         </div>
 
         <aside className="min-w-0 space-y-6 lg:sticky lg:top-28 lg:self-start">
-          <RelatedRail title="Similar Products" items={similarProducts} currencyCode={displayCurrency} />
+          <div className="lg:hidden">
+            <RelatedRail title="Similar Products" items={similarProducts} currencyCode={displayCurrency} />
+          </div>
           <RelatedRail title="You May Also Like" items={alsoLikeProducts} currencyCode={displayCurrency} />
           <RelatedRail title="Frequently Bought Together" items={frequentlyBoughtTogether} currencyCode={displayCurrency} compact />
           <RelatedRail title="Recently Viewed" items={recentlyViewedProducts} currencyCode={displayCurrency} emptyMessage="Your recently viewed products will appear here." compact />
