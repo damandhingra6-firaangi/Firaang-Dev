@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
+import { redeemCampaignCouponByOrder, releaseCampaignCouponReservationByOrderId } from "@/lib/campaigns";
 import {
   attachShopifySyncResultToOrder,
   claimOrderConfirmationEmailSend,
@@ -91,6 +92,17 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true, ignored: true, reason: "order_not_found" });
       }
 
+      if (paidOrder.couponCode) {
+        await redeemCampaignCouponByOrder({
+          orderId,
+          couponCode: paidOrder.couponCode,
+          orderTotal: paidOrder.totalAmount,
+          discountAmount: paidOrder.discountAmount ?? 0,
+        }).catch((error) => {
+          console.error("Campaign coupon redemption finalization failed", error);
+        });
+      }
+
       const syncResult = await syncPaidOrderToShopify(orderId).catch((error) => ({
         status: "failed" as const,
         reason: error instanceof Error ? error.message : "Unknown Shopify sync failure",
@@ -172,6 +184,10 @@ export async function POST(request: Request) {
       await markOrderFailedByOrderId({
         orderId,
         paymentId: payment.id,
+      });
+
+      await releaseCampaignCouponReservationByOrderId(orderId).catch((error) => {
+        console.error("Campaign coupon reservation release failed", error);
       });
 
       await syncShopifyInventoryForOrder(orderId, "release").catch((error) => {

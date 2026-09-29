@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { createPendingOrderForSessionToken, hasSuccessfullyUsedCouponForSessionToken, saveShippingAddressForSessionToken } from "@/lib/account-data";
+import { createPendingOrderForSessionToken, getAccountSessionIdentityByToken, hasSuccessfullyUsedCouponForSessionToken, saveShippingAddressForSessionToken } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { calculateCheckoutPricing, computeCouponDiscount, estimateOrderWeightKg, type ShippingMethod } from "@/lib/checkout-config";
 import { CUSTOM_DESIGN_SURCHARGE_INR } from "@/lib/catalog";
+import { getCampaignCouponValidationErrorDetails, releaseCampaignCouponReservationByOrderId, reserveCampaignCouponForOrder, validateCampaignCouponForCheckout } from "@/lib/campaigns";
 import { getDisplayPricing, isInclusiveDisplayPricingEnabled } from "@/lib/pricing-display";
 import { getRazorpayClient } from "@/lib/razorpay";
 import { resolveCheckoutItems } from "@/lib/products";
@@ -40,6 +41,7 @@ type CreateOrderRequest = {
 };
 
 export async function POST(request: Request) {
+  let reservedCampaignOrderId: string | null = null;
   try {
     const sessionToken = await getAccountSessionTokenFromCookies();
     const body = (await request.json()) as CreateOrderRequest;
@@ -140,34 +142,57 @@ export async function POST(request: Request) {
       description: string;
       discountAmount: number;
     } | null = null;
+    let campaignCouponCode: string | null = null;
 
     if (couponCode) {
       const couponRecord = await getActiveCouponByCode(couponCode);
       if (!couponRecord) {
-        return NextResponse.json({ error: "Coupon code is not valid or has expired" }, { status: 400 });
-      }
+        const sessionIdentity = await getAccountSessionIdentityByToken(sessionToken);
+        const campaignValidation = await validateCampaignCouponForCheckout({
+          code: couponCode,
+          subtotalAmount: pricingSubtotalAmount,
+          userId: sessionIdentity?.userId,
+          sessionEmail: sessionIdentity?.email,
+          checkoutEmail: shippingEmail,
+        });
 
-      if (couponRecord.code === WELCOME5_COUPON_CODE) {
-        const alreadyUsed = await hasSuccessfullyUsedCouponForSessionToken(sessionToken, couponRecord.code);
-
-        if (alreadyUsed) {
-          return NextResponse.json({ error: WELCOME5_SINGLE_USE_MESSAGE }, { status: 409 });
+        if (!campaignValidation.valid) {
+          const errorDetails = getCampaignCouponValidationErrorDetails({
+            reason: campaignValidation.reason,
+            campaign: campaignValidation.campaign,
+          });
+          return NextResponse.json({ error: errorDetails.message, code: errorDetails.code }, { status: 400 });
         }
-      }
+        validatedCoupon = {
+          code: campaignValidation.checkoutCoupon.code,
+          label: campaignValidation.checkoutCoupon.label,
+          description: campaignValidation.checkoutCoupon.description,
+          discountAmount: campaignValidation.checkoutCoupon.discountAmount,
+        };
+        campaignCouponCode = campaignValidation.checkoutCoupon.code;
+      } else {
+        if (couponRecord.code === WELCOME5_COUPON_CODE) {
+          const alreadyUsed = await hasSuccessfullyUsedCouponForSessionToken(sessionToken, couponRecord.code);
 
-      const { eligible, discountAmount } = computeCouponDiscount(pricingSubtotalAmount, couponRecord);
-      if (!eligible) {
-        return NextResponse.json(
-          { error: `Coupon applies on orders above ₹${couponRecord.minSubtotal}` },
-          { status: 400 },
-        );
+          if (alreadyUsed) {
+            return NextResponse.json({ error: WELCOME5_SINGLE_USE_MESSAGE }, { status: 409 });
+          }
+        }
+
+        const { eligible, discountAmount } = computeCouponDiscount(pricingSubtotalAmount, couponRecord);
+        if (!eligible) {
+          return NextResponse.json(
+            { error: `Coupon applies on orders above ₹${couponRecord.minSubtotal}` },
+            { status: 400 },
+          );
+        }
+        validatedCoupon = {
+          code: couponRecord.code,
+          label: couponRecord.label,
+          description: couponRecord.description,
+          discountAmount,
+        };
       }
-      validatedCoupon = {
-        code: couponRecord.code,
-        label: couponRecord.label,
-        description: couponRecord.description,
-        discountAmount,
-      };
     }
 
     const orderWeightKg = estimateOrderWeightKg(
@@ -215,6 +240,15 @@ export async function POST(request: Request) {
         shippingPinCode,
       },
     });
+
+    if (campaignCouponCode) {
+      const reservation = await reserveCampaignCouponForOrder({ code: campaignCouponCode, orderId: order.id });
+      if (!reservation.ok) {
+        const errorDetails = getCampaignCouponValidationErrorDetails({ reason: reservation.reason });
+        return NextResponse.json({ error: errorDetails.message, code: errorDetails.code }, { status: 409 });
+      }
+      reservedCampaignOrderId = order.id;
+    }
 
     const totalAmount = Math.round(Number(order.amount) / 100);
 
@@ -318,6 +352,10 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (reservedCampaignOrderId) {
+      const orderIdToRelease = reservedCampaignOrderId;
+      await releaseCampaignCouponReservationByOrderId(orderIdToRelease).catch(() => undefined);
+    }
     console.error("Razorpay order creation failed", error);
     return NextResponse.json({ error: "Unable to create order" }, { status: 500 });
   }

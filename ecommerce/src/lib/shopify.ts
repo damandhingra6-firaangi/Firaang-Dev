@@ -756,7 +756,88 @@ function parseSizeChart(value: string | null | undefined) {
 
 type StorefrontFetchOptions = {
   cacheMode?: RequestCache;
+  detailLevel?: "summary" | "full";
 };
+
+const productsSummaryQuery = `#graphql
+  query GetHomeProductsSummary($first: Int!, $after: String) {
+    products(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      edges {
+        cursor
+        node {
+          id
+          handle
+          title
+          productType
+          tags
+          publishedAt
+          description
+          featuredImage {
+            url
+            altText
+          }
+          priceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+          }
+          compareAtPriceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const collectionProductsSummaryQuery = `#graphql
+  query GetCollectionProductsSummary($handle: String!, $first: Int!, $after: String) {
+    collection(handle: $handle) {
+      products(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        edges {
+          cursor
+          node {
+            id
+            handle
+            title
+            productType
+            tags
+            publishedAt
+            description
+            featuredImage {
+              url
+              altText
+            }
+            priceRange {
+              minVariantPrice {
+                amount
+                currencyCode
+              }
+            }
+            compareAtPriceRange {
+              minVariantPrice {
+                amount
+                currencyCode
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
 
 export async function getStorefrontProducts(limit = 10, options: StorefrontFetchOptions = {}): Promise<GridProduct[]> {
   const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
@@ -769,6 +850,8 @@ export async function getStorefrontProducts(limit = 10, options: StorefrontFetch
   const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
   const safeLimit = Math.max(1, Math.min(limit, 1000));
   const pageSize = Math.min(250, safeLimit);
+  const detailLevel = options.detailLevel ?? "full";
+  const query = detailLevel === "summary" ? productsSummaryQuery : productsQuery;
 
   try {
     const productEdges: ShopifyProductEdge[] = [];
@@ -784,7 +867,7 @@ export async function getStorefrontProducts(limit = 10, options: StorefrontFetch
         },
         ...(options.cacheMode ? { cache: options.cacheMode } : {}),
         body: JSON.stringify({
-          query: productsQuery,
+          query,
           variables: { first: Math.min(pageSize, safeLimit - productEdges.length), after: cursor },
         }),
         ...(!options.cacheMode
@@ -973,7 +1056,7 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
   } satisfies GridProduct;
 }
 
-export async function getStorefrontProductsByCollection(handle: string, limit = 80): Promise<GridProduct[]> {
+export async function getStorefrontProductsByCollection(handle: string, limit = 80, options: StorefrontFetchOptions = {}): Promise<GridProduct[]> {
   const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
   const storefrontAccessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
   const normalizedHandle = handle.trim();
@@ -985,6 +1068,8 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
   const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
   const safeLimit = Math.max(1, Math.min(limit, 1000));
   const pageSize = Math.min(250, safeLimit);
+  const detailLevel = options.detailLevel ?? "full";
+  const query = detailLevel === "summary" ? collectionProductsSummaryQuery : collectionProductsQuery;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), SHOPIFY_FETCH_TIMEOUT_MS);
@@ -1002,7 +1087,7 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
           "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
         },
         body: JSON.stringify({
-          query: collectionProductsQuery,
+          query,
           variables: {
             handle: normalizedHandle,
             first: Math.min(pageSize, safeLimit - productNodes.length),

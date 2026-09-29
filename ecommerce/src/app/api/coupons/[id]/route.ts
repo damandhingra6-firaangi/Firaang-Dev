@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
+import { requireAdminApiAccess } from "@/lib/admin-auth";
 import { updateCoupon, deleteCoupon } from "@/lib/coupon-store";
 
 export const runtime = "nodejs";
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAdminApiAccess();
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const { id } = await context.params;
     const body = (await request.json()) as {
       label?: string;
@@ -47,6 +53,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAdminApiAccess();
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const { id } = await context.params;
     const deleted = await deleteCoupon(id);
 

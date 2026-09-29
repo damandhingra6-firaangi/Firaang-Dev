@@ -80,7 +80,7 @@ function buildHomeCategories(products: GridProduct[]): HomeCategoryCard[] {
 
 export default async function Home() {
   const [storefrontProducts, collectionsContent] = await Promise.all([
-    getStorefrontProducts(HOME_PRODUCT_FETCH_LIMIT),
+    getStorefrontProducts(HOME_PRODUCT_FETCH_LIMIT, { detailLevel: "summary" }),
     getShopifyCollectionsContent(),
   ]);
 

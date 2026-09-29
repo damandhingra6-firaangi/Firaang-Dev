@@ -1139,6 +1139,32 @@ export async function getAccountSnapshotBySessionToken(token: string): Promise<A
   };
 }
 
+export async function getAccountSessionIdentityByToken(token: string): Promise<{ userId: string; email?: string } | null> {
+  const { users, sessions } = await getCollections();
+  const tokenHash = hashSessionToken(token);
+  const session = await sessions.findOne({ tokenHash });
+
+  if (!session) {
+    return null;
+  }
+
+  if (session.expiresAt.getTime() <= Date.now()) {
+    await sessions.deleteOne({ _id: session._id });
+    return null;
+  }
+
+  const user = await users.findOne({ _id: session.userId });
+
+  if (!user) {
+    return null;
+  }
+
+  return {
+    userId: session.userId.toHexString(),
+    email: user.email?.trim() || undefined,
+  };
+}
+
 export async function getAccountSnapshotByUserId(userId: string): Promise<AccountSessionSnapshot | null> {
   if (!ObjectId.isValid(userId)) {
     return null;

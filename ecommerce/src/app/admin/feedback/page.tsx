@@ -4,7 +4,7 @@ import FeedbackAdminDashboard from "@/components/FeedbackAdminDashboard";
 export default function FeedbackAdminPage() {
   return (
     <main>
-      <Navbar />
+      <Navbar mode="admin" />
       <div className="h-24 md:h-28" />
       <FeedbackAdminDashboard />
     </main>

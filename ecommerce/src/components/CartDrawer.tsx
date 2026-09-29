@@ -294,9 +294,13 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       const response = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, subtotalAmount: displaySubtotalAmount }),
+        body: JSON.stringify({
+          code,
+          subtotalAmount: displaySubtotalAmount,
+          checkoutEmail: shippingEmail.trim() || profile.email.trim() || undefined,
+        }),
       });
-      const data = (await response.json()) as { valid?: boolean; coupon?: AppliedCoupon; message?: string };
+      const data = (await response.json()) as { valid?: boolean; coupon?: AppliedCoupon; message?: string; code?: string };
       if (!data.valid || !data.coupon) {
         setCouponError(data.message ?? "Coupon could not be applied");
         setAppliedCoupon(null);

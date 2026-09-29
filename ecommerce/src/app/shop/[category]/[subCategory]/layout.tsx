@@ -21,7 +21,7 @@ export async function generateMetadata({
   const { category: categorySlug, subCategory: subCategorySlug } = await params;
 
   // Fetch products to get category info
-  const storefrontProducts = await getStorefrontProducts(40);
+  const storefrontProducts = await getStorefrontProducts(40, { detailLevel: "summary" });
   const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
   const categoryTree = buildCategoryTree(products);
 

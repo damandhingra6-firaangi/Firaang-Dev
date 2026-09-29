@@ -1,10 +1,15 @@
 import Navbar from "@/components/Navbar";
 import CouponAdminDashboard from "@/components/CouponAdminDashboard";
+import { requireAdminPageAccess } from "@/lib/admin-auth";
 
-export default function CouponAdminPage() {
+export const runtime = "nodejs";
+
+export default async function CouponAdminPage() {
+  await requireAdminPageAccess();
+
   return (
     <main>
-      <Navbar />
+      <Navbar mode="admin" />
       <div className="h-24 md:h-28" />
       <CouponAdminDashboard />
     </main>

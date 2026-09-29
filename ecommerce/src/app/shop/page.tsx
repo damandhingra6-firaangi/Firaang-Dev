@@ -68,7 +68,9 @@ function ShopProductsSkeleton() {
  */
 async function ShopProducts({ collection, query, category, subCategory, audience, section }: ShopProductsProps) {
   const storefrontProducts = await (
-    collection ? getStorefrontProductsByCollection(collection, 250) : getStorefrontProducts(250)
+    collection
+      ? getStorefrontProductsByCollection(collection, 250, { detailLevel: "summary" })
+      : getStorefrontProducts(250, { detailLevel: "summary" })
   );
 
   const collectionTitle = collection

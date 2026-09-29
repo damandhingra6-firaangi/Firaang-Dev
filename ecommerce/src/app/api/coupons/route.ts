@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
+import { requireAdminApiAccess } from "@/lib/admin-auth";
 import { listCoupons, createCoupon } from "@/lib/coupon-store";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
+    const auth = await requireAdminApiAccess();
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const coupons = await listCoupons();
     return NextResponse.json({ coupons });
   } catch (error) {
@@ -15,6 +21,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAdminApiAccess();
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const body = (await request.json()) as {
       code?: string;
       label?: string;

@@ -10,7 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = getSiteUrl();
   const now = new Date();
 
-  const products = await getStorefrontProducts(1000);
+  const products = await getStorefrontProducts(1000, { detailLevel: "summary" });
   const categoryTree = buildCategoryTree(products);
 
   const staticEntries: SitemapEntry[] = STATIC_ROUTES.map((path) => ({

@@ -4,7 +4,7 @@ import OrderAdminDashboard from "@/components/OrderAdminDashboard";
 export default function OrdersAdminPage() {
   return (
     <main>
-      <Navbar />
+      <Navbar mode="admin" />
       <div className="h-24 md:h-28" />
       <OrderAdminDashboard />
     </main>

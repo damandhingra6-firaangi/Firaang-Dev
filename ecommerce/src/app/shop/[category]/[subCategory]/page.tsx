@@ -37,7 +37,7 @@ export default async function CategorySubCategoryPage({
   }
 
   // Fetch products
-  const storefrontProducts = await getStorefrontProducts(250);
+  const storefrontProducts = await getStorefrontProducts(250, { detailLevel: "summary" });
   const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
 
   // Build category tree to validate the requested category and sub-category exist

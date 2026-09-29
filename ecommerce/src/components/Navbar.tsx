@@ -19,6 +19,7 @@ export type NavSectionKey =
 
 type NavbarProps = {
   activeSection?: NavSectionKey | null;
+  mode?: "public" | "admin";
 };
 
 function buildShopSectionHref(section: Exclude<NavSectionKey, "about">) {
@@ -40,20 +41,6 @@ function toShopSubCategoryHref(categorySlug: string, subCategorySlug: string) {
     subCategory: subCategorySlug,
   });
   return `/shop?${params.toString()}`;
-}
-
-function findCollectionHrefByKeywords(
-  links: Array<{ title: string; handle: string; href: string }>,
-  keywords: string[],
-) {
-  const loweredKeywords = keywords.map((keyword) => keyword.toLowerCase());
-
-  const match = links.find((item) => {
-    const haystack = `${item.title} ${item.handle}`.toLowerCase();
-    return loweredKeywords.some((keyword) => haystack.includes(keyword));
-  });
-
-  return match?.href ?? buildShopSectionHref("shop");
 }
 
 function buildShopCategoryLinks(
@@ -126,19 +113,16 @@ function buildShopCategoryLinks(
   return selected;
 }
 
-export default async function Navbar({ activeSection = null }: NavbarProps) {
-  const products = await getStorefrontProducts(250);
-  const { collections, primaryNavCollection } = await getShopifyCollectionsContent();
+export default async function Navbar({ activeSection = null, mode = "public" }: NavbarProps) {
+  const shouldLoadShopifyData = mode !== "admin";
+  const products = shouldLoadShopifyData ? await getStorefrontProducts(250, { detailLevel: "summary" }) : [];
+  const { collections, primaryNavCollection } = shouldLoadShopifyData
+    ? await getShopifyCollectionsContent()
+    : { collections: [], primaryNavCollection: null };
   const catalogForMenu = products.length > 0 ? products : fallbackProducts;
   const categoryTree = buildCategoryTree(catalogForMenu);
 
   const shopCategoryLinks = buildShopCategoryLinks(categoryTree);
-
-  const collectionLinks = collections.map((collection) => ({
-    title: collection.title,
-    handle: collection.handle,
-    href: collection.href,
-  }));
 
   // Just Dropped always fetches the full catalog (newest-first from Shopify),
   // never filtered to a specific collection.
