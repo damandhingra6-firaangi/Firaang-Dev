@@ -4,7 +4,6 @@ import Navbar from "@/components/Navbar";
 import Newsletter from "@/components/Newsletter";
 import ShopListing from "@/components/ShopListing";
 import JewelleryComingSoonGate from "@/components/JewelleryComingSoonGate";
-import { fallbackProducts } from "@/lib/catalog";
 import { normalizeShopPromoSection } from "@/lib/shop-promo-banners";
 import { createPageMetadata } from "@/lib/seo";
 import { getStorefrontProducts, getStorefrontProductsByCollection } from "@/lib/shopify";
@@ -77,10 +76,7 @@ async function ShopProducts({ collection, query, category, subCategory, audience
     ? (getCollectionDisplayTitle(collection) ?? humanizeHandle(collection))
     : "";
 
-  // Apply fallback for both collection and general pages so users always see
-  // products rather than an empty grid when the Shopify API is temporarily slow
-  // or returning an error.
-  const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
+  const products = storefrontProducts;
 
   return (
     <>

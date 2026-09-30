@@ -1,5 +1,4 @@
 import NavbarClient from "@/components/NavbarClient";
-import { fallbackProducts } from "@/lib/catalog";
 import { buildCategoryTree } from "@/lib/product-taxonomy";
 import { getShopifyCollectionsContent } from "@/lib/shopify-collections";
 import { getStorefrontProducts } from "@/lib/shopify";
@@ -119,7 +118,7 @@ export default async function Navbar({ activeSection = null, mode = "public" }: 
   const { collections, primaryNavCollection } = shouldLoadShopifyData
     ? await getShopifyCollectionsContent()
     : { collections: [], primaryNavCollection: null };
-  const catalogForMenu = products.length > 0 ? products : fallbackProducts;
+  const catalogForMenu = products;
   const categoryTree = buildCategoryTree(catalogForMenu);
 
   const shopCategoryLinks = buildShopCategoryLinks(categoryTree);

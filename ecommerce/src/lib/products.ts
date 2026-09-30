@@ -1,4 +1,4 @@
-import { fallbackProducts, GridProduct } from "@/lib/catalog";
+import { GridProduct } from "@/lib/catalog";
 import { getStorefrontProducts } from "@/lib/shopify";
 
 export type CheckoutLineItem = {
@@ -12,7 +12,7 @@ type CatalogFetchOptions = {
 
 export async function getCatalogProducts(limit = 80, options: CatalogFetchOptions = {}): Promise<GridProduct[]> {
   const storefrontProducts = await getStorefrontProducts(limit, options);
-  return storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
+  return storefrontProducts;
 }
 
 export async function resolveCheckoutItems(items: CheckoutLineItem[]) {

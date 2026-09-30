@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import JewelleryComingSoonGate from "@/components/JewelleryComingSoonGate";
 import ShopListing from "@/components/ShopListing";
-import { fallbackProducts } from "@/lib/catalog";
 import { isJewellerySlug } from "@/lib/jewellery";
 import { getStorefrontProducts } from "@/lib/shopify";
 import { buildCategoryTree, slugify } from "@/lib/product-taxonomy";
@@ -36,9 +35,8 @@ export default async function CategorySubCategoryPage({
     );
   }
 
-  // Fetch products
   const storefrontProducts = await getStorefrontProducts(250, { detailLevel: "summary" });
-  const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
+  const products = storefrontProducts;
 
   // Build category tree to validate the requested category and sub-category exist
   const categoryTree = buildCategoryTree(products);

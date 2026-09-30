@@ -8,7 +8,7 @@ import RedRibbon from "@/components/RedRibbon";
 import ProductGrid from "@/components/ProductGrid";
 import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
-import { fallbackProducts, GridProduct } from "@/lib/catalog";
+import { GridProduct } from "@/lib/catalog";
 import { buildInstagramShowcaseItems, buildStoryBannerItems } from "@/lib/instagram-showcase";
 import { slugify } from "@/lib/product-taxonomy";
 import { createPageMetadata } from "@/lib/seo";
@@ -84,7 +84,7 @@ export default async function Home() {
     getShopifyCollectionsContent(),
   ]);
 
-  const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
+  const products = storefrontProducts;
   const homeCategories = buildHomeCategories(products);
   const instagramShowcaseItems = buildInstagramShowcaseItems(products, 5);
   const storyBannerItems = buildStoryBannerItems(products, 4);

@@ -428,6 +428,138 @@ function normalizeStoreDomain(value: string) {
   return value.replace(/^https?:\/\//, "").replace(/\/$/, "");
 }
 
+export function normalizeCollectionLookupKey(value: string): string {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const decoded = decodeURIComponent(value.trim());
+    return decoded
+      .toLowerCase()
+      .replace(/&/g, " and ")
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch {
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/&/g, " and ")
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+}
+
+export function resolveCollectionHandleFromList(
+  collections: Array<{ handle: string; title?: string | null }>,
+  rawInput: string,
+): string | null {
+  const input = (rawInput ?? "").trim();
+  if (!input) {
+    return null;
+  }
+
+  const lookup = normalizeCollectionLookupKey(input);
+  if (!lookup) {
+    return null;
+  }
+
+  let bestMatch: { handle: string; score: number } | null = null;
+
+  for (const collection of collections) {
+    const handleKey = normalizeCollectionLookupKey(collection.handle ?? "");
+    const titleKey = normalizeCollectionLookupKey(collection.title ?? "");
+
+    if (!handleKey && !titleKey) {
+      continue;
+    }
+
+    if (handleKey === lookup || titleKey === lookup) {
+      return collection.handle;
+    }
+
+    const score =
+      handleKey.includes(lookup) || titleKey.includes(lookup)
+        ? 90
+        : lookup.includes(handleKey) || lookup.includes(titleKey)
+          ? 60
+          : 0;
+
+    if (score > 0 && (!bestMatch || score > bestMatch.score)) {
+      bestMatch = { handle: collection.handle, score };
+    }
+  }
+
+  return bestMatch?.handle ?? null;
+}
+
+async function resolveShopifyCollectionHandle(lookupValue: string): Promise<string | null> {
+  const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
+  const storefrontAccessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
+  const trimmedLookup = lookupValue.trim();
+
+  if (!storeDomain || !storefrontAccessToken || !trimmedLookup) {
+    return null;
+  }
+
+  const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
+      },
+      body: JSON.stringify({
+        query: `#graphql
+          query LookupCollection($first: Int!) {
+            collections(first: $first, sortKey: TITLE, reverse: false) {
+              edges {
+                node {
+                  handle
+                  title
+                }
+              }
+            }
+          }`,
+        variables: { first: 250 },
+      }),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const json = (await response.json()) as {
+      data?: {
+        collections?: {
+          edges?: Array<{ node: { handle: string; title: string } }>;
+        };
+      };
+    };
+
+    const collections = (json.data?.collections?.edges ?? []).map((edge) => ({
+      handle: edge.node.handle,
+      title: edge.node.title,
+    }));
+
+    const matchedHandle = resolveCollectionHandleFromList(collections, trimmedLookup);
+    if (matchedHandle) {
+      return matchedHandle;
+    }
+
+    const slugLikeLookup = trimmedLookup.replace(/_/g, "-").toLowerCase();
+    return /^[a-z0-9-]+$/.test(slugLikeLookup) ? slugLikeLookup : null;
+  } catch (error) {
+    console.error("Failed to resolve Shopify collection handle", error);
+    return null;
+  }
+}
+
 function getStableDynamicDiscountPercent(seed: string) {
   const buckets = [10, 20, 30] as const;
   const hash = Array.from(seed).reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -798,10 +930,10 @@ const productsSummaryQuery = `#graphql
   }
 `;
 
-const collectionProductsSummaryQuery = `#graphql
+export const collectionProductsSummaryQuery = `#graphql
   query GetCollectionProductsSummary($handle: String!, $first: Int!, $after: String) {
     collection(handle: $handle) {
-      products(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
+      products(first: $first, after: $after, sortKey: CREATED, reverse: true) {
         pageInfo {
           hasNextPage
           endCursor
@@ -865,19 +997,11 @@ export async function getStorefrontProducts(limit = 10, options: StorefrontFetch
           "Content-Type": "application/json",
           "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
         },
-        ...(options.cacheMode ? { cache: options.cacheMode } : {}),
+        cache: options.cacheMode ?? "no-store",
         body: JSON.stringify({
           query,
           variables: { first: Math.min(pageSize, safeLimit - productEdges.length), after: cursor },
         }),
-        ...(!options.cacheMode
-          ? {
-              next: {
-                revalidate: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
-                tags: ["shopify-products"],
-              },
-            }
-          : {}),
       });
 
       if (!response.ok) {
@@ -1059,9 +1183,14 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
 export async function getStorefrontProductsByCollection(handle: string, limit = 80, options: StorefrontFetchOptions = {}): Promise<GridProduct[]> {
   const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
   const storefrontAccessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
-  const normalizedHandle = handle.trim();
+  const normalizedHandle = (handle ?? "").trim();
 
   if (!storeDomain || !storefrontAccessToken || !normalizedHandle) {
+    return [];
+  }
+
+  const resolvedHandle = (await resolveShopifyCollectionHandle(normalizedHandle))?.trim() ?? "";
+  if (!resolvedHandle) {
     return [];
   }
 
@@ -1089,27 +1218,31 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
         body: JSON.stringify({
           query,
           variables: {
-            handle: normalizedHandle,
+            handle: resolvedHandle,
             first: Math.min(pageSize, safeLimit - productNodes.length),
             after: cursor,
           },
         }),
         signal: controller.signal,
-        next: {
-          revalidate: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
-          tags: [`shopify-collection-${normalizedHandle.toLowerCase()}`],
-        },
+        cache: "no-store",
       });
 
       if (!response.ok) {
+        console.error("[shopify-collection] response-not-ok", {
+          requestedHandle: normalizedHandle,
+          resolvedHandle,
+          status: response.status,
+          statusText: response.statusText,
+        });
         return productNodes.length > 0
           ? productNodes.slice(0, safeLimit).map((node) => mapStorefrontProductNode(node))
           : [];
       }
 
       const json = (await response.json()) as ShopifyCollectionProductsResponse;
-      const pageEdges = json.data?.collection?.products?.edges ?? [];
-      const pageInfo = json.data?.collection?.products?.pageInfo;
+      const collection = json.data?.collection;
+      const pageEdges = collection?.products?.edges ?? [];
+      const pageInfo = collection?.products?.pageInfo;
 
       productNodes.push(...pageEdges.map((edge) => edge.node));
       hasNextPage = Boolean(pageInfo?.hasNextPage);
@@ -1123,7 +1256,7 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
     return productNodes.slice(0, safeLimit).map((node) => mapStorefrontProductNode(node));
   } catch (error) {
     if (controller.signal.aborted) {
-      console.error(`Shopify collection fetch timed out after ${SHOPIFY_FETCH_TIMEOUT_MS}ms`, handle);
+      console.error(`Shopify collection fetch timed out after ${SHOPIFY_FETCH_TIMEOUT_MS}ms`, resolvedHandle);
     } else {
       console.error("Shopify collection fetch failed", error);
     }

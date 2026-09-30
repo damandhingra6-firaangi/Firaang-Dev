@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Newsletter from "@/components/Newsletter";
 import ProductDetailsPage, { type ProductCardLite } from "@/components/ProductDetailsPage";
-import { fallbackProducts } from "@/lib/catalog";
+import type { GridProduct } from "@/lib/catalog";
 import { getCatalogProducts } from "@/lib/products";
 import { SITE_NAME, getSiteUrl } from "@/lib/site";
 import { buildBreadcrumbSchema, buildProductSchema } from "@/lib/structured-data";
@@ -14,7 +14,7 @@ type ProductPageProps = {
   params: Promise<{ handle: string }>;
 };
 
-function toProductCardLite(product: (typeof fallbackProducts)[number]): ProductCardLite {
+function toProductCardLite(product: GridProduct): ProductCardLite {
   return {
     id: product.id,
     handle: product.handle,
@@ -146,7 +146,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       />
       <Navbar />
       <div className="h-24 md:h-28" />
-      <ProductDetailsPage product={product} catalogProducts={(products.length > 0 ? products : fallbackProducts).map(toProductCardLite)} />
+      <ProductDetailsPage product={product} catalogProducts={products.map(toProductCardLite)} />
       <Newsletter />
     </main>
   );

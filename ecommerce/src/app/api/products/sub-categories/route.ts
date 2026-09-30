@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { fallbackProducts } from "@/lib/catalog";
 import { buildCategoryTree } from "@/lib/product-taxonomy";
 import { getStorefrontProducts } from "@/lib/shopify";
 
@@ -12,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   const storefrontProducts = await getStorefrontProducts(40);
-  const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
+  const products = storefrontProducts;
   const categories = buildCategoryTree(products);
 
   const categoryNode = categories.find(

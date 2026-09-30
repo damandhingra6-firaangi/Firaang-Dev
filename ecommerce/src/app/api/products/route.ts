@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { fallbackProducts } from "@/lib/catalog";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { applyProductFilters, buildCategoryTree } from "@/lib/product-taxonomy";
 import { getStorefrontProducts } from "@/lib/shopify";
@@ -20,7 +19,7 @@ export async function GET(request: Request) {
   const q = searchParams.get("q") ?? undefined;
 
   const storefrontProducts = await getStorefrontProducts(40);
-  const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
+  const products = storefrontProducts;
   const filteredProducts = applyProductFilters(products, { category, subCategory, audience, q });
   const categories = buildCategoryTree(products);
   const selectedCategory =
