@@ -16,6 +16,7 @@ type HeroProps = {
 type HeroSlide = {
   id: string;
   variant?: "image" | "story";
+  imageOnly?: boolean;
   image: string;
   mobileImage: string;
   alt: string;
@@ -39,6 +40,21 @@ type HeroSlide = {
   couponHintText?: string;
   couponClassName?: string;
   storyTiles?: StoryBannerItem[];
+};
+
+const ROCKSTAR_HERO_SLIDE: HeroSlide = {
+  id: "rockstar-hero",
+  imageOnly: true,
+  image: "/Rockstar_Banner_With_Text.jpg",
+  mobileImage: "/Rockstar_Banner_Mobile_With_Text.jpg",
+  alt: "Rockstar campaign banner",
+  eyebrow: "ROCKSTAR",
+  title: ["Rockstar", ""],
+  subtitle: "",
+  primaryCtaLabel: "SHOP NOW",
+  primaryCtaHref: "/shop",
+  imageClassName: "object-contain object-center bg-black",
+  mobileImageClassName: "object-contain object-center bg-black",
 };
 
 const BASE_HERO_SLIDE: HeroSlide = {
@@ -190,7 +206,7 @@ function mapFeaturedCollectionToSlide(collection: ShopifyCollectionLaunch): Hero
 export default function Hero({ featuredCollections = [], storyBannerItems = [] }: HeroProps) {
   const storySlide = useMemo(() => buildStoryHeroSlide(storyBannerItems), [storyBannerItems]);
   const slides = useMemo(
-    () => [BASE_HERO_SLIDE, storySlide, WELCOME_COUPON_HERO_SLIDE, DEVOTIONAL_HERO_SLIDE, ...featuredCollections.map(mapFeaturedCollectionToSlide)].filter(
+    () => [ROCKSTAR_HERO_SLIDE, BASE_HERO_SLIDE, storySlide, WELCOME_COUPON_HERO_SLIDE, DEVOTIONAL_HERO_SLIDE, ...featuredCollections.map(mapFeaturedCollectionToSlide)].filter(
       (slide): slide is HeroSlide => Boolean(slide),
     ),
     [featuredCollections, storySlide],
@@ -379,6 +395,19 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
                 </div>
               </div>
             </div>
+          ) : slide.imageOnly ? (
+            <>
+              <SafeImage
+                src={slide.mobileImage}
+                alt={slide.alt}
+                className={`absolute left-0 top-0 h-full w-full object-contain object-center md:hidden ${slide.mobileImageClassName ?? ""}`}
+              />
+              <SafeImage
+                src={slide.image}
+                alt={slide.alt}
+                className={`absolute left-0 top-0 hidden h-full w-full object-contain object-center md:block ${slide.imageClassName ?? ""}`}
+              />
+            </>
           ) : (
             <>
               <SafeImage
@@ -400,7 +429,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
         </div>
       ))}
 
-      {activeSlide.variant !== "story" ? (
+      {activeSlide.variant !== "story" && !activeSlide.imageOnly ? (
         <div className={`hero-content absolute inset-x-0 bottom-0 top-8 z-10 home-shell flex flex-col pt-4 fade-in-up md:inset-0 md:pt-0 ${activeSlide.contentClassName ?? "items-center justify-start text-center md:justify-center"}`}>
           <p className="hero-eyebrow font-sans text-[12px] font-medium uppercase tracking-[0.26em] text-[#f4f4f4] md:text-[16px] md:tracking-[0.22em]">
             {activeSlide.eyebrow}
