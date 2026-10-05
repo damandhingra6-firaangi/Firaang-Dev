@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TouchEvent } from "react";
@@ -45,14 +46,14 @@ type HeroSlide = {
 const ROCKSTAR_HERO_SLIDE: HeroSlide = {
   id: "rockstar-hero",
   imageOnly: true,
-  image: "/Rockstar_Banner_With_Text.jpg",
-  mobileImage: "/Rockstar_Banner_Mobile_With_Text.jpg",
+  image: "/HomePageBanner.jpg",
+  mobileImage: "/MobileView.jpg",
   alt: "Rockstar campaign banner",
   eyebrow: "ROCKSTAR",
   title: ["Rockstar", ""],
   subtitle: "",
-  primaryCtaLabel: "SHOP NOW",
-  primaryCtaHref: "/shop",
+  primaryCtaLabel: "EXPLORE THE DROP",
+  primaryCtaHref: "/shop?section=collections&collection=rockstar",
   imageClassName: "object-contain object-center bg-black",
   mobileImageClassName: "object-contain object-center bg-black",
 };
@@ -179,6 +180,36 @@ function getFestivalSlideOverrides(collection: ShopifyCollectionLaunch): Partial
   }
 
   return null;
+}
+
+function HeroResponsiveImage({
+  slide,
+  index,
+  activeIndex,
+  className,
+}: {
+  slide: HeroSlide;
+  index: number;
+  activeIndex: number;
+  className?: string;
+}) {
+  const isPriorityImage = index === activeIndex;
+
+  return (
+    <picture className="absolute inset-0 block">
+      <source media="(max-width: 767px)" srcSet={slide.mobileImage} />
+      <Image
+        src={slide.image}
+        alt={slide.alt}
+        fill
+        priority={isPriorityImage}
+        fetchPriority={isPriorityImage ? "high" : "auto"}
+        loading={isPriorityImage ? "eager" : "lazy"}
+        sizes="100vw"
+        className={className}
+      />
+    </picture>
+  );
 }
 
 function mapFeaturedCollectionToSlide(collection: ShopifyCollectionLaunch): HeroSlide {
@@ -397,28 +428,29 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
             </div>
           ) : slide.imageOnly ? (
             <>
-              <SafeImage
-                src={slide.mobileImage}
-                alt={slide.alt}
-                className={`absolute left-0 top-0 h-full w-full object-contain object-center md:hidden ${slide.mobileImageClassName ?? ""}`}
+              <HeroResponsiveImage
+                slide={slide}
+                index={index}
+                activeIndex={activeIndex}
+                className={`h-full w-full object-contain object-center ${slide.imageClassName ?? ""}`}
               />
-              <SafeImage
-                src={slide.image}
-                alt={slide.alt}
-                className={`absolute left-0 top-0 hidden h-full w-full object-contain object-center md:block ${slide.imageClassName ?? ""}`}
-              />
+
+              <div className="absolute inset-x-0 bottom-5 z-10 flex justify-center px-4 sm:bottom-7 md:bottom-9">
+                <Link
+                  href={slide.primaryCtaHref}
+                  className="inline-flex items-center justify-center rounded-full border border-white/75 bg-[#111111]/55 px-5 py-3 text-center font-sans text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-[0_18px_36px_rgba(0,0,0,0.18)] backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#111111]/70 hover:shadow-[0_22px_42px_rgba(0,0,0,0.24)] active:translate-y-0 sm:px-6 sm:py-3.5 sm:text-[12px] md:px-7 md:text-[13px]"
+                >
+                  {slide.primaryCtaLabel}
+                </Link>
+              </div>
             </>
           ) : (
             <>
-              <SafeImage
-                src={slide.mobileImage}
-                alt={slide.alt}
-                className={`absolute left-0 top-0 h-full w-full object-cover object-[50%_15%] max-[374px]:object-[50%_12%] min-[375px]:object-[50%_14%] min-[390px]:object-[50%_15%] min-[414px]:object-[50%_18%] md:hidden ${slide.mobileImageClassName ?? ""}`}
-              />
-              <SafeImage
-                src={slide.image}
-                alt={slide.alt}
-                className={`absolute left-0 top-0 hidden h-full w-full object-cover object-[50%_20%] md:block lg:object-[50%_22%] xl:object-[50%_25%] ${slide.imageClassName ?? ""}`}
+              <HeroResponsiveImage
+                slide={slide}
+                index={index}
+                activeIndex={activeIndex}
+                className={`h-full w-full object-cover object-[50%_15%] max-[374px]:object-[50%_12%] min-[375px]:object-[50%_14%] min-[390px]:object-[50%_15%] min-[414px]:object-[50%_18%] md:object-[50%_20%] lg:object-[50%_22%] xl:object-[50%_25%] ${slide.imageClassName ?? ""}`}
               />
 
               <div className="hero-overlay-primary absolute inset-0" />

@@ -2,6 +2,7 @@ import { GridProduct, ProductMedia, ProductSizeChart } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { deriveProductFit } from "@/lib/product-fit";
 import { deriveProductTaxonomy } from "@/lib/product-taxonomy";
+import { getProtectedLaunchCompareAtAmount, getProtectedLaunchPriceAmount, isTShirtTaxonomy } from "@/lib/retail-pricing";
 
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
 const SHOPIFY_PRODUCTS_REVALIDATE_SECONDS = Math.max(
@@ -1033,9 +1034,7 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
   const productMedia = (node.media?.nodes ?? []).reduce<ProductMedia[]>((acc, mediaNode) => {
     if (mediaNode.__typename === "Video") {
       const sources = mediaNode.sources ?? [];
-      const selectedSource =
-        sources.find((source) => source.mimeType.toLowerCase().includes("mp4")) ??
-        sources[0];
+      const selectedSource = sources.find((source) => source.mimeType.toLowerCase().includes("mp4")) ?? sources[0];
 
       if (selectedSource?.url) {
         acc.push({
@@ -1067,14 +1066,21 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
         ...productMedia.filter((media) => media.type === "image").map((media) => media.src),
         ...(node.images?.nodes ?? []).map((image) => image.url),
         ...((node.variants?.edges ?? []).map(({ node: variantNode }) => variantNode.image?.url).filter(Boolean) as string[]),
-      ].filter(Boolean)
-    )
+      ].filter(Boolean),
+    ),
   );
 
   const sizeChart = parseSizeChart(node.sizeChartJson?.value) ?? parseSizeChart(node.sizeChart?.value);
   const taxonomy = deriveProductTaxonomy({
     title: node.title,
     productType: node.productType,
+    tags: node.tags,
+  });
+  const isTShirt = isTShirtTaxonomy({
+    category: taxonomy.category,
+    subCategory: taxonomy.subCategory,
+    productType: node.productType,
+    title: node.title,
     tags: node.tags,
   });
   const productFit = deriveProductFit({
@@ -1086,29 +1092,25 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
   });
   const selectedVariant = node.selectedOrFirstAvailableVariant;
   const basePriceAmount = selectedVariant
-    ? convertAmount(
-        Number.parseFloat(selectedVariant.price.amount),
-        toSupportedCurrency(selectedVariant.price.currencyCode),
-        "INR",
-      )
+    ? convertAmount(Number.parseFloat(selectedVariant.price.amount), toSupportedCurrency(selectedVariant.price.currencyCode), "INR")
     : convertAmount(
         Number.parseFloat(node.priceRange.minVariantPrice.amount),
         toSupportedCurrency(node.priceRange.minVariantPrice.currencyCode),
         "INR",
       );
   const compareAtAmount = selectedVariant?.compareAtPrice
-    ? convertAmount(
-        Number.parseFloat(selectedVariant.compareAtPrice.amount),
-        toSupportedCurrency(selectedVariant.compareAtPrice.currencyCode),
-        "INR",
-      )
+    ? convertAmount(Number.parseFloat(selectedVariant.compareAtPrice.amount), toSupportedCurrency(selectedVariant.compareAtPrice.currencyCode), "INR")
     : convertAmount(
         Number.parseFloat(node.compareAtPriceRange.minVariantPrice.amount),
         toSupportedCurrency(node.compareAtPriceRange.minVariantPrice.currencyCode),
         "INR",
       );
+  const adjustedBasePriceAmount = isTShirt ? getProtectedLaunchPriceAmount(basePriceAmount) : basePriceAmount;
+  const adjustedCompareAtAmount = isTShirt ? getProtectedLaunchCompareAtAmount(compareAtAmount) : compareAtAmount;
   const resolvedCompareAtAmount =
-    compareAtAmount > basePriceAmount ? compareAtAmount : getDynamicCompareAtAmount(basePriceAmount, node.id);
+    adjustedCompareAtAmount > adjustedBasePriceAmount
+      ? adjustedCompareAtAmount
+      : getDynamicCompareAtAmount(adjustedBasePriceAmount, node.id);
 
   return {
     id: node.id,
@@ -1124,8 +1126,8 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
     audience: taxonomy.audience,
     audienceSlug: taxonomy.audienceSlug,
     name: node.title,
-    price: formatCurrency(basePriceAmount, "INR"),
-    priceAmount: basePriceAmount,
+    price: formatCurrency(adjustedBasePriceAmount, "INR"),
+    priceAmount: adjustedBasePriceAmount,
     currencyCode: "INR",
     oldPrice: resolvedCompareAtAmount ? formatCurrency(resolvedCompareAtAmount, "INR") : "",
     img: imageUrl,
@@ -1159,18 +1161,20 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
               "INR",
             )
           : 0;
+        const adjustedVariantPriceAmount = isTShirt ? getProtectedLaunchPriceAmount(variantPriceAmount) : variantPriceAmount;
+        const adjustedVariantCompareAtAmount = isTShirt ? getProtectedLaunchCompareAtAmount(variantCompareAtAmount) : variantCompareAtAmount;
         const resolvedVariantCompareAtAmount =
-          variantCompareAtAmount > variantPriceAmount
-            ? variantCompareAtAmount
-            : getDynamicCompareAtAmount(variantPriceAmount, variantNode.id);
+          adjustedVariantCompareAtAmount > adjustedVariantPriceAmount
+            ? adjustedVariantCompareAtAmount
+            : getDynamicCompareAtAmount(adjustedVariantPriceAmount, variantNode.id);
 
         return {
           id: variantNode.id,
           name: variantNode.title,
           availableForSale: variantNode.availableForSale,
           img: variantImage,
-          price: formatCurrency(variantPriceAmount, "INR"),
-          priceAmount: variantPriceAmount,
+          price: formatCurrency(adjustedVariantPriceAmount, "INR"),
+          priceAmount: adjustedVariantPriceAmount,
           currencyCode: "INR",
           oldPrice: resolvedVariantCompareAtAmount ? formatCurrency(resolvedVariantCompareAtAmount, "INR") : "",
           options: variantNode.selectedOptions,

@@ -111,8 +111,8 @@ export default async function Home() {
       </nav>
       <Navbar />
       <Hero featuredCollections={featuredCollections} storyBannerItems={storyBannerItems} />
-      <RedRibbon />
       <Category categories={homeCategories} />
+      <RedRibbon />
       <ProductGrid products={products} />
       <Newsletter instagramShowcaseItems={instagramShowcaseItems} />
       <FeedbackPill />
