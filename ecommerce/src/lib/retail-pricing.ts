@@ -1,7 +1,3 @@
-import { getIncludedShippingContributionInr } from "@/lib/pricing-display";
-
-const LAUNCH_PROTECTED_COUPON_PERCENT = 30;
-
 function isFinitePositiveAmount(amount: number) {
   return Number.isFinite(amount) && amount > 0;
 }
@@ -22,15 +18,7 @@ export function isTShirtTaxonomy(input: {
 }
 
 export function getProtectedLaunchPriceAmount(priceAmount: number) {
-  if (!isFinitePositiveAmount(priceAmount)) {
-    return 0;
-  }
-
-  const displayContribution = getIncludedShippingContributionInr();
-  const currentDisplayPrice = priceAmount + displayContribution;
-  const protectedDisplayPrice = Math.ceil(currentDisplayPrice / (1 - LAUNCH_PROTECTED_COUPON_PERCENT / 100));
-
-  return Math.max(0, protectedDisplayPrice - displayContribution);
+  return isFinitePositiveAmount(priceAmount) ? priceAmount : 0;
 }
 
 export function getProtectedLaunchCompareAtAmount(compareAtAmount: number) {

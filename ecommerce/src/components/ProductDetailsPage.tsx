@@ -1209,7 +1209,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
         </div>
 
         <div className="min-w-0 space-y-6">
-          <div className="min-w-0 space-y-6 rounded-[30px] border border-white/80 bg-[rgba(255,253,250,0.96)] p-5 shadow-[0_18px_60px_rgba(97,52,27,0.08)] md:p-6 lg:sticky lg:top-28 lg:self-start">
+          <div className="min-w-0 space-y-6 rounded-[30px] border border-white/80 bg-[rgba(255,253,250,0.96)] p-5 shadow-[0_18px_60px_rgba(97,52,27,0.08)] md:p-6 lg:self-start">
             <div className="flex items-center justify-between gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-[#f2e6dc] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7e5a45]">
                 {getBrand(product)}
@@ -1251,7 +1251,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
                   </p>
                 )}
               </div>
-              <p className="mt-2 text-sm text-[#6f625b]">Inclusive of all taxes. Additional discounts may apply at checkout.</p>
+              <p className="mt-2 text-sm text-[#6f625b]">Inclusive of all taxes. Price includes ₹100 shipping, and coupons apply only on the T-shirt price at checkout.</p>
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[#5d534d]">
                 <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5">
                   <BadgeIndianRupee className="h-4 w-4 text-[var(--secondary)]" />
@@ -1353,7 +1353,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
                 <DetailLine icon={<MapPin className="h-4 w-4" />} label="Availability" value={deliveryState === "error" ? deliveryMessage ?? "Unavailable" : "Delivery available across major serviceable pincodes."} />
                 <DetailLine icon={<Check className="h-4 w-4" />} label="Cash on Delivery" value="Available on selected orders." />
                 <DetailLine icon={<RefreshCcw className="h-4 w-4" />} label="Return & Exchange" value="Easy return and exchange within the policy window." />
-                <DetailLine icon={<Truck className="h-4 w-4" />} label="Shipping charges" value="Shipping charges may apply on low-value orders or remote locations." />
+                <DetailLine icon={<Truck className="h-4 w-4" />} label="Shipping charges" value="₹100 shipping is included in the displayed T-shirt price. Coupons apply only on the product price." />
               </div>
             </div>
 
@@ -1368,15 +1368,13 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
             </div>
           </div>
 
-          <div className="hidden lg:block">
-            <RelatedRail title="Similar Products" items={similarProducts} currencyCode={displayCurrency} />
-          </div>
-
           <div className="hidden lg:block space-y-6">
+            <RelatedRail title="Similar Products" items={similarProducts} currencyCode={displayCurrency} />
             <RelatedRail title="You May Also Like" items={alsoLikeProducts} currencyCode={displayCurrency} />
             <RelatedRail title="Frequently Bought Together" items={frequentlyBoughtTogether} currencyCode={displayCurrency} compact />
             <RelatedRail title="Recently Viewed" items={recentlyViewedProducts} currencyCode={displayCurrency} emptyMessage="Your recently viewed products will appear here." compact />
           </div>
+
         </div>
       </div>
 
@@ -1530,7 +1528,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
           </SectionShell>
         </div>
 
-        <aside className="min-w-0 space-y-6 lg:sticky lg:top-28 lg:self-start">
+        <aside className="min-w-0 space-y-6">
           <div className="lg:hidden">
             <RelatedRail title="Similar Products" items={similarProducts} currencyCode={displayCurrency} />
           </div>

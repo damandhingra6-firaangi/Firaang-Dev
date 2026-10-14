@@ -22,8 +22,8 @@ describe("retail pricing launch helper", () => {
     ).toBe(false);
   });
 
-  it("raises t-shirt price to protect the existing display price after a 30% coupon", () => {
-    expect(getProtectedLaunchPriceAmount(999)).toBe(1470);
-    expect(getProtectedLaunchPriceAmount(1299)).toBe(1899);
+  it("keeps the Shopify base price unchanged", () => {
+    expect(getProtectedLaunchPriceAmount(999)).toBe(999);
+    expect(getProtectedLaunchPriceAmount(1299)).toBe(1299);
   });
 });

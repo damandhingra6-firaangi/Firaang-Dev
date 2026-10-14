@@ -134,7 +134,7 @@ export async function POST(request: Request) {
     const displaySubtotalAmount = Math.round(
       displayItems.reduce((sum, item) => sum + item.displayUnitPrice * item.quantity, 0),
     );
-    const pricingSubtotalAmount = useInclusiveDisplayPayable ? displaySubtotalAmount : subtotalAmount;
+    const pricingSubtotalAmount = subtotalAmount;
     // Resolve coupon from DB
     let validatedCoupon: {
       code: string;
