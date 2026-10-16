@@ -7,6 +7,7 @@ import { attachShopifySyncResultToOrder } from "@/lib/account-data";
 import { claimOrderConfirmationEmailSend, markOrderConfirmationEmailSent, releaseOrderConfirmationEmailClaim } from "@/lib/account-data";
 import { syncPaidOrderToShopify, syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
 import { notifyOrderPaid } from "@/lib/order-notifications";
+import { getSiteUrl } from "@/lib/site";
 
 function parseCookieValue(cookieHeader: string, name: string) {
   return cookieHeader
@@ -24,6 +25,7 @@ type VerifyPaymentRequest = {
 
 export async function POST(request: Request) {
   try {
+    const siteUrl = getSiteUrl();
     const sessionToken = await getAccountSessionTokenFromCookies();
     const body = (await request.json()) as VerifyPaymentRequest;
 
@@ -107,8 +109,8 @@ export async function POST(request: Request) {
             paymentMethod: savedOrder.paymentMethod,
             orderDate: savedOrder.createdAt,
             estimatedDeliveryDate: savedOrder.deliveredAt,
-            viewOrderUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.firaang.com"}/track-order?orderId=${encodeURIComponent(savedOrder.id)}`,
-            continueShoppingUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.firaang.com",
+            viewOrderUrl: `${siteUrl}/track-order?orderId=${encodeURIComponent(savedOrder.id)}`,
+            continueShoppingUrl: siteUrl,
             shippingAddress: {
               name: savedOrder.shippingName,
               email: savedOrder.shippingEmail,

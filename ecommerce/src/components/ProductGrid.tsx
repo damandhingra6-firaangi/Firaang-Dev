@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
+import { mapProductToAnalyticsItem, trackVendorItemListView, trackVendorSelectItem } from "@/lib/analytics-vendors";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { getDisplayPricing } from "@/lib/pricing-display";
@@ -165,6 +166,21 @@ export default function ProductGrid({ products }: ProductGridProps) {
   };
 
   const handleOpenDetails = (product: GridProduct) => {
+    trackVendorSelectItem({
+      listId: "home-new-arrivals",
+      listName: "New Arrivals",
+      item: mapProductToAnalyticsItem({
+        id: product.id,
+        name: product.name,
+        price: getDisplayPricing({ priceAmount: product.priceAmount, compareAt: product.oldPrice }).priceAmount,
+        brand: "Firaang",
+        category: product.category,
+        subCategory: product.subCategory,
+      }),
+      dedupeKey: `select_item:home:${product.id}`,
+      dedupeTtlMs: 2000,
+    });
+
     const routeKey = product.handle?.trim() || product.id;
     router.push(`/product/${encodeURIComponent(routeKey)}`);
   };
@@ -194,12 +210,29 @@ export default function ProductGrid({ products }: ProductGridProps) {
   };
 
   useEffect(() => {
+    trackVendorItemListView({
+      listId: "home-new-arrivals",
+      listName: "New Arrivals",
+      items: discoveryProducts.slice(0, 12).map((product) =>
+        mapProductToAnalyticsItem({
+          id: product.id,
+          name: product.name,
+          price: getDisplayPricing({ priceAmount: product.priceAmount, compareAt: product.oldPrice }).priceAmount,
+          brand: "Firaang",
+          category: product.category,
+          subCategory: product.subCategory,
+        }),
+      ),
+      dedupeKey: `view_item_list:home:${discoveryProducts.slice(0, 12).map((product) => product.id).join("|")}`,
+      dedupeTtlMs: 60000,
+    });
+
     return () => {
       if (resumeAutoplayTimeoutRef.current) {
         clearTimeout(resumeAutoplayTimeoutRef.current);
       }
     };
-  }, []);
+  }, [discoveryProducts]);
 
   useEffect(() => {
     if (!showNavigation || isAutoplayPaused) {

@@ -4,6 +4,7 @@ import "./globals.css";
 import { Playfair_Display, Poppins } from "next/font/google";
 import AccountSessionBootstrap from "@/components/AccountSessionBootstrap";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
+import AnalyticsVendorScripts from "@/components/AnalyticsVendorScripts";
 import ToastViewport from "@/components/ToastViewport";
 import {
   DEFAULT_OG_IMAGE,
@@ -99,6 +100,19 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION?.trim() || process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() || undefined,
+    other: {
+      ...(process.env.FACEBOOK_DOMAIN_VERIFICATION?.trim() || process.env.NEXT_PUBLIC_FACEBOOK_DOMAIN_VERIFICATION?.trim()
+        ? {
+            "facebook-domain-verification":
+              process.env.FACEBOOK_DOMAIN_VERIFICATION?.trim() ||
+              process.env.NEXT_PUBLIC_FACEBOOK_DOMAIN_VERIFICATION?.trim() ||
+              "",
+          }
+        : {}),
+    },
+  },
 };
 
 export const viewport: Viewport = {
@@ -119,6 +133,7 @@ export default function RootLayout({
       className={`${poppins.variable} ${playfair.variable} h-full antialiased`}
     >
       <body className="min-h-full">
+        <AnalyticsVendorScripts />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}

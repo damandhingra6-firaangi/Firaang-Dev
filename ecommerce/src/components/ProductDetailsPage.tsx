@@ -32,6 +32,7 @@ import SafeImage from "@/components/SafeImage";
 import ProductSizeChartModal from "@/components/ProductSizeChartModal";
 import CustomDesignSection from "@/components/CustomDesignSection";
 import type { DesignCustomization } from "@/components/DesignStudio";
+import { trackClientEvent } from "@/lib/analytics-client";
 import { CUSTOM_DESIGN_SURCHARGE_INR, GridProduct } from "@/lib/catalog";
 import { isSignatureProduct } from "@/lib/design-inquiry";
 import { convertAmount, formatCurrency } from "@/lib/currency";
@@ -705,6 +706,24 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   }, [product.handle, product.id]);
 
   useEffect(() => {
+    void trackClientEvent({
+      eventName: "product_view",
+      pageType: "product",
+      productId: resolvedProduct.id,
+      productHandle: resolvedProduct.handle,
+      productName: resolvedProduct.name,
+      currencyCode: resolvedProduct.currencyCode,
+      metadata: {
+        priceAmount: resolvedProduct.priceAmount,
+        brand: getBrand(resolvedProduct),
+        category: resolvedProduct.category ?? null,
+        subCategory: resolvedProduct.subCategory ?? null,
+        variantId: activeVariant?.id ?? null,
+      },
+    });
+  }, [activeVariant?.id, resolvedProduct]);
+
+  useEffect(() => {
     if (!copyFeedback) {
       return;
     }
@@ -765,7 +784,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
     addToCart(productToAdd);
     openCart();
     pushToast(
-      hasAnyDesign ? "Custom design added to bag" : "Added to bag",
+      hasAnyDesign ? "Custom design added to cart" : "Added to cart",
       { variant: "success" }
     );
     window.setTimeout(() => setIsAdding(false), 450);
@@ -1296,7 +1315,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--secondary)] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#9f3940] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
-                {hasAnyDesign ? "Add Custom Design to Bag" : "Add to Bag"}
+                {hasAnyDesign ? "Add Custom Design to Cart" : "Add to Cart"}
               </button>
               <button
                 type="button"
@@ -1546,7 +1565,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
           </button>
           <button type="button" onClick={handleAddToBag} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--secondary)] px-4 py-4 text-sm font-semibold text-white shadow-lg shadow-[rgba(157,57,64,0.2)]">
             <ShoppingBag className="h-4 w-4" />
-            Add to Bag
+            Add to Cart
           </button>
         </div>
       </div>

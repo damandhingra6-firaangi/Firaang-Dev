@@ -5,6 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ChevronRight, Minus, Package, Plus, ShoppingBag, Tag, Trash2, X } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
+import { trackClientEvent } from "@/lib/analytics-client";
+import {
+  mapProductToAnalyticsItem,
+  trackVendorAddPaymentInfo,
+  trackVendorAddShippingInfo,
+  trackVendorBeginCheckout,
+  trackVendorPurchase,
+  trackVendorRemoveFromCart,
+  trackVendorViewCart,
+} from "@/lib/analytics-vendors";
 import { INDIAN_STATES, calculateCheckoutPricing, type ShippingMethod } from "@/lib/checkout-config";
 import { CUSTOM_DESIGN_SURCHARGE_INR } from "@/lib/catalog";
 import { convertAmount, formatCurrency } from "@/lib/currency";
@@ -59,6 +69,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | null>(null);
   const [isSavingShippingAddress, setIsSavingShippingAddress] = useState(false);
   const isMountedRef = useRef(false);
+  const hasTrackedViewCartRef = useRef(false);
   const savedAddresses = profile.savedAddresses ?? [];
 
   type SavedAddress = NonNullable<typeof profile.savedAddresses>[number];
@@ -220,6 +231,28 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
     [displaySubtotalAmount, pricing.discountAmount, pricing.totalAmount, useInclusiveDisplayPayable],
   );
 
+  const analyticsItems = useMemo(
+    () =>
+      cartItems.map((item, index) =>
+        mapProductToAnalyticsItem({
+          id: item.product.id,
+          name: item.product.name,
+          price: lineDisplayUnitAmounts[index] ?? item.product.priceAmount,
+          quantity: item.quantity,
+          brand: "Firaang",
+          category: item.product.category,
+          subCategory: item.product.subCategory,
+          variant: item.product.parentId && item.product.parentId !== item.product.id ? item.product.id : undefined,
+        }),
+      ),
+    [cartItems, lineDisplayUnitAmounts],
+  );
+
+  const cartSignature = useMemo(
+    () => cartItems.map((item) => `${item.product.id}:${item.quantity}`).join("|"),
+    [cartItems],
+  );
+
   const hasShippingDetails =
     shippingName.trim().length > 0 &&
     emailRegex.test(shippingEmail.trim()) &&
@@ -262,6 +295,27 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
     shipping: "cart",
     summary: "shipping",
   };
+
+  useEffect(() => {
+    if (!isOpen) {
+      hasTrackedViewCartRef.current = false;
+      return;
+    }
+
+    if (step !== "cart" || cartItems.length === 0 || hasTrackedViewCartRef.current) {
+      return;
+    }
+
+    hasTrackedViewCartRef.current = true;
+
+    trackVendorViewCart({
+      currencyCode: "INR",
+      value: displaySubtotalAmount,
+      items: analyticsItems,
+      dedupeKey: `view_cart:${mode}:${cartSignature}`,
+      dedupeTtlMs: 3000,
+    });
+  }, [analyticsItems, cartItems.length, cartSignature, displaySubtotalAmount, isOpen, mode, step]);
 
   const getProductDetailHref = (item: (typeof cartItems)[number]) => {
     const routeKey = item.product.handle || item.product.parentId || item.product.id;
@@ -330,6 +384,26 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const handleProceedToShipping = () => {
     if (cartItems.length === 0) { pushToast("Add items to cart before checkout", { variant: "warning" }); return; }
     if (!isSignedIn) { pushToast("Sign in to proceed to checkout", { variant: "warning" }); onClose(); router.push("/account?tab=overview"); return; }
+
+    void trackClientEvent({
+      eventName: "checkout_started",
+      pageType: "checkout",
+      orderAmount: displayTotalPayableAmount,
+      currencyCode: "INR",
+      metadata: {
+        itemCount: cartCount,
+        entryMode: mode,
+      },
+    });
+
+    trackVendorBeginCheckout({
+      currencyCode: "INR",
+      value: displayTotalPayableAmount,
+      items: analyticsItems,
+      dedupeKey: `begin_checkout:${cartSignature}`,
+      dedupeTtlMs: 10000,
+    });
+
     if (mode === "drawer") {
       onClose();
       router.push("/checkout");
@@ -389,12 +463,31 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       }
     }
 
+    trackVendorAddShippingInfo({
+      currencyCode: "INR",
+      value: displayTotalPayableAmount,
+      shippingTier: shippingMethod,
+      items: analyticsItems,
+      dedupeKey: `add_shipping_info:${cartSignature}:${shippingMethod}:${shippingPinCode.trim()}`,
+      dedupeTtlMs: 60000,
+    });
+
     setStep("summary");
   };
 
   const handleOnlineCheckout = async () => {
     const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
     if (!razorpayKey) { pushToast("Checkout is not configured", { variant: "error" }); return; }
+
+    trackVendorAddPaymentInfo({
+      currencyCode: "INR",
+      value: displayTotalPayableAmount,
+      paymentType: "Razorpay",
+      items: analyticsItems,
+      dedupeKey: `add_payment_info:${cartSignature}:${displayTotalPayableAmount}`,
+      dedupeTtlMs: 60000,
+    });
+
     setIsCheckingOut(true);
     try {
       const scriptReady = await loadRazorpayScript();
@@ -478,6 +571,28 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
             pinCode: shippingPinCode.trim(),
           });
 
+          const purchaseTransactionId = verification.order?.id ?? orderData.orderId;
+          const purchaseCurrencyCode = verification.order?.currencyCode ?? orderData.currency;
+
+          if (purchaseTransactionId && purchaseCurrencyCode) {
+            trackVendorPurchase({
+              transactionId: purchaseTransactionId,
+              currencyCode: purchaseCurrencyCode,
+              value: verification.order?.totalAmount ?? displayTotalPayableAmount,
+              coupon: appliedCoupon?.code,
+              items:
+                verification.order?.items.map((item) =>
+                  mapProductToAnalyticsItem({
+                    id: item.productId,
+                    name: item.name,
+                    price: item.unitPrice,
+                    quantity: item.quantity,
+                    brand: "Firaang",
+                  }),
+                ) ?? analyticsItems,
+            });
+          }
+
           clearCart();
           setAppliedCoupon(null);
           setCouponInput("");
@@ -506,6 +621,89 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
 
   const prevStep = stepBack[step];
   const STEPS: CheckoutStep[] = ["cart", "shipping", "summary"];
+
+  const handleIncreaseQuantity = (productId: string) => {
+    const cartItem = cart[productId];
+
+    if (!cartItem) {
+      return;
+    }
+
+    updateCartQuantity(productId, cartItem.quantity + 1);
+
+    void trackClientEvent({
+      eventName: "add_to_cart",
+      pageType: "checkout",
+      productId: cartItem.product.id,
+      productHandle: cartItem.product.handle,
+      productName: cartItem.product.name,
+      currencyCode: cartItem.product.currencyCode,
+      metadata: {
+        unitPrice: cartItem.product.priceAmount,
+        brand: "Firaang",
+        category: cartItem.product.category ?? null,
+        subCategory: cartItem.product.subCategory ?? null,
+        variantId: cartItem.product.parentId && cartItem.product.parentId !== cartItem.product.id ? cartItem.product.id : null,
+        quantityAdded: 1,
+        resultingQuantity: cartItem.quantity + 1,
+        source: "cart",
+      },
+    });
+  };
+
+  const handleDecreaseQuantity = (productId: string) => {
+    const cartItem = cart[productId];
+
+    if (!cartItem) {
+      return;
+    }
+
+    updateCartQuantity(productId, cartItem.quantity - 1);
+
+    trackVendorRemoveFromCart({
+      currencyCode: "INR",
+      value: cartItem.product.priceAmount,
+      items: [
+        mapProductToAnalyticsItem({
+          id: cartItem.product.id,
+          name: cartItem.product.name,
+          price: cartItem.product.priceAmount,
+          quantity: 1,
+          brand: "Firaang",
+          category: cartItem.product.category,
+          subCategory: cartItem.product.subCategory,
+          variant: cartItem.product.parentId && cartItem.product.parentId !== cartItem.product.id ? cartItem.product.id : undefined,
+        }),
+      ],
+    });
+  };
+
+  const handleRemoveItem = (productId: string) => {
+    const cartItem = cart[productId];
+
+    if (!cartItem) {
+      return;
+    }
+
+    removeFromCart(productId);
+
+    trackVendorRemoveFromCart({
+      currencyCode: "INR",
+      value: cartItem.product.priceAmount * cartItem.quantity,
+      items: [
+        mapProductToAnalyticsItem({
+          id: cartItem.product.id,
+          name: cartItem.product.name,
+          price: cartItem.product.priceAmount,
+          quantity: cartItem.quantity,
+          brand: "Firaang",
+          category: cartItem.product.category,
+          subCategory: cartItem.product.subCategory,
+          variant: cartItem.product.parentId && cartItem.product.parentId !== cartItem.product.id ? cartItem.product.id : undefined,
+        }),
+      ],
+    });
+  };
 
   if (mode === "drawer" && !isOpen) {
     return null;
@@ -607,11 +805,11 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                             </p>
                             <div className="mt-2.5 flex items-center justify-between">
                               <div className="flex items-center gap-1.5 rounded-full border border-[#ff3f6c]/40 px-1 py-0.5">
-                                <button type="button" className="rounded-full p-1 transition hover:bg-[#f1f3f9]" onClick={() => updateCartQuantity(item.product.id, item.quantity - 1)} aria-label={`Decrease ${item.product.name} quantity`}>
+                                <button type="button" className="rounded-full p-1 transition hover:bg-[#f1f3f9]" onClick={() => handleDecreaseQuantity(item.product.id)} aria-label={`Decrease ${item.product.name} quantity`}>
                                   <Minus className="h-3 w-3" />
                                 </button>
                                 <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
-                                <button type="button" className="rounded-full p-1 transition hover:bg-[#f1f3f9]" onClick={() => updateCartQuantity(item.product.id, item.quantity + 1)} aria-label={`Increase ${item.product.name} quantity`}>
+                                <button type="button" className="rounded-full p-1 transition hover:bg-[#f1f3f9]" onClick={() => handleIncreaseQuantity(item.product.id)} aria-label={`Increase ${item.product.name} quantity`}>
                                   <Plus className="h-3 w-3" />
                                 </button>
                               </div>
@@ -619,7 +817,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                                 <span className="text-sm font-semibold text-[#1f2430]">
                                   {formatCurrency(convertAmount(lineTotal, "INR", displayCurrency), displayCurrency)}
                                 </span>
-                                <button type="button" className="rounded-full p-1.5 text-[#ff3f6c]/70 transition hover:bg-[#f1f3f9] hover:text-red-400" onClick={() => removeFromCart(item.product.id)} aria-label={`Remove ${item.product.name}`}>
+                                <button type="button" className="rounded-full p-1.5 text-[#ff3f6c]/70 transition hover:bg-[#f1f3f9] hover:text-red-400" onClick={() => handleRemoveItem(item.product.id)} aria-label={`Remove ${item.product.name}`}>
                                   <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>
@@ -865,7 +1063,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                 </div>
               ) : null}
               <button type="button" disabled={cartItems.length === 0} onClick={handleProceedToShipping} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#ff3f6c] px-5 py-3.5 font-semibold text-white transition hover:bg-[#ff5f84] disabled:cursor-not-allowed disabled:opacity-50">
-                {mode === "drawer" ? "Checkout on Full Page" : "Proceed to Checkout"} <ChevronRight className="h-4 w-4" />
+                Proceed to Checkout <ChevronRight className="h-4 w-4" />
               </button>
             </>
           )}

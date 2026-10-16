@@ -4,6 +4,7 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Heart, ShoppingBag, SlidersHorizontal, Star, X } from "lucide-react";
 import CollectionHeroBanner from "@/components/CollectionHeroBanner";
+import { mapProductToAnalyticsItem, trackVendorItemListView, trackVendorSelectItem } from "@/lib/analytics-vendors";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { getDisplayPricing } from "@/lib/pricing-display";
@@ -628,6 +629,21 @@ export default function ShopListing({
   }, [filteredProducts, initialSection, selectedSort]);
 
   const handleOpenDetails = (product: GridProduct) => {
+    trackVendorSelectItem({
+      listId: initialCollection || initialSection || "shop",
+      listName: initialCollectionTitle || "Shop",
+      item: mapProductToAnalyticsItem({
+        id: product.id,
+        name: product.name,
+        price: getDisplayPricing({ priceAmount: product.priceAmount, compareAt: product.oldPrice }).priceAmount,
+        brand: extractBrand(product),
+        category: product.category,
+        subCategory: product.subCategory,
+      }),
+      dedupeKey: `select_item:shop:${product.id}`,
+      dedupeTtlMs: 2000,
+    });
+
     const routeKey = product.handle?.trim() || product.id;
     router.push(`/product/${encodeURIComponent(routeKey)}`);
   };
@@ -661,6 +677,29 @@ export default function ShopListing({
     setMinRating(0);
     setPriceRange({ min: minCatalogPrice, max: maxCatalogPrice });
   };
+
+  useEffect(() => {
+    if (sortedProducts.length === 0) {
+      return;
+    }
+
+    trackVendorItemListView({
+      listId: initialCollection || initialSection || "shop",
+      listName: initialCollectionTitle || "Shop",
+      items: sortedProducts.slice(0, 20).map((product) =>
+        mapProductToAnalyticsItem({
+          id: product.id,
+          name: product.name,
+          price: product.displayPriceAmount,
+          brand: product.brand,
+          category: product.category,
+          subCategory: product.subCategory,
+        }),
+      ),
+      dedupeKey: `view_item_list:${initialCollection || initialSection || "shop"}:${sortedProducts.slice(0, 20).map((product) => product.id).join("|")}`,
+      dedupeTtlMs: 60000,
+    });
+  }, [initialCollection, initialCollectionTitle, initialSection, sortedProducts]);
 
   const filtersSidebar = (
     <aside className="rounded-lg border border-[#e7e8ee] bg-white p-4 shadow-[0_3px_14px_rgba(40,44,63,0.05)]">
@@ -1021,7 +1060,7 @@ export default function ShopListing({
                         onClick={() => handleAddToCart(product)}
                       >
                         <ShoppingBag className="h-3.5 w-3.5" />
-                        Add
+                        Add to Cart
                       </button>
                       <button
                         type="button"

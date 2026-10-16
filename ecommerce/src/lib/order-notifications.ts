@@ -71,7 +71,7 @@ function escapeHtml(value: string | undefined) {
 function resolveSiteUrl() {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim() || process.env.APP_BASE_URL?.trim();
   if (!fromEnv) {
-    return "https://www.firaang.com";
+    return "https://firaang.com";
   }
 
   return fromEnv.replace(/\/$/, "");

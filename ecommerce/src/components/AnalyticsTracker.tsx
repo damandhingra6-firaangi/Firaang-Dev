@@ -17,13 +17,17 @@ function inferPageType(pathname: string) {
 export default function AnalyticsTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const sessionStartedAtRef = useRef<number>(Date.now());
+  const sessionStartedAtRef = useRef<number | null>(null);
   const routeKey = useMemo(() => {
     const query = searchParams?.toString();
     return query ? `${pathname}?${query}` : pathname;
   }, [pathname, searchParams]);
 
   useEffect(() => {
+    if (sessionStartedAtRef.current === null) {
+      sessionStartedAtRef.current = Date.now();
+    }
+
     ensureSessionStartTracked();
 
     const heartbeatInterval = window.setInterval(() => {
@@ -35,7 +39,8 @@ export default function AnalyticsTracker() {
     }, 30000);
 
     const onUnload = () => {
-      const durationSec = Math.round((Date.now() - sessionStartedAtRef.current) / 1000);
+      const startedAt = sessionStartedAtRef.current ?? Date.now();
+      const durationSec = Math.round((Date.now() - startedAt) / 1000);
 
       void trackClientEvent(
         {
@@ -57,34 +62,11 @@ export default function AnalyticsTracker() {
   }, [pathname, routeKey]);
 
   useEffect(() => {
-    const pageType = inferPageType(pathname);
-
     void trackClientEvent({
       eventName: "page_view",
       pagePath: routeKey,
-      pageType,
+      pageType: inferPageType(pathname),
     });
-
-    if (pathname.startsWith("/product/")) {
-      const productHandle = pathname.replace("/product/", "").trim();
-
-      if (productHandle.length > 0) {
-        void trackClientEvent({
-          eventName: "product_view",
-          pagePath: routeKey,
-          pageType: "product",
-          productHandle,
-        });
-      }
-    }
-
-    if (pathname.startsWith("/checkout")) {
-      void trackClientEvent({
-        eventName: "checkout_started",
-        pagePath: routeKey,
-        pageType: "checkout",
-      });
-    }
   }, [pathname, routeKey]);
 
   return null;

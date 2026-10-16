@@ -13,6 +13,7 @@ import {
   releaseOrderConfirmationEmailClaim,
 } from "@/lib/account-data";
 import { notifyOrderPaid, notifyRefundProcessed } from "@/lib/order-notifications";
+import { getSiteUrl } from "@/lib/site";
 import { syncPaidOrderToShopify } from "@/lib/shopify-admin";
 import { syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
 
@@ -51,6 +52,7 @@ function paiseToRupees(amount?: number) {
 
 export async function POST(request: Request) {
   try {
+    const siteUrl = getSiteUrl();
     const rawBody = await request.text();
     const signature = request.headers.get("x-razorpay-signature") ?? "";
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
@@ -146,8 +148,8 @@ export async function POST(request: Request) {
             paymentMethod: paidOrder.paymentMethod,
             orderDate: paidOrder.createdAt,
             estimatedDeliveryDate: paidOrder.deliveredAt,
-            viewOrderUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.firaang.com"}/track-order?orderId=${encodeURIComponent(paidOrder.id)}`,
-            continueShoppingUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.firaang.com",
+            viewOrderUrl: `${siteUrl}/track-order?orderId=${encodeURIComponent(paidOrder.id)}`,
+            continueShoppingUrl: siteUrl,
             shippingAddress: {
               name: paidOrder.shippingName,
               email: paidOrder.shippingEmail,

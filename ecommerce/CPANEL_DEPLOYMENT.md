@@ -88,6 +88,7 @@ Required for this project:
 
 - `NODE_ENV=production`
 - `PORT` as provided by cPanel, if required by your host
+- `NEXT_PUBLIC_SITE_URL=https://firaang.com`
 - `GOOGLE_CLIENT_ID`
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
 - `MONGODB_URI`
@@ -109,6 +110,13 @@ Optional if you use Shopify homepage data:
 - `SHOPIFY_STORE_DOMAIN`
 - `SHOPIFY_STOREFRONT_ACCESS_TOKEN`
 - `SHOPIFY_API_VERSION`
+
+Optional for verification and paid media tracking:
+
+- `GOOGLE_SITE_VERIFICATION`
+- `FACEBOOK_DOMAIN_VERIFICATION`
+- `NEXT_PUBLIC_GA4_MEASUREMENT_ID`
+- `NEXT_PUBLIC_META_PIXEL_ID`
 
 Use `.env.example` as the source template for values.
 

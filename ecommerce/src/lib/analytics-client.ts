@@ -6,6 +6,12 @@ import {
   parseCampaignParams,
   type AnalyticsEventName,
 } from "@/lib/analytics-shared";
+import {
+  mapProductToAnalyticsItem,
+  trackVendorAddToCart,
+  trackVendorPageView,
+  trackVendorProductView,
+} from "@/lib/analytics-vendors";
 
 const VISITOR_STORAGE_KEY = "Firaang-analytics-visitor-id";
 const SESSION_STORAGE_KEY = "Firaang-analytics-session-id";
@@ -166,6 +172,55 @@ export async function trackClientEvent(payload: ClientAnalyticsPayload, options?
   };
 
   const serialized = JSON.stringify(body);
+
+  if (payload.eventName === "page_view") {
+    trackVendorPageView({
+      pagePath: body.pagePath,
+      pageLocation: window.location.href,
+      pageTitle: document.title,
+    });
+  }
+
+  if (payload.eventName === "product_view" && payload.productId && payload.productName) {
+    const priceAmount = typeof payload.metadata?.priceAmount === "number" ? payload.metadata.priceAmount : undefined;
+
+    trackVendorProductView({
+      currencyCode: payload.currencyCode ?? "INR",
+      value: priceAmount ?? 0,
+      item: mapProductToAnalyticsItem({
+        id: payload.productId,
+        name: payload.productName,
+        price: priceAmount,
+        brand: typeof payload.metadata?.brand === "string" ? payload.metadata.brand : undefined,
+        category: typeof payload.metadata?.category === "string" ? payload.metadata.category : undefined,
+        subCategory: typeof payload.metadata?.subCategory === "string" ? payload.metadata.subCategory : undefined,
+        variant: typeof payload.metadata?.variantId === "string" ? payload.metadata.variantId : undefined,
+      }),
+      dedupeKey: `product_view:${payload.productId}:${payload.productHandle ?? "unknown"}`,
+    });
+  }
+
+  if (payload.eventName === "add_to_cart" && payload.productId && payload.productName) {
+    const quantityAdded = typeof payload.metadata?.quantityAdded === "number" ? payload.metadata.quantityAdded : 1;
+    const unitPrice = typeof payload.metadata?.unitPrice === "number" ? payload.metadata.unitPrice : undefined;
+
+    trackVendorAddToCart({
+      currencyCode: payload.currencyCode ?? "INR",
+      value: unitPrice ? unitPrice * quantityAdded : 0,
+      items: [
+        mapProductToAnalyticsItem({
+          id: payload.productId,
+          name: payload.productName,
+          price: unitPrice,
+          quantity: quantityAdded,
+          brand: typeof payload.metadata?.brand === "string" ? payload.metadata.brand : undefined,
+          category: typeof payload.metadata?.category === "string" ? payload.metadata.category : undefined,
+          subCategory: typeof payload.metadata?.subCategory === "string" ? payload.metadata.subCategory : undefined,
+          variant: typeof payload.metadata?.variantId === "string" ? payload.metadata.variantId : undefined,
+        }),
+      ],
+    });
+  }
 
   if (options?.useBeacon && navigator.sendBeacon) {
     navigator.sendBeacon("/api/analytics/track", new Blob([serialized], { type: "application/json" }));
