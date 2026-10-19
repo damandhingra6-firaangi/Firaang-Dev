@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { ArrowUpRight, ChevronDown, Mail, MapPin, Phone } from "lucide-react";
+import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import type { InstagramShowcaseItem } from "@/lib/instagram-showcase";
 import {
@@ -15,12 +15,6 @@ import {
 } from "@/lib/company";
 import { newsletterSchema } from "@/lib/newsletter";
 import { useUiStore } from "@/store/useUiStore";
-
-const CURRENCY_ICON_MAP: Record<"INR" | "USD" | "AED", string> = {
-  INR: "/India.svg",
-  USD: "/USD.svg",
-  AED: "/AED.svg",
-};
 
 const socialLinks = [
   { label: "Instagram", href: COMPANY_SOCIAL_LINKS.instagram },
@@ -81,30 +75,14 @@ function FooterSocialBadge({ label, href }: { label: string; href: string }) {
 export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterProps) {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
   const pushToast = useUiStore((state) => state.pushToast);
-  const currency = useUiStore((state) => state.currency);
-  const setCurrency = useUiStore((state) => state.setCurrency);
   const isMountedRef = useRef(false);
-  const currencyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
     };
-  }, []);
-
-  useEffect(() => {
-    const handleOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (currencyRef.current && !currencyRef.current.contains(target)) {
-        setIsCurrencyOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutside);
-    return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
   const handleSubscribe = async (event: FormEvent<HTMLFormElement>) => {
@@ -308,7 +286,7 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
               <p className="mb-4 text-[14px] font-semibold text-white">Shop</p>
               <ul className="space-y-2 text-[12px] leading-6 text-white/70">
                 <li><Link href="/shop/t-shirts" className="transition hover:text-white">Clothing</Link></li>
-                <li><Link href="/shop?category=hair-accessories" className="transition hover:text-white">Jewellery</Link></li>
+                <li><Link href="/shop/hair-accessories" className="transition hover:text-white">Jewellery</Link></li>
                 <li><Link href="/shop" className="transition hover:text-white">Collections</Link></li>
                 <li><Link href="/shop" className="transition hover:text-white">New Arrivals</Link></li>
                 <li><Link href="/shop" className="transition hover:text-white">Sale</Link></li>
@@ -331,7 +309,7 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
               <ul className="space-y-2 text-[12px] leading-6 text-white/70">
                 <li><Link href="/contact" className="transition hover:text-white">Contact</Link></li>
                 <li><Link href="/track-order" className="transition hover:text-white">Shipping</Link></li>
-                <li><Link href="/exchange-return" className="transition hover:text-white">Returns</Link></li>
+                <li><Link href="/pod-policy" className="transition hover:text-white">Returns</Link></li>
                 <li><Link href="/contact" className="transition hover:text-white">FAQs</Link></li>
                 <li><Link href="/size-guide" className="transition hover:text-white">Size Guide</Link></li>
               </ul>
@@ -369,37 +347,9 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
             <p className="text-center md:text-left">© 2026 Firaang. All rights reserved.</p>
 
             <div className="flex items-center justify-center gap-2">
-              <div className="relative" ref={currencyRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCurrencyOpen((prev) => !prev);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.15] bg-white/[0.08] px-2.5 py-1.5 text-[11px] text-white/80"
-                >
-                  <SafeImage src={CURRENCY_ICON_MAP[currency]} alt={`${currency} currency`} className="h-3.5 w-3.5 rounded-full object-cover" />
-                  {currency}
-                  <ChevronDown className={`h-3 w-3 transition ${isCurrencyOpen ? "rotate-180" : ""}`} />
-                </button>
-                {isCurrencyOpen ? (
-                  <div className="absolute bottom-[calc(100%+8px)] left-0 z-20 min-w-full overflow-hidden rounded-md border border-white/[0.1] bg-[#111111] shadow-[0_14px_26px_rgba(0,0,0,0.45)]">
-                    {(["INR", "USD", "AED"] as const).map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => {
-                          setCurrency(option);
-                          setIsCurrencyOpen(false);
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] text-white/80 transition hover:bg-white/[0.08]"
-                      >
-                        <SafeImage src={CURRENCY_ICON_MAP[option]} alt={`${option} currency`} className="h-3.5 w-3.5 rounded-full object-cover" />
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
+              <span className="inline-flex items-center rounded-md border border-white/[0.15] bg-white/[0.08] px-2.5 py-1.5 text-[11px] text-white/80">
+                Prices in INR only · ₹
+              </span>
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-2 md:justify-end">

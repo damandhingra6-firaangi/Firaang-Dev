@@ -34,12 +34,7 @@ function appendSectionToHref(href: string, section: Exclude<NavSectionKey, "abou
 }
 
 function toShopSubCategoryHref(categorySlug: string, subCategorySlug: string) {
-  const params = new URLSearchParams({
-    section: "shop",
-    category: categorySlug,
-    subCategory: subCategorySlug,
-  });
-  return `/shop?${params.toString()}`;
+  return `/shop/${encodeURIComponent(categorySlug)}/${encodeURIComponent(subCategorySlug)}`;
 }
 
 function buildShopCategoryLinks(

@@ -6,7 +6,8 @@ export const SITE_THEME_COLOR = "#fff8fa";
 export const SITE_BACKGROUND_COLOR = "#ffffff";
 export const SITE_LANGUAGE = "en-IN";
 export const SITE_LOCALE = "en_IN";
-export const SITE_URL_FALLBACK = "https://firaang.com";
+export const SITE_URL_FALLBACK = "https://www.firaang.com";
+const PREFERRED_SITE_HOSTNAME = "www.firaang.com";
 export const DEFAULT_OG_IMAGE = "/Home Page Banner.png";
 export const DEFAULT_OG_IMAGE_ALT = "Firaang signature campaign banner";
 export const FAVICON_SOURCE = "/FiraangLogoDesign.png";
@@ -16,7 +17,15 @@ export function getSiteUrl() {
   const baseUrl = fromEnv || SITE_URL_FALLBACK;
 
   try {
-    return new URL(baseUrl).origin;
+    const url = new URL(baseUrl);
+    if (url.hostname === "firaang.com") {
+      url.hostname = PREFERRED_SITE_HOSTNAME;
+    }
+    url.protocol = "https:";
+    url.username = "";
+    url.password = "";
+    url.port = "";
+    return url.origin;
   } catch {
     return SITE_URL_FALLBACK;
   }

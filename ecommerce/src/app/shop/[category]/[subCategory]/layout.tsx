@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Metadata } from "next";
 import { fallbackProducts } from "@/lib/catalog";
 import { createPageMetadata } from "@/lib/seo";
+import { isJewellerySlug } from "@/lib/jewellery";
 import { getStorefrontProducts } from "@/lib/shopify";
 import { buildCategoryTree } from "@/lib/product-taxonomy";
 
@@ -40,11 +41,13 @@ export async function generateMetadata({
   const subCategoryName = subCategoryNode?.name ?? subCategorySlug;
   const title = `${subCategoryName} | ${categoryName}`;
   const description = `Browse our collection of ${subCategoryName.toLowerCase()} in the ${categoryName.toLowerCase()} category`;
+  const noIndex = isJewellerySlug(categorySlug) || isJewellerySlug(subCategorySlug);
 
   return createPageMetadata({
     title,
     description,
     path: `/shop/${encodeURIComponent(categorySlug)}/${encodeURIComponent(subCategorySlug)}`,
+    noIndex,
   });
 }
 

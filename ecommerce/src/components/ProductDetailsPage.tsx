@@ -360,7 +360,7 @@ function RelatedRail({
 }: {
   title: string;
   items: ProductCardLite[];
-  currencyCode: "INR" | "USD" | "AED";
+  currencyCode: "INR";
   emptyMessage?: string;
   compact?: boolean;
 }) {
@@ -929,7 +929,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
         {product.categorySlug ? (
           <>
             <span>/</span>
-            <Link href={`/shop?category=${encodeURIComponent(product.categorySlug)}`} className="transition hover:text-[var(--secondary)]">
+            <Link href={`/shop/${encodeURIComponent(product.categorySlug)}`} className="transition hover:text-[var(--secondary)]">
               {product.category ?? "Category"}
             </Link>
           </>
@@ -937,7 +937,10 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
         {product.subCategorySlug ? (
           <>
             <span>/</span>
-            <Link href={`/shop?subCategory=${encodeURIComponent(product.subCategorySlug)}`} className="transition hover:text-[var(--secondary)]">
+            <Link
+              href={`/shop/${encodeURIComponent(product.categorySlug ?? "shop")}/${encodeURIComponent(product.subCategorySlug)}`}
+              className="transition hover:text-[var(--secondary)]"
+            >
               {product.subCategory ?? "Product"}
             </Link>
           </>

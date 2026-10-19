@@ -392,7 +392,7 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
     handle: node.handle,
     title: normalizedTitle,
     description: normalizedDescription,
-    href: `/shop?collection=${encodeURIComponent(node.handle)}`,
+    href: `/shop?section=collections&collection=${encodeURIComponent(node.handle)}`,
     updatedAt: node.updatedAt,
     imageUrl: resolveBannerImage(node),
     badge,
@@ -427,42 +427,47 @@ async function fetchCollections(): Promise<ShopifyCollectionLaunch[]> {
   let cursor: string | null = null;
   const seenCollectionIds = new Set<string>();
 
-  while (hasNextPage && launches.length < 500) {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
-      },
-      body: JSON.stringify({
-        query: collectionsQuery,
-        variables: { first: 100, after: cursor },
-      }),
-      cache: "no-store",
-    });
+  try {
+    while (hasNextPage && launches.length < 500) {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
+        },
+        body: JSON.stringify({
+          query: collectionsQuery,
+          variables: { first: 100, after: cursor },
+        }),
+        cache: "no-store",
+      });
 
-    if (!response.ok) {
-      return launches;
-    }
-
-    const json = (await response.json()) as ShopifyCollectionsResponse;
-    const connection = json.data?.collections;
-    const nodes = connection?.edges?.map((edge) => edge.node) ?? [];
-
-    for (const node of nodes) {
-      if (seenCollectionIds.has(node.id)) {
-        continue;
+      if (!response.ok) {
+        return launches;
       }
 
-      seenCollectionIds.add(node.id);
-      launches.push(mapNodeToLaunch(node));
-    }
+      const json = (await response.json()) as ShopifyCollectionsResponse;
+      const connection = json.data?.collections;
+      const nodes = connection?.edges?.map((edge) => edge.node) ?? [];
 
-    hasNextPage = Boolean(connection?.pageInfo?.hasNextPage);
-    cursor = connection?.pageInfo?.endCursor ?? null;
-    if (!cursor) {
-      break;
+      for (const node of nodes) {
+        if (seenCollectionIds.has(node.id)) {
+          continue;
+        }
+
+        seenCollectionIds.add(node.id);
+        launches.push(mapNodeToLaunch(node));
+      }
+
+      hasNextPage = Boolean(connection?.pageInfo?.hasNextPage);
+      cursor = connection?.pageInfo?.endCursor ?? null;
+      if (!cursor) {
+        break;
+      }
     }
+  } catch (error) {
+    console.error("Shopify collections fetch failed", error);
+    return launches;
   }
 
   return launches;

@@ -57,7 +57,7 @@ function buildHomeCategories(products: GridProduct[]): HomeCategoryCard[] {
     if (!existing) {
       byCategory.set(categorySlug, {
         name: categoryName,
-        href: `/shop?category=${categorySlug}`,
+        href: `/shop/${encodeURIComponent(categorySlug)}`,
         img: product.img,
         count: 1,
       });

@@ -88,7 +88,7 @@ Required for this project:
 
 - `NODE_ENV=production`
 - `PORT` as provided by cPanel, if required by your host
-- `NEXT_PUBLIC_SITE_URL=https://firaang.com`
+- `NEXT_PUBLIC_SITE_URL=https://www.firaang.com`
 - `GOOGLE_CLIENT_ID`
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
 - `MONGODB_URI`

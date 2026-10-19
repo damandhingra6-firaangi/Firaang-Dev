@@ -318,7 +318,12 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   }, [analyticsItems, cartItems.length, cartSignature, displaySubtotalAmount, isOpen, mode, step]);
 
   const getProductDetailHref = (item: (typeof cartItems)[number]) => {
-    const routeKey = item.product.handle || item.product.parentId || item.product.id;
+    const routeKey = item.product.handle?.trim();
+
+    if (!routeKey) {
+      return "/shop";
+    }
+
     const params = new URLSearchParams();
 
     // Preserve chosen variant on PDP when cart item came from a variant selection.

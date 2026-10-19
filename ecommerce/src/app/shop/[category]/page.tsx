@@ -1,7 +1,9 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import JewelleryComingSoonGate from "@/components/JewelleryComingSoonGate";
 import ShopListing from "@/components/ShopListing";
+import { createPageMetadata } from "@/lib/seo";
 import { isJewellerySlug } from "@/lib/jewellery";
 import { getStorefrontProducts } from "@/lib/shopify";
 import { buildCategoryTree, slugify } from "@/lib/product-taxonomy";
@@ -14,6 +16,25 @@ type CategoryPageProps = {
 // Helper function to normalize slugs for comparison
 function normalizeSlug(slug: string): string {
   return slugify(slug);
+}
+
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+  const { category: categorySlug } = await params;
+
+  const storefrontProducts = await getStorefrontProducts(250, { detailLevel: "summary" });
+  const products = storefrontProducts;
+  const categoryTree = buildCategoryTree(products);
+  const normalizedCategorySlug = normalizeSlug(categorySlug);
+  const categoryNode = categoryTree.find((cat) => normalizeSlug(cat.slug) === normalizedCategorySlug);
+  const categoryName = categoryNode?.name ?? categorySlug;
+  const noIndex = isJewellerySlug(categorySlug);
+
+  return createPageMetadata({
+    title: `${categoryName} | Shop`,
+    description: `Browse ${categoryName.toLowerCase()} from Firaang.`,
+    path: `/shop/${encodeURIComponent(categorySlug)}`,
+    noIndex,
+  });
 }
 
 export default async function CategoryPage({

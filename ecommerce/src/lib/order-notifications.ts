@@ -1,4 +1,5 @@
 ﻿import { BRAND_LOGO_LIGHT, COMPANY_SOCIAL_LINKS, COMPANY_SUPPORT_EMAIL, COMPANY_SUPPORT_PHONE } from "@/lib/company";
+import { getSiteUrl } from "@/lib/site";
 
 type EmailPayload = {
   to: string | string[];
@@ -69,12 +70,7 @@ function escapeHtml(value: string | undefined) {
 }
 
 function resolveSiteUrl() {
-  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim() || process.env.APP_BASE_URL?.trim();
-  if (!fromEnv) {
-    return "https://firaang.com";
-  }
-
-  return fromEnv.replace(/\/$/, "");
+  return getSiteUrl();
 }
 
 function resolvePublicUrl(pathOrUrl: string | undefined, siteUrl: string) {

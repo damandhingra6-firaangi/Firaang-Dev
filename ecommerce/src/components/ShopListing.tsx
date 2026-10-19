@@ -257,11 +257,9 @@ export default function ShopListing({
     }
 
     urlSyncTimeoutRef.current = setTimeout(() => {
-      const isSeoPatternRoute = pathname !== "/shop";
-
-      if (isSeoPatternRoute && selectedCategory && selectedSubCategory) {
+      if (!initialCollection && selectedCategory) {
         const categorySlug = slugify(selectedCategory);
-        const subCategorySlug = slugify(selectedSubCategory);
+        const subCategorySlug = selectedSubCategory ? slugify(selectedSubCategory) : "";
 
         const params = new URLSearchParams();
         if (query.trim()) {
@@ -272,12 +270,28 @@ export default function ShopListing({
         }
 
         const queryString = params.toString();
-        const seoUrl = `/shop/${categorySlug}/${subCategorySlug}${queryString ? `?${queryString}` : ""}`;
+        const seoUrl = subCategorySlug
+          ? `/shop/${categorySlug}/${subCategorySlug}${queryString ? `?${queryString}` : ""}`
+          : `/shop/${categorySlug}${queryString ? `?${queryString}` : ""}`;
         router.replace(seoUrl, { scroll: false });
         return;
       }
 
-      if (!isSeoPatternRoute) {
+      if (!initialCollection && pathname !== "/shop") {
+        const params = new URLSearchParams();
+        if (query.trim()) {
+          params.set("q", query.trim());
+        }
+        if (selectedAudience) {
+          params.set("audience", selectedAudience);
+        }
+
+        const queryString = params.toString();
+        router.replace(queryString ? `/shop?${queryString}` : "/shop", { scroll: false });
+        return;
+      }
+
+      if (pathname === "/shop") {
         const params = new URLSearchParams();
 
         // Always preserve the section so dedicated sections (just-dropped, bestsellers,

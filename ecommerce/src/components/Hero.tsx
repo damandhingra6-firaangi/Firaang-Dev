@@ -81,7 +81,7 @@ const DEVOTIONAL_HERO_SLIDE: HeroSlide = {
   title: ["Wear your faith.", "Carry your devotion."],
   subtitle: "Thoughtfully designed spiritual expression, crafted in Firaang's premium visual language.",
   primaryCtaLabel: "SHOP COLLECTION",
-  primaryCtaHref: "/shop?category=t-shirts&subCategory=devotional",
+  primaryCtaHref: "/shop/t-shirts/devotional",
   contentClassName:
     "items-start justify-end pb-16 text-left sm:pb-20 md:justify-center md:pb-0 md:pl-8 lg:pl-14 xl:pl-20",
   titleClassName:

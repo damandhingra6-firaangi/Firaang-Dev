@@ -11,21 +11,17 @@ import { humanizeHandle } from "@/lib/text";
 import { getCollectionDisplayTitle } from "@/lib/shopify-collections";
 import { isJewellerySlug } from "@/lib/jewellery";
 
-export const metadata: Metadata = createPageMetadata({
-  title: "Shop",
-  description: "Browse Firaang collections, signature pieces, and new seasonal launches.",
-  path: "/shop",
-});
+type ShopSearchParams = {
+  q?: string;
+  category?: string;
+  subCategory?: string;
+  audience?: string;
+  collection?: string;
+  section?: string;
+};
 
 type ShopPageProps = {
-  searchParams?: Promise<{
-    q?: string;
-    category?: string;
-    subCategory?: string;
-    audience?: string;
-    collection?: string;
-    section?: string;
-  }>;
+  searchParams?: Promise<ShopSearchParams>;
 };
 
 type ShopProductsProps = {
@@ -36,6 +32,79 @@ type ShopProductsProps = {
   audience: string;
   section: ReturnType<typeof normalizeShopPromoSection>;
 };
+
+function buildShopTitle(params: ShopSearchParams) {
+  const collection = params.collection?.trim();
+  const category = params.category?.trim();
+  const subCategory = params.subCategory?.trim();
+  const section = normalizeShopPromoSection(params.section);
+
+  if (collection) {
+    return `${getCollectionDisplayTitle(collection) ?? humanizeHandle(collection)} | Shop`;
+  }
+
+  if (category && subCategory) {
+    return `${humanizeHandle(subCategory)} | ${humanizeHandle(category)}`;
+  }
+
+  if (category) {
+    return `${humanizeHandle(category)} | Shop`;
+  }
+
+  if (section !== "shop") {
+    return `${humanizeHandle(section)} | Shop`;
+  }
+
+  return "Shop";
+}
+
+function buildShopCanonicalPath(params: ShopSearchParams) {
+  const collection = params.collection?.trim();
+  const category = params.category?.trim();
+  const subCategory = params.subCategory?.trim();
+
+  if (collection) {
+    return `/shop?section=collections&collection=${encodeURIComponent(collection)}`;
+  }
+
+  if (category && subCategory) {
+    return `/shop/${encodeURIComponent(category)}/${encodeURIComponent(subCategory)}`;
+  }
+
+  if (category) {
+    return `/shop/${encodeURIComponent(category)}`;
+  }
+
+  return "/shop";
+}
+
+function shouldNoIndexShopPage(params: ShopSearchParams) {
+  if (isJewellerySlug(params.category) || isJewellerySlug(params.subCategory)) {
+    return true;
+  }
+
+  if (params.collection?.trim()) {
+    return false;
+  }
+
+  if (params.category?.trim() || params.subCategory?.trim()) {
+    return Boolean(params.q?.trim()) || normalizeShopPromoSection(params.section) !== "shop";
+  }
+
+  return Boolean(params.q?.trim()) || normalizeShopPromoSection(params.section) !== "shop";
+}
+
+export async function generateMetadata({ searchParams }: ShopPageProps): Promise<Metadata> {
+  const params = searchParams ? await searchParams : undefined;
+  const search = params ?? {};
+
+  return createPageMetadata({
+    title: buildShopTitle(search),
+    description: "Browse Firaang collections, signature pieces, and new seasonal launches.",
+    path: buildShopCanonicalPath(search),
+    noIndex: shouldNoIndexShopPage(search),
+  });
+}
 
 /**
  * Skeleton shown instantly while the Shopify API request is in-flight.

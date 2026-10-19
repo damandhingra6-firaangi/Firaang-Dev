@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Newsletter from "@/components/Newsletter";
 import ProductDetailsPage, { type ProductCardLite } from "@/components/ProductDetailsPage";
@@ -39,7 +39,16 @@ async function resolveProduct(handle: string) {
 
   const product = products.find((item) => item.handle?.toLowerCase() === decodedHandle.toLowerCase() || item.id === decodedHandle) ?? null;
 
-  return { product, products };
+  if (product) {
+    return { product, products, redirectedHandle: null as string | null };
+  }
+
+  const correctedHandle = decodedHandle.replace(/overssized/gi, "oversized");
+  const correctedProduct = correctedHandle !== decodedHandle
+    ? products.find((item) => item.handle?.toLowerCase() === correctedHandle.toLowerCase() || item.id === correctedHandle) ?? null
+    : null;
+
+  return { product: correctedProduct, products, redirectedHandle: correctedProduct ? correctedHandle : null };
 }
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
@@ -100,10 +109,15 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { handle } = await params;
-  const { product, products } = await resolveProduct(handle);
+  const { product, products, redirectedHandle } = await resolveProduct(handle);
 
   if (!product) {
     notFound();
+  }
+
+  if (redirectedHandle && redirectedHandle.toLowerCase() !== decodeURIComponent(handle).toLowerCase()) {
+    const canonicalPath = `/product/${encodeURIComponent(redirectedHandle)}`;
+    redirect(canonicalPath);
   }
 
   const siteUrl = getSiteUrl();

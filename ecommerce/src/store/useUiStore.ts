@@ -23,7 +23,7 @@ type UiState = {
   isFeedbackOpen: boolean;
   isAccountModalOpen: boolean;
   language: "EN" | "HI";
-  currency: "INR" | "USD" | "AED";
+  currency: "INR";
   toasts: ToastMessage[];
   openCart: () => void;
   closeCart: () => void;
@@ -38,7 +38,7 @@ type UiState = {
   openAccountModal: () => void;
   closeAccountModal: () => void;
   setLanguage: (language: "EN" | "HI") => void;
-  setCurrency: (currency: "INR" | "USD" | "AED") => void;
+  setCurrency: () => void;
   pushToast: (message: string, options?: ToastOptions | number) => void;
   dismissToast: (id: number) => void;
 };
@@ -66,7 +66,7 @@ export const useUiStore = create<UiState>((set) => ({
   openAccountModal: () => set({ isAccountModalOpen: true }),
   closeAccountModal: () => set({ isAccountModalOpen: false }),
   setLanguage: (language) => set({ language }),
-  setCurrency: (currency) => set({ currency }),
+  setCurrency: () => set({ currency: "INR" }),
   pushToast: (message, options) => {
     const normalizedOptions = typeof options === "number" ? { durationMs: options } : options ?? {};
     const durationMs = normalizedOptions.durationMs ?? 2200;
