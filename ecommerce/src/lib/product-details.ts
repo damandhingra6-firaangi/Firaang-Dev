@@ -1,5 +1,6 @@
 import { GridProduct } from "./catalog";
 import { COMPANY_MANUFACTURER_DETAILS } from "./company";
+import { normalizeProductDescriptionText } from "./product-description";
 import { deriveProductFit } from "./product-fit";
 
 export type ProductDetailSpec = {
@@ -263,7 +264,7 @@ function extractKeywordAttribute(key: ProductAttributeKey, values: string[]) {
 function collectRawAttributeValues(product: GridProduct) {
   const values = new Map<ProductAttributeKey, string>();
   const tagValues = (product.tags ?? []).map((tag) => cleanupExtractedValue(tag)).filter(Boolean);
-  const description = product.description ?? "";
+  const description = normalizeProductDescriptionText(product.description ?? "");
 
   for (const tag of tagValues) {
     extractExplicitAttributes(tag, values);

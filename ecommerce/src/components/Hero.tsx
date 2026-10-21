@@ -164,19 +164,7 @@ function getFestivalSlideOverrides(collection: ShopifyCollectionLaunch): Partial
   const lowered = `${collection.title} ${collection.handle}`.toLowerCase();
 
   if (lowered.includes("ganesh")) {
-    return {
-      eyebrow: "✨ GANESH CHATURTHI SPECIAL",
-      title: ["Ganesh Chaturthi", "Special"],
-      subtitle:
-        "Celebrate the festive spirit of Ganesh Chaturthi with expressive graphic essentials inspired by devotion, color, and celebration.",
-      primaryCtaLabel: "EXPLORE COLLECTION",
-      overlayClassName:
-        "bg-[radial-gradient(circle_at_16%_24%,rgba(249,190,69,0.18)_0%,rgba(249,190,69,0)_38%),radial-gradient(circle_at_84%_18%,rgba(237,107,52,0.16)_0%,rgba(237,107,52,0)_38%),linear-gradient(110deg,rgba(15,10,8,0.66)_0%,rgba(31,16,12,0.56)_36%,rgba(16,16,12,0.48)_100%)]",
-      imageClassName: "object-[50%_22%] lg:object-[50%_24%] xl:object-[50%_26%]",
-      mobileImageClassName: "object-[50%_18%]",
-      subtitleClassName: "max-w-[320px] text-[13px] leading-[1.5] sm:max-w-[380px] md:max-w-[460px]",
-      actionsClassName: "mt-5 md:mt-7",
-    };
+    return null;
   }
 
   return null;
@@ -236,11 +224,15 @@ function mapFeaturedCollectionToSlide(collection: ShopifyCollectionLaunch): Hero
 
 export default function Hero({ featuredCollections = [], storyBannerItems = [] }: HeroProps) {
   const storySlide = useMemo(() => buildStoryHeroSlide(storyBannerItems), [storyBannerItems]);
+  const filteredFeaturedCollections = useMemo(
+    () => featuredCollections.filter((collection) => !`${collection.title} ${collection.handle}`.toLowerCase().includes("ganesh")),
+    [featuredCollections],
+  );
   const slides = useMemo(
-    () => [ROCKSTAR_HERO_SLIDE, BASE_HERO_SLIDE, storySlide, WELCOME_COUPON_HERO_SLIDE, DEVOTIONAL_HERO_SLIDE, ...featuredCollections.map(mapFeaturedCollectionToSlide)].filter(
+    () => [ROCKSTAR_HERO_SLIDE, BASE_HERO_SLIDE, storySlide, WELCOME_COUPON_HERO_SLIDE, DEVOTIONAL_HERO_SLIDE, ...filteredFeaturedCollections.map(mapFeaturedCollectionToSlide)].filter(
       (slide): slide is HeroSlide => Boolean(slide),
     ),
-    [featuredCollections, storySlide],
+    [filteredFeaturedCollections, storySlide],
   );
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);

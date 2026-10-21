@@ -78,6 +78,11 @@ function CollectionBadgePill({
   );
 }
 
+function isGaneshCollection(collection: NavCollectionItem) {
+  const value = `${collection.handle} ${collection.title}`.toLowerCase();
+  return value.includes("ganesh");
+}
+
 // ── Single item in the COLLECTIONS dropdown ───────────────────────
 function DropdownCollectionItem({
   collection,
@@ -88,7 +93,7 @@ function DropdownCollectionItem({
 }) {
   const isSeasonal = collection.badgeType === "seasonal";
   const isFeatured = collection.isFeatured;
-  const showBadge = collection.badge !== null || isFeatured;
+  const showBadge = !isGaneshCollection(collection) && (collection.badge !== null || isFeatured);
 
   return (
     <Link
@@ -531,7 +536,7 @@ export default function NavbarClient({
                               </Link>
                             ) : null}
                           </div>
-                          {primaryCollection && (primaryCollection.badge || primaryCollection.isFeatured) ? (
+                          {primaryCollection && !isGaneshCollection(primaryCollection) && (primaryCollection.badge || primaryCollection.isFeatured) ? (
                             <CollectionBadgePill badge={primaryCollection.badge} badgeType={primaryCollection.badgeType} />
                           ) : null}
                         </div>
@@ -889,7 +894,7 @@ export default function NavbarClient({
                           ) : null}
                           {item.title}
                         </span>
-                        {item.badge || item.isFeatured ? (
+                        {!isGaneshCollection(item) && (item.badge || item.isFeatured) ? (
                           <CollectionBadgePill badge={item.badge} badgeType={item.badgeType} />
                         ) : null}
                       </Link>

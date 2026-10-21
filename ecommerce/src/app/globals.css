@@ -105,7 +105,7 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-playfair), serif;
+  font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
 .section-shell {

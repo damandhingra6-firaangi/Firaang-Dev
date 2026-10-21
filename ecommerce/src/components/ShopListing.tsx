@@ -8,6 +8,7 @@ import { mapProductToAnalyticsItem, trackVendorItemListView, trackVendorSelectIt
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { getDisplayPricing } from "@/lib/pricing-display";
+import { getProductDescriptionSummary, normalizeProductDescriptionText } from "@/lib/product-description";
 import { buildCategoryTree, matchesAudienceFilter, slugify } from "@/lib/product-taxonomy";
 import { isExcludedFromCuratedShopSections, isOversizedContext } from "@/lib/shop-section-exclusions";
 import SafeImage from "@/components/SafeImage";
@@ -460,7 +461,7 @@ export default function ShopListing({
       const searchMatch =
         !normalized ||
         product.name.toLowerCase().includes(normalized) ||
-        product.description.toLowerCase().includes(normalized);
+        normalizeProductDescriptionText(product.description).toLowerCase().includes(normalized);
 
       const audienceMatch = matchesAudienceFilter(product.audienceSlug ?? product.audience, normalizedAudience);
       const brandMatch = selectedBrands.length === 0 || selectedBrands.includes(product.brand);
@@ -1041,7 +1042,9 @@ export default function ShopListing({
                   <div className="space-y-2 p-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#8a8e9b]">{product.brand}</p>
                     <h3 className="line-clamp-1 text-sm font-semibold text-[#282c3f]">{product.name}</h3>
-                    <p className="line-clamp-1 text-xs text-[#6c6f7d]">{product.description}</p>
+                    <p className="line-clamp-1 text-xs text-[#6c6f7d]">
+                      {getProductDescriptionSummary(product.description) ?? normalizeProductDescriptionText(product.description)}
+                    </p>
 
                     <div className="flex items-end gap-2">
                       <p className="text-base font-semibold text-[#282c3f]">

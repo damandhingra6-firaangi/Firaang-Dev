@@ -6,6 +6,7 @@ import { Search, X } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
+import { normalizeProductDescriptionText } from "@/lib/product-description";
 import { useUiStore } from "@/store/useUiStore";
 
 type HeaderSearchPanelProps = {
@@ -63,7 +64,7 @@ export default function HeaderSearchPanel({ isOpen, onClose }: HeaderSearchPanel
       .filter((product) => {
         return (
           product.name.toLowerCase().includes(normalized) ||
-          product.description.toLowerCase().includes(normalized)
+          normalizeProductDescriptionText(product.description).toLowerCase().includes(normalized)
         );
       })
       .slice(0, 8);

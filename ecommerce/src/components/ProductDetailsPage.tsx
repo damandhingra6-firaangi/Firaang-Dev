@@ -37,6 +37,7 @@ import { CUSTOM_DESIGN_SURCHARGE_INR, GridProduct } from "@/lib/catalog";
 import { isSignatureProduct } from "@/lib/design-inquiry";
 import { convertAmount, formatCurrency } from "@/lib/currency";
 import { buildProductDetailSpecs } from "@/lib/product-details";
+import { formatProductDescriptionBlocks, getProductDescriptionSummary, normalizeProductDescriptionText } from "@/lib/product-description";
 import { getDisplayPricing } from "@/lib/pricing-display";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useAccountStore } from "@/store/useAccountStore";
@@ -224,7 +225,7 @@ function getBrand(product: GridProduct) {
 }
 
 function getSubtitle(product: GridProduct) {
-  return product.subCategory ?? product.description.split(".")[0] ?? "Signature everyday styling";
+  return product.subCategory ?? getProductDescriptionSummary(product.description) ?? "Signature everyday styling";
 }
 
 function getShippingEstimate(daysFromNow: number) {
@@ -473,6 +474,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   const displayOldPrice = displayPricing.compareAtAmount
     ? formatCurrency(convertAmount(displayPricing.compareAtAmount, "INR", displayCurrency), displayCurrency)
     : null;
+  const descriptionBlocks = useMemo(() => formatProductDescriptionBlocks(product.description ?? ""), [product.description]);
 
   useEffect(() => {
     const initialVariant = variants.find((variant) => variant.availableForSale) ?? variants[0] ?? null;
@@ -1094,7 +1096,27 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
 
           <div className="hidden lg:block space-y-6">
             <SectionShell title="Product Description" subtitle="A richer look at the fit, finish, and styling context.">
-              <p className="max-w-3xl text-sm leading-7 text-[#4f4641] break-words">{product.description}</p>
+              <div className="space-y-3 text-sm leading-7 text-[#4f4641] break-words">
+                {descriptionBlocks.length > 0 ? (
+                  descriptionBlocks.map((block, index) =>
+                    block.type === "label" ? (
+                      <p key={`${block.label}-${index}`}>
+                        <span className="font-semibold text-[var(--page-fg)]">{block.label}: </span>
+                        {block.text}
+                      </p>
+                    ) : block.type === "bullet" ? (
+                      <p key={`bullet-${index}`} className="flex gap-2">
+                        <span aria-hidden="true" className="mt-0.5 text-[var(--secondary)]">•</span>
+                        <span>{block.text}</span>
+                      </p>
+                    ) : (
+                      <p key={`text-${index}`}>{block.text}</p>
+                    ),
+                  )
+                ) : (
+                  <p>{normalizeProductDescriptionText(product.description)}</p>
+                )}
+              </div>
             </SectionShell>
 
             <SectionShell title="Ratings & Reviews" subtitle="Average rating, distribution, and customer opinions.">
@@ -1415,7 +1437,27 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
           </div>
 
           <SectionShell title="Product Description" subtitle="A richer look at the fit, finish, and styling context.">
-            <p className="max-w-3xl text-sm leading-7 text-[#4f4641] break-words">{product.description}</p>
+            <div className="space-y-3 text-sm leading-7 text-[#4f4641] break-words">
+              {descriptionBlocks.length > 0 ? (
+                descriptionBlocks.map((block, index) =>
+                  block.type === "label" ? (
+                    <p key={`${block.label}-${index}`}>
+                      <span className="font-semibold text-[var(--page-fg)]">{block.label}: </span>
+                      {block.text}
+                    </p>
+                  ) : block.type === "bullet" ? (
+                    <p key={`bullet-${index}`} className="flex gap-2">
+                      <span aria-hidden="true" className="mt-0.5 text-[var(--secondary)]">•</span>
+                      <span>{block.text}</span>
+                    </p>
+                  ) : (
+                    <p key={`text-${index}`}>{block.text}</p>
+                  ),
+                )
+              ) : (
+                <p>{normalizeProductDescriptionText(product.description)}</p>
+              )}
+            </div>
           </SectionShell>
 
           <SectionShell title="Ratings & Reviews" subtitle="Average rating, distribution, and customer opinions.">

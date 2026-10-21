@@ -5,6 +5,7 @@ import Newsletter from "@/components/Newsletter";
 import ProductDetailsPage, { type ProductCardLite } from "@/components/ProductDetailsPage";
 import type { GridProduct } from "@/lib/catalog";
 import { getCatalogProducts } from "@/lib/products";
+import { getProductDescriptionSummary } from "@/lib/product-description";
 import { SITE_NAME, getSiteUrl } from "@/lib/site";
 import { buildBreadcrumbSchema, buildProductSchema } from "@/lib/structured-data";
 
@@ -70,7 +71,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     ? `/product/${encodeURIComponent(canonicalHandle)}`
     : `/product/${encodeURIComponent(handle)}`;
 
-  const normalizedDescription = product.description?.trim() || `Shop ${product.name} from ${SITE_NAME}.`;
+  const normalizedDescription = getProductDescriptionSummary(product.description ?? "") || `Shop ${product.name} from ${SITE_NAME}.`;
   const description = normalizedDescription.slice(0, 160);
   const isIndexableProduct = Boolean(canonicalHandle);
 

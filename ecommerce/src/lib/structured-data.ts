@@ -1,4 +1,5 @@
 import { GridProduct } from "@/lib/catalog";
+import { normalizeProductDescriptionText } from "@/lib/product-description";
 import { SITE_DESCRIPTION, SITE_NAME, getSiteUrl, toAbsoluteUrl } from "@/lib/site";
 
 type BreadcrumbItem = {
@@ -67,14 +68,13 @@ export function buildProductSchema(product: GridProduct, productUrl: string) {
     "@type": "Product",
     "@id": `${productUrl}#product`,
     name: product.name,
-    description: product.description,
+    description: normalizeProductDescriptionText(product.description ?? "") || product.description,
     image: images,
     url: productUrl,
     brand: {
       "@type": "Brand",
       name: SITE_NAME,
     },
-    sku: product.handle || product.id,
     offers: {
       "@type": "Offer",
       priceCurrency: product.currencyCode || "INR",
@@ -84,6 +84,28 @@ export function buildProductSchema(product: GridProduct, productUrl: string) {
         : "https://schema.org/OutOfStock",
       url: productUrl,
       itemCondition: "https://schema.org/NewCondition",
+      shippingDetails: {
+        "@type": "OfferShippingDetails",
+        applicableRegion: "IN",
+        deliveryTime: {
+          "@type": "ShippingDeliveryTime",
+          handlingTime: {
+            "@type": "QuantitativeValue",
+            minValue: 2,
+            maxValue: 7,
+            unitCode: "DAY",
+          },
+        },
+      },
+      hasMerchantReturnPolicy: {
+        "@type": "MerchantReturnPolicy",
+        applicableCountry: "IN",
+        returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+        merchantReturnDays: 5,
+        returnMethod: "https://schema.org/ReturnByMail",
+        returnFees: "https://schema.org/ReturnShippingFeesCustomerPays",
+        description: "Made-to-order items are eligible for a replacement or refund only when damaged, defective, or incorrect. Please raise your request within 5 days of delivery.",
+      },
     },
   };
 }

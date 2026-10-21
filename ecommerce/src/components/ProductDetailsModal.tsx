@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { getDisplayPricing } from "@/lib/pricing-display";
+import { formatProductDescriptionBlocks, normalizeProductDescriptionText } from "@/lib/product-description";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Minus, Play, Plus, ShoppingBag, Sparkles, X } from "lucide-react";
 import { getConfiguredSizeChart } from "@/lib/size-charts";
 import SafeImage from "@/components/SafeImage";
@@ -86,63 +87,8 @@ function getSwatchColor(value: string) {
   return preset[normalized] ?? "#8c8c8c";
 }
 
-const DESCRIPTION_SECTION_LABELS = [
-  "Product Story",
-  "Fabric & Feel",
-  "Design Essence",
-  "Fit & Finish",
-  "Care Instructions",
-  "Wash Care",
-  "Style Tip",
-  "Occasion",
-  "Sanskrit Mantra",
-] as const;
-
-const DESCRIPTION_SECTION_SET = new Set(
-  DESCRIPTION_SECTION_LABELS.map((label) => label.toLowerCase())
-);
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function formatDescriptionBlocks(description: string) {
-  let normalized = description.replace(/\r\n/g, "\n").trim();
-
-  if (!normalized) {
-    return [] as Array<{ label?: string; text: string }>;
-  }
-
-  normalized = normalized
-    .replace(/\s+/g, " ")
-    .replace(/([.!?])([A-Z])/g, "$1 $2")
-    .replace(/([a-z])([A-Z][a-z])/g, "$1 $2");
-
-  for (const label of DESCRIPTION_SECTION_LABELS) {
-    const matcher = new RegExp(`\\s*${escapeRegExp(label)}\\s*:?\\s*`, "gi");
-    normalized = normalized.replace(matcher, `\n${label}: `);
-  }
-
-  return normalized
-    .split(/\n+/)
-    .map((segment) => segment.trim())
-    .filter(Boolean)
-    .map((segment) => {
-      const headingMatch = segment.match(/^([^:]{3,30}):\s*(.+)$/);
-
-      if (!headingMatch) {
-        return { text: segment };
-      }
-
-      const label = headingMatch[1].trim();
-      const text = headingMatch[2].trim();
-
-      if (!DESCRIPTION_SECTION_SET.has(label.toLowerCase()) || !text) {
-        return { text: segment };
-      }
-
-      return { label, text };
-    });
+  return formatProductDescriptionBlocks(description);
 }
 
 function getTouchDistance(
@@ -903,12 +849,27 @@ export default function ProductDetailsModal({
                 </div>
 
                 <div className="space-y-3 text-[15px] leading-7 text-[var(--popup-subtext)]">
-              {descriptionBlocks.map((block, index) => (
-                <p key={`${block.label ?? "text"}-${index}`} className="text-pretty">
-                  {block.label ? <span className="font-semibold text-[var(--popup-footer-text)]">{block.label}: </span> : null}
-                  {block.text}
-                </p>
-              ))}
+                  {descriptionBlocks.length > 0 ? (
+                    descriptionBlocks.map((block, index) =>
+                      block.type === "label" ? (
+                        <p key={`${block.label}-${index}`} className="text-pretty">
+                          <span className="font-semibold text-[var(--popup-footer-text)]">{block.label}: </span>
+                          {block.text}
+                        </p>
+                      ) : block.type === "bullet" ? (
+                        <p key={`bullet-${index}`} className="flex gap-2 text-pretty">
+                          <span aria-hidden="true" className="mt-0.5 text-[var(--gold)]">•</span>
+                          <span>{block.text}</span>
+                        </p>
+                      ) : (
+                        <p key={`text-${index}`} className="text-pretty">
+                          {block.text}
+                        </p>
+                      ),
+                    )
+                  ) : (
+                    <p className="text-pretty">{normalizeProductDescriptionText(product?.description ?? "")}</p>
+                  )}
                 </div>
               </div>
 
