@@ -146,7 +146,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     { name: product.name, url: productUrl },
   ];
 
-  const productSchema = buildProductSchema(product, productUrl);
+  const productSchema = await buildProductSchema(product, productUrl);
   const breadcrumbSchema = buildBreadcrumbSchema(breadcrumbItems);
 
   return (

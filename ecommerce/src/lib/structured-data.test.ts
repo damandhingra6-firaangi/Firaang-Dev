@@ -3,7 +3,7 @@ import type { GridProduct } from "./catalog";
 import { buildProductSchema } from "./structured-data";
 
 describe("product structured data", () => {
-  it("omits product sku when no real Shopify SKU is available and includes valid merchant and shipping policy details", () => {
+  it("omits product sku when no real Shopify SKU is available and includes valid merchant and shipping policy details", async () => {
     const product: GridProduct = {
       id: "gid://shopify/Product/123456789012345",
       handle: "rose-gold-rimmed-sculpted-glass-tote",
@@ -29,9 +29,15 @@ describe("product structured data", () => {
       ],
     };
 
-    const schema = buildProductSchema(product, "https://firaang.com/product/rose-gold-rimmed-sculpted-glass-tote");
+    const schema = await buildProductSchema(product, "https://firaang.com/product/rose-gold-rimmed-sculpted-glass-tote");
 
     expect(schema).not.toHaveProperty("sku");
+    expect(schema.aggregateRating).toMatchObject({
+      "@type": "AggregateRating",
+      ratingValue: expect.any(Number),
+      reviewCount: expect.any(Number),
+    });
+    expect(Array.isArray(schema.review)).toBe(true);
     expect(schema.offers).toMatchObject({
       "@type": "Offer",
       priceCurrency: "INR",
@@ -41,6 +47,21 @@ describe("product structured data", () => {
     expect(schema.offers.shippingDetails).toMatchObject({
       "@type": "OfferShippingDetails",
       applicableRegion: "IN",
+      shippingDestination: {
+        "@type": "DefinedRegion",
+        addressCountry: "IN",
+      },
+      shippingRate: {
+        "@type": "MonetaryAmount",
+        currency: "INR",
+      },
+      deliveryTime: {
+        "@type": "ShippingDeliveryTime",
+        transitTime: {
+          "@type": "QuantitativeValue",
+          unitCode: "DAY",
+        },
+      },
     });
     expect(schema.offers.hasMerchantReturnPolicy).toMatchObject({
       "@type": "MerchantReturnPolicy",
@@ -48,5 +69,6 @@ describe("product structured data", () => {
       merchantReturnDays: 5,
       returnMethod: "https://schema.org/ReturnByMail",
     });
+    expect(schema.offers.hasMerchantReturnPolicy).not.toHaveProperty("returnFees");
   });
 });
