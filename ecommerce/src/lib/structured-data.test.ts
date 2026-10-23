@@ -68,7 +68,7 @@ describe("product structured data", () => {
       applicableCountry: "IN",
       merchantReturnDays: 5,
       returnMethod: "https://schema.org/ReturnByMail",
+      returnFees: "https://schema.org/ReturnShippingFees",
     });
-    expect(schema.offers.hasMerchantReturnPolicy).not.toHaveProperty("returnFees");
   });
 });
