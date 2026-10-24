@@ -11,9 +11,40 @@ $distRoot = Join-Path $projectRoot "dist"
 $packageRoot = Join-Path $distRoot "cpanel"
 $archivePath = Join-Path $distRoot "cpanel-deploy.zip"
 
+function Stop-StandaloneNextServer {
+  $nodeProcesses = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.Name -match 'node' -and
+      $_.CommandLine -match 'standalone[\\/ ]server\.js|next\s+(start|dev)'
+    }
+
+  foreach ($process in $nodeProcesses) {
+    try {
+      Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop
+      Write-Host "Stopped stale Next.js process: $($process.ProcessId)"
+    } catch {
+      Write-Warning "Unable to stop Next.js process $($process.ProcessId): $($_.Exception.Message)"
+    }
+  }
+}
+
 # Always package from a fresh production build to avoid stale .next artifacts.
+Stop-StandaloneNextServer
+
 if (Test-Path $nextRoot) {
-  Remove-Item $nextRoot -Recurse -Force
+  $retries = 0
+  while ($retries -lt 5) {
+    try {
+      Remove-Item $nextRoot -Recurse -Force
+      break
+    } catch {
+      $retries++
+      if ($retries -ge 5) {
+        throw
+      }
+      Start-Sleep -Seconds 1
+    }
+  }
 }
 
 Push-Location $projectRoot
@@ -96,6 +127,10 @@ if (Test-Path $publicRoot) {
     "hero.jpg",
     "Home Page Banner.png",
     "HomePageBannerDevotional.jpg",
+    "home-hero-banner.webp",
+    "home-hero-banner-mobile.webp",
+    "homepage-rockstar-banner.webp",
+    "homepage-rockstar-banner-mobile.webp",
     "icon_v001.svg",
     "India.svg",
     "Mobile view_02.png",
@@ -167,6 +202,18 @@ echo "Permissions normalized for .next, public, server.js, and app.js"
 '@
 
 Set-Content -Path $permissionsScriptPath -Value $permissionsScript -Encoding utf8
+
+$nodeModulesDirs = @(
+  (Join-Path $packageRoot "node_modules"),
+  (Join-Path $packageRoot ".next\node_modules")
+)
+
+foreach ($nodeModulesDir in $nodeModulesDirs) {
+  if (Test-Path $nodeModulesDir) {
+    Remove-Item $nodeModulesDir -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Host "Removed packaged node_modules directory: $nodeModulesDir"
+  }
+}
 
 $archiveItems = Get-ChildItem -Path $packageRoot -Force | ForEach-Object { $_.FullName }
 if (-not $archiveItems -or $archiveItems.Count -eq 0) {

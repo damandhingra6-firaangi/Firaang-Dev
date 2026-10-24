@@ -76,6 +76,9 @@ export default function Category({ categories }: CategoryProps) {
                 <SafeImage
                   src={category.img}
                   alt={category.name}
+                  width={640}
+                  height={820}
+                  sizes="(max-width: 768px) 90vw, (max-width: 1280px) 38vw, 24vw"
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 />
 

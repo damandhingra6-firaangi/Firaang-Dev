@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& { ./scripts/clear-stale-next-build.ps1; next build; node ./scripts/prepare-standalone-assets.mjs }\"",
     "check:mongodb": "node ./scripts/mongodb-check.mjs",
     "generate:favicons": "node ./scripts/generate-favicons.mjs",
     "package:cpanel": "powershell -ExecutionPolicy Bypass -File ./scripts/package-cpanel.ps1",

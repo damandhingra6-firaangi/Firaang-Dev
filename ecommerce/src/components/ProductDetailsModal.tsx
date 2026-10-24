@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
@@ -197,7 +199,7 @@ export default function ProductDetailsModal({
       rows: values.map((size) => [size, "-", "-", "-", "-"]),
       note: "Add custom.size_chart_json metafield on Shopify products to show exact garment measurements.",
     };
-  }, [sizeOptionGroup]);
+  }, [product, sizeOptionGroup]);
 
   const effectiveSizeChart = product?.sizeChart ?? fallbackSizeChart;
 

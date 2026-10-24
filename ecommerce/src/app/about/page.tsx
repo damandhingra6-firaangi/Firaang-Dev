@@ -16,7 +16,7 @@ const valuePillars = [
   {
     title: "Global Inspiration",
     description:
-      "Inspired by global streets, art, and culture—our designs bring a fresh, modern perspective to everyday style.",
+      "Inspired by global streets, art, and culture - our designs bring a fresh, modern perspective to everyday style.",
   },
   {
     title: "Crafted Quality",
@@ -26,7 +26,7 @@ const valuePillars = [
   {
     title: "Limited-Edit Mindset",
     description:
-      "We release thoughtfully designed pieces in limited edits — so every drop feels fresh, relevant, and unique.",
+      "We release thoughtfully designed pieces in limited edits - so every drop feels fresh, relevant, and unique.",
   },
 ];
 
@@ -60,7 +60,7 @@ export default function AboutPage() {
             A modern Indian label with a global fashion lens.
           </h1>
           <p className="mt-5 max-w-3xl text-sm leading-7 text-[var(--popup-subtext)] md:text-base">
-            Firaang brings bold, expressive designs to everyday wear — crafted for comfort, styled for everyone.
+            Firaang brings bold, expressive designs to everyday wear - crafted for comfort, styled for everyone.
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">

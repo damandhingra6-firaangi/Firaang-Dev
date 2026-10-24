@@ -44,6 +44,9 @@ export default function ProductCard({
         <SafeImage
           src={image}
           alt={title}
+          width={600}
+          height={760}
+          sizes="(max-width: 768px) 100vw, (max-width: 1280px) 33vw, 20vw"
           className="h-[176px] w-full object-cover object-top transition duration-500 group-hover:scale-[1.03] sm:h-[210px] md:h-[226px] lg:h-[238px]"
         />
         <div

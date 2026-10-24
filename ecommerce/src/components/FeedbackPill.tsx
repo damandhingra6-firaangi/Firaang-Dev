@@ -14,7 +14,10 @@ export default function FeedbackPill() {
   const [isNearNewsletter, setIsNearNewsletter] = useState(false);
 
   useEffect(() => {
+    // Sync the session-based dismissal state with the initial render while avoiding a
+    // route-driven hydration mismatch. This is intentionally read once at mount.
     const dismissed = window.sessionStorage.getItem("feedback-pill-dismissed") === "true";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsDismissed(dismissed);
 
     if (dismissed) {

@@ -439,7 +439,10 @@ async function fetchCollections(): Promise<ShopifyCollectionLaunch[]> {
           query: collectionsQuery,
           variables: { first: 100, after: cursor },
         }),
-        cache: "no-store",
+        cache: "force-cache",
+        next: {
+          revalidate: revalidateSeconds,
+        },
       });
 
       if (!response.ok) {

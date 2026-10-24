@@ -998,7 +998,10 @@ export async function getStorefrontProducts(limit = 10, options: StorefrontFetch
           "Content-Type": "application/json",
           "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
         },
-        cache: options.cacheMode ?? "no-store",
+        cache: options.cacheMode ?? "force-cache",
+        next: {
+          revalidate: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
+        },
         body: JSON.stringify({
           query,
           variables: { first: Math.min(pageSize, safeLimit - productEdges.length), after: cursor },
@@ -1228,7 +1231,10 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
           },
         }),
         signal: controller.signal,
-        cache: "no-store",
+        cache: "force-cache",
+        next: {
+          revalidate: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
+        },
       });
 
       if (!response.ok) {

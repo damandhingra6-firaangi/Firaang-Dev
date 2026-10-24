@@ -86,9 +86,9 @@ export function createSafeProductResponse(product: GridProduct) {
 /**
  * Sanitize order data to not expose Shopify order IDs
  */
-export function sanitizeOrderData(order: any) {
+export function sanitizeOrderData(order: Record<string, unknown> | null | undefined) {
   if (!order) return order;
-  const sanitized = { ...order };
+  const sanitized: Record<string, unknown> = { ...order };
   // Keep shopifyOrderId in internal fields but mark as non-display
   // When returning to customer-facing frontend, use orderId instead
   return sanitized;
@@ -98,23 +98,23 @@ export function sanitizeOrderData(order: any) {
  * Strip Shopify internal identifiers from an object
  * Recursively searches for GID patterns and removes them
  */
-export function stripShopifyIds(obj: any): any {
+export function stripShopifyIds<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj;
 
   if (typeof obj === "string") {
     if (isShopifyGid(obj)) {
-      return ""; // Hide the Shopify GID
+      return "" as T;
     }
     return obj;
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(stripShopifyIds);
+    return obj.map((value) => stripShopifyIds(value)) as T;
   }
 
   if (typeof obj === "object") {
-    const stripped: any = {};
-    for (const [key, value] of Object.entries(obj)) {
+    const stripped: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
       // Don't expose fields that are Shopify internal IDs
       if (key.includes("shopifyId") || key.includes("gid")) {
         // Keep them but mark as internal - don't expose in responses
@@ -122,7 +122,7 @@ export function stripShopifyIds(obj: any): any {
       }
       stripped[key] = stripShopifyIds(value);
     }
-    return stripped;
+    return stripped as T;
   }
 
   return obj;

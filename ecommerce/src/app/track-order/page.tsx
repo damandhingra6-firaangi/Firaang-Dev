@@ -137,7 +137,7 @@ export default function TrackOrderPage() {
               <PackageSearch className="mx-auto mb-4 h-12 w-12 text-[var(--gold)]/60" />
               <h2 className="text-2xl text-[var(--popup-footer-text)]">Order Not Found</h2>
               <p className="mt-3 text-sm leading-7 text-[var(--popup-subtext)]">
-                {lookupError} We couldn't find order <span className="font-semibold text-[var(--gold)]">{orderId}</span> linked to that email.
+                {lookupError} We could not find order <span className="font-semibold text-[var(--gold)]">{orderId}</span> linked to that email.
                 Please double-check your order confirmation email or contact support.
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
