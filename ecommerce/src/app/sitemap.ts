@@ -3,7 +3,7 @@ import { getStorefrontProducts } from "@/lib/shopify";
 import { buildCategoryTree } from "@/lib/product-taxonomy";
 import { getSiteUrl } from "@/lib/site";
 
-const STATIC_ROUTES = ["/", "/about", "/contact", "/shop", "/privacy-policy", "/pod-policy", "/size-guide", "/track-order"];
+const STATIC_ROUTES = ["/", "/about", "/contact", "/shop", "/privacy-policy", "/shipping-policy", "/terms-and-conditions", "/pod-policy", "/size-guide", "/track-order"];
 type SitemapEntry = MetadataRoute.Sitemap[number];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

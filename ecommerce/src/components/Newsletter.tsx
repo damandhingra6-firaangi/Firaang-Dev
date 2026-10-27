@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import type { InstagramShowcaseItem } from "@/lib/instagram-showcase";
@@ -13,8 +12,6 @@ import {
   COMPANY_SUPPORT_PHONE,
   COMPANY_SUPPORT_PHONE_TEL,
 } from "@/lib/company";
-import { newsletterSchema } from "@/lib/newsletter";
-import { useUiStore } from "@/store/useUiStore";
 
 const socialLinks = [
   { label: "Instagram", href: COMPANY_SOCIAL_LINKS.instagram },
@@ -73,59 +70,6 @@ function FooterSocialBadge({ label, href }: { label: string; href: string }) {
 }
 
 export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterProps) {
-  const [email, setEmail] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const pushToast = useUiStore((state) => state.pushToast);
-  const isMountedRef = useRef(false);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  const handleSubscribe = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const parsed = newsletterSchema.safeParse({ email });
-    if (!parsed.success) {
-      const firstError = parsed.error.issues[0]?.message ?? "Please enter a valid email";
-      pushToast(firstError, { variant: "warning" });
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetch("/api/newsletter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
-      });
-
-      const payload = (await response.json().catch(() => ({}))) as { duplicate?: boolean; error?: string };
-
-      if (!response.ok) {
-        pushToast(payload.error ?? "Could not subscribe right now", { variant: "error" });
-        return;
-      }
-
-      if (payload.duplicate) {
-        pushToast("You are already subscribed.", { variant: "info" });
-      } else {
-        pushToast("Subscribed successfully. Welcome to the club!", { variant: "success" });
-      }
-
-      if (isMountedRef.current) setEmail("");
-    } catch (error) {
-      console.error("Newsletter subscription failed", error);
-      pushToast("Could not subscribe right now", { variant: "error" });
-    } finally {
-      if (isMountedRef.current) setIsSubmitting(false);
-    }
-  };
-
   return (
     <>
       {/* <section data-newsletter-section className="bg-[var(--newsletter-bg)] py-14 md:py-16">
@@ -308,9 +252,10 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
               <p className="mb-4 text-[14px] font-semibold text-white">Support</p>
               <ul className="space-y-2 text-[12px] leading-6 text-white/70">
                 <li><Link href="/contact" className="transition hover:text-white">Contact</Link></li>
-                <li><Link href="/track-order" className="transition hover:text-white">Shipping</Link></li>
+                <li><Link href="/shipping-policy" className="transition hover:text-white">Shipping</Link></li>
                 <li><Link href="/pod-policy" className="transition hover:text-white">Returns</Link></li>
-                <li><Link href="/contact" className="transition hover:text-white">FAQs</Link></li>
+                <li><Link href="/privacy-policy" className="transition hover:text-white">Privacy Policy</Link></li>
+                <li><Link href="/terms-and-conditions" className="transition hover:text-white">Terms & Conditions</Link></li>
                 <li><Link href="/size-guide" className="transition hover:text-white">Size Guide</Link></li>
               </ul>
             </div>

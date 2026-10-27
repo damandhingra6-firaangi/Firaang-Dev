@@ -22,7 +22,6 @@ import {
   Ruler,
   Send,
   Share2,
-  ShieldCheck,
   ShoppingBag,
   Sparkles,
   Star,
@@ -151,13 +150,6 @@ function normalizeSizeLabel(value: string) {
   if (normalized === "2XL") return "XXL";
   if (normalized === "3XL") return "XXXL";
   return normalized;
-}
-
-function toTitleCase(value: string) {
-  return value
-    .split(" ")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(" ");
 }
 
 function getSwatchColor(value: string) {

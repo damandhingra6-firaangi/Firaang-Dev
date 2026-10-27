@@ -19,8 +19,6 @@ const DesignIdeaForm = dynamic(() => import("@/components/DesignIdeaForm"), {
   ssr: false,
 });
 
-type Tab = "studio" | "idea";
-
 type Props = {
   productName?: string;
   productId?: string;
@@ -30,7 +28,6 @@ type Props = {
 };
 
 export default function CustomDesignSection({ productName, productId, onCustomizationChange, productImageFront, productImageBack }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>("studio");
   const [studioOpen, setStudioOpen] = useState(false);
   const [ideaOpen, setIdeaOpen] = useState(false);
 

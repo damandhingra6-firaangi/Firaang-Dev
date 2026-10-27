@@ -93,7 +93,6 @@ export default function DesignStudio({ onCustomizationChange, productImageFront,
   const [fabricReady, setFabricReady] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [hasArtwork, setHasArtwork] = useState(false);
-  const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
 
   const syncCanvasViewport = useCallback(() => {
     const baseCanvas = canvasRef.current;
@@ -186,13 +185,11 @@ export default function DesignStudio({ onCustomizationChange, productImageFront,
     const side = sideStateRef.current[placement];
     if (side.hasArtwork && side.dataUrl) {
       setHasArtwork(false);
-      setArtworkUrl(null);
       void placeArtworkOnCanvas(side.dataUrl, {
         angle: side.angle, scaleX: side.scaleX, scaleY: side.scaleY,
         left: side.left, top: side.top,
       }).then((success) => {
         if (success) {
-          setArtworkUrl(side.artworkUrl);
           sideStateRef.current[placement].artworkUrl = side.artworkUrl;
           const img = activeImageRef.current;
           if (img && side.artworkUrl) exportPreviewWithUrl(canvas, img, side.artworkUrl, placement);
@@ -200,7 +197,6 @@ export default function DesignStudio({ onCustomizationChange, productImageFront,
       });
     } else {
       setHasArtwork(false);
-      setArtworkUrl(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placement, fabricReady, productImageFront, productImageBack]);
@@ -393,7 +389,6 @@ export default function DesignStudio({ onCustomizationChange, productImageFront,
         return;
       }
 
-      setArtworkUrl(data.url);
       sideStateRef.current[placement].artworkUrl = data.url;
       const img = activeImageRef.current;
       const canvas = fabricRef.current;
@@ -513,7 +508,6 @@ export default function DesignStudio({ onCustomizationChange, productImageFront,
     }
     sideStateRef.current[placement] = freshSide();
     setHasArtwork(false);
-    setArtworkUrl(null);
     canvas.renderAll();
     // Emit combined (other side may still have a design)
     const other: DesignPlacement = placement === "front" ? "back" : "front";
@@ -610,7 +604,6 @@ export default function DesignStudio({ onCustomizationChange, productImageFront,
     }
 
     setHasArtwork(false);
-    setArtworkUrl(null);
     setPlacement(next);
   };
 

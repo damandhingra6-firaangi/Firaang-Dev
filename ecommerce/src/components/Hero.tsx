@@ -183,19 +183,15 @@ function HeroResponsiveImage({
 }) {
   const isPriorityImage = index === activeIndex;
   const fallbackSource = slide.mobileImage || slide.image || "/FiraangLogoDesign-black.svg";
-  const [resolvedSource, setResolvedSource] = useState(slide.image || fallbackSource);
-
-  useEffect(() => {
-    setResolvedSource(slide.image || fallbackSource);
-  }, [fallbackSource, slide.image]);
+  const [resolvedSource, setResolvedSource] = useState(() => slide.image || fallbackSource);
 
   const handleImageError = () => {
     setResolvedSource((currentSource) => {
-      if (currentSource !== fallbackSource) {
-        return fallbackSource;
+      if (currentSource === fallbackSource) {
+        return "/FiraangLogoDesign-black.svg";
       }
 
-      return "/FiraangLogoDesign-black.svg";
+      return fallbackSource;
     });
   };
 
@@ -432,6 +428,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
       ) : activeSlide.imageOnly ? (
         <>
           <HeroResponsiveImage
+            key={activeSlide.id}
             slide={activeSlide}
             index={safeActiveIndex}
             activeIndex={safeActiveIndex}
@@ -450,6 +447,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
       ) : (
         <>
           <HeroResponsiveImage
+            key={activeSlide.id}
             slide={activeSlide}
             index={safeActiveIndex}
             activeIndex={safeActiveIndex}
