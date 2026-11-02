@@ -16,7 +16,7 @@ import { SITE_TITLE_DEFAULT } from "@/lib/site";
 import { getStorefrontProducts } from "@/lib/shopify";
 import { getShopifyCollectionsContent } from "@/lib/shopify-collections";
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 export const metadata: Metadata = {
   ...createPageMetadata({

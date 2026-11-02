@@ -93,12 +93,29 @@
   --nav-cta-fg: #fff4ed;
 }
 
+html {
+  color-scheme: light;
+}
+
 body {
-  font-family: var(--font-poppins), sans-serif;
+  font-family: var(--font-poppins), "Segoe UI", Arial, sans-serif;
   background: linear-gradient(180deg, #fffdfb 0%, #f9f2ec 100%);
   color: var(--page-fg);
   transition: background-color 200ms ease, color 200ms ease;
   overflow-x: clip;
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+}
+
+.hero-section {
+  contain: layout paint;
+  aspect-ratio: 16 / 8.5;
+}
+
+@media (max-width: 767px) {
+  .hero-section {
+    aspect-ratio: 16 / 10.5;
+  }
 }
 
 h1,

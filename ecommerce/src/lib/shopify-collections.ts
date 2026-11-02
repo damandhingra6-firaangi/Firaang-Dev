@@ -2,7 +2,7 @@ import { cache } from "react";
 import { humanizeHandle, toTitleCase } from "@/lib/text";
 
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
-const DEFAULT_REVALIDATE_SECONDS = 300;
+const DEFAULT_REVALIDATE_SECONDS = 1800;
 
 const FEATURED_KEYWORDS = [
   "ganesh",

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isOptionAvailableForSelection } from "./variant-options";
+import {
+  getSelectedOptionValue,
+  isOptionAvailableForSelection,
+  isSizeOption,
+  optionMatchesSelection,
+} from "./variant-options";
 
 describe("isOptionAvailableForSelection", () => {
   it("keeps fallback size options enabled when the product has no variants", () => {
@@ -44,5 +49,44 @@ describe("isOptionAvailableForSelection", () => {
       optionName: "Size",
       optionValue: "M",
     })).toBe(false);
+  });
+
+  it("recognizes size-like option names and resolves the current selection even when the storefront label is not exactly 'Size'", () => {
+    expect(isSizeOption("Size / Fit")).toBe(true);
+    expect(isSizeOption(" Sizes ")).toBe(true);
+
+    expect(getSelectedOptionValue({ "Size / Fit": "M" }, "Size / Fit", "Size", "Sizes")).toBe("M");
+    expect(getSelectedOptionValue({ "sizes": "S" }, "Size / Fit", "Size", "Sizes")).toBe("S");
+  });
+
+  it("matches Shopify option names by normalized label so size selections work across aliases like 'Size / Fit' and 'sizes'", () => {
+    const variants = [
+      {
+        availableForSale: true,
+        options: [
+          { name: "Size / Fit", value: "M" },
+          { name: "Color", value: "Black" },
+        ],
+      },
+      {
+        availableForSale: true,
+        options: [
+          { name: "sizes", value: "L" },
+          { name: "Colour", value: "White" },
+        ],
+      },
+    ];
+
+    expect(optionMatchesSelection({
+      variantOptions: variants[0].options,
+      selectedOptions: { "sizes": "M", "Colour": "Black" },
+    })).toBe(true);
+
+    expect(isOptionAvailableForSelection({
+      variants,
+      selectedOptions: { "Size / Fit": "M" },
+      optionName: "sizes",
+      optionValue: "L",
+    })).toBe(true);
   });
 });

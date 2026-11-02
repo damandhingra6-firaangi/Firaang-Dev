@@ -35,7 +35,7 @@ function toProductCardLite(product: GridProduct): ProductCardLite {
 }
 
 async function resolveProduct(handle: string) {
-  const products = await getCatalogProducts(250, { cacheMode: "no-store" });
+  const products = await getCatalogProducts(250, { cacheMode: "no-store", detailLevel: "full" });
   const decodedHandle = decodeURIComponent(handle);
 
   const product = products.find((item) => item.handle?.toLowerCase() === decodedHandle.toLowerCase() || item.id === decodedHandle) ?? null;

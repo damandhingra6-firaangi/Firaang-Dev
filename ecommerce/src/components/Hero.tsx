@@ -196,7 +196,7 @@ function HeroResponsiveImage({
   };
 
   return (
-    <picture className="absolute inset-0 block h-full w-full">
+    <picture className="absolute inset-0 block h-full w-full" style={{ aspectRatio: "16 / 9" }}>
       <source media="(max-width: 767px)" srcSet={slide.mobileImage || resolvedSource} />
       <Image
         src={resolvedSource}
@@ -206,7 +206,7 @@ function HeroResponsiveImage({
         priority={isPriorityImage}
         fetchPriority={isPriorityImage ? "high" : "auto"}
         loading={isPriorityImage ? "eager" : "lazy"}
-        sizes="(max-width: 767px) 100vw, 70vw"
+        sizes="100vw"
         quality={75}
         onError={handleImageError}
         className={className}

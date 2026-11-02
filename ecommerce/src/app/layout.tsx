@@ -143,6 +143,13 @@ fbq('track', 'PageView');`;
       lang={SITE_LANGUAGE}
       className={`${poppins.variable} ${playfair.variable} h-full antialiased`}
     >
+      <head>
+        <meta name="color-scheme" content="light" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://connect.facebook.net" />
+        <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+      </head>
       <body className="min-h-full">
         <AnalyticsVendorScripts />
         <script

@@ -9,6 +9,7 @@ import { getDisplayPricing } from "@/lib/pricing-display";
 import { formatProductDescriptionBlocks, normalizeProductDescriptionText } from "@/lib/product-description";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Minus, Play, Plus, ShoppingBag, Sparkles, X } from "lucide-react";
 import { getConfiguredSizeChart } from "@/lib/size-charts";
+import { getSelectedOptionValue, isColorOption, isSizeOption, normalizeOptionName, optionMatchesSelection } from "@/lib/variant-options";
 import SafeImage from "@/components/SafeImage";
 import { useUiStore } from "@/store/useUiStore";
 
@@ -31,15 +32,6 @@ type PreviewMediaItem = {
   label: string;
   variantId: string | null;
 };
-
-function isColorOption(optionName: string) {
-  const normalized = optionName.trim().toLowerCase();
-  return normalized === "color" || normalized === "colour";
-}
-
-function isSizeOption(optionName: string) {
-  return optionName.trim().toLowerCase() === "size";
-}
 
 function toTitleCase(value: string) {
   return value
@@ -288,10 +280,10 @@ export default function ProductDetailsModal({
   }, [selectedVariantId]);
 
   const selectedSizeValue = useMemo(() => {
-    const sizeEntry = Object.entries(selectedOptions).find(([key]) => key.toLowerCase() === "size");
-    const value = sizeEntry?.[1]?.trim();
-    return value && value.length > 0 ? value : undefined;
-  }, [selectedOptions]);
+    const value = getSelectedOptionValue(selectedOptions, sizeOptionGroup?.name ?? "", "Size", "size", "Sizes", "sizes");
+    const normalized = value?.trim();
+    return normalized && normalized.length > 0 ? normalized : undefined;
+  }, [selectedOptions, sizeOptionGroup?.name]);
 
   const resolvedProduct = useMemo(() => {
     if (!product) {
@@ -458,22 +450,24 @@ export default function ProductDetailsModal({
       };
 
       const perfectMatch = variants.find((variant) => {
-        const optionNames = new Set(variant.options.map((option) => option.name));
-
-        return Object.entries(nextOptions)
-          .filter(([name]) => optionNames.has(name))
-          .every(([name, value]) => {
-          return variant.options.some((option) => option.name === name && option.value === value);
+        return optionMatchesSelection({
+          variantOptions: variant.options,
+          selectedOptions: nextOptions,
         });
       });
 
       if (perfectMatch) {
         setSelectedVariantId(perfectMatch.id);
-        return nextOptions;
+        return Object.fromEntries(perfectMatch.options.map((option) => [option.name, option.value]));
       }
 
       const partialMatch = variants.find((variant) => {
-        return variant.options.some((option) => option.name === optionName && option.value === optionValue);
+        return variant.options.some((option) => {
+          const normalizedName = option.name;
+          const normalizedSelectedName = optionName;
+          return normalizeOptionName(normalizedName) === normalizeOptionName(normalizedSelectedName)
+            && normalizeOptionName(option.value) === normalizeOptionName(optionValue);
+        });
       });
 
       if (partialMatch) {
@@ -500,9 +494,9 @@ export default function ProductDetailsModal({
         [optionName]: optionValue,
       };
 
-      return variant.options.every((option) => {
-        const selectedValue = activeSelection[option.name];
-        return !selectedValue || selectedValue === option.value;
+      return optionMatchesSelection({
+        variantOptions: variant.options,
+        selectedOptions: activeSelection,
       });
     });
   };

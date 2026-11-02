@@ -7,7 +7,7 @@ import { getProtectedLaunchCompareAtAmount, getProtectedLaunchPriceAmount, isTSh
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
 const SHOPIFY_PRODUCTS_REVALIDATE_SECONDS = Math.max(
   60,
-  Number.parseInt(process.env.SHOPIFY_PRODUCTS_REVALIDATE_SECONDS ?? "300", 10) || 300,
+  Number.parseInt(process.env.SHOPIFY_PRODUCTS_REVALIDATE_SECONDS ?? "1800", 10) || 1800,
 );
 // Maximum time to wait for a single Shopify API page request before aborting.
 const SHOPIFY_FETCH_TIMEOUT_MS = 10_000;
@@ -450,7 +450,7 @@ export async function fetchShopifyGraphQL<T>({
   const timeoutId = setTimeout(() => controller.abort(), SHOPIFY_FETCH_TIMEOUT_MS);
 
   try {
-    const response = await fetch(endpoint, {
+    const requestInit: RequestInit = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -459,10 +459,13 @@ export async function fetchShopifyGraphQL<T>({
       body: JSON.stringify({ query, variables }),
       signal: controller.signal,
       cache: cacheMode,
-      ...(typeof revalidateSeconds === "number" && revalidateSeconds > 0
-        ? { next: { revalidate: revalidateSeconds } }
-        : {}),
-    });
+    };
+
+    if (cacheMode !== "no-store" && cacheMode !== "reload" && typeof revalidateSeconds === "number" && revalidateSeconds > 0) {
+      (requestInit as RequestInit & { next?: { revalidate: number } }).next = { revalidate: revalidateSeconds };
+    }
+
+    const response = await fetch(endpoint, requestInit);
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => "");
