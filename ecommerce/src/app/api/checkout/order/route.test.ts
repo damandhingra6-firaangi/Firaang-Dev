@@ -78,8 +78,11 @@ vi.mock("@/lib/shopify-admin", () => ({
 }));
 
 describe("checkout order route", () => {
+  const createOrderMock = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
+    createOrderMock.mockReset();
     getAccountSessionTokenFromCookiesMock.mockResolvedValue(null);
     parseAttributionCookieMock.mockReturnValue({ source: "direct", campaign: "none", medium: "none", term: "none", content: "none", gclid: "none", fbclid: "none", msclkid: "none", ttclid: "none" });
     parseGeoFromRequestHeadersMock.mockReturnValue({ country: "IN", region: "MH", city: "Mumbai" });
@@ -113,8 +116,9 @@ describe("checkout order route", () => {
       ],
       currencyCode: "INR",
     });
+    createOrderMock.mockResolvedValue({ id: "order_123", amount: 499900, currency: "INR" });
     getRazorpayClientMock.mockReturnValue({
-      orders: { create: vi.fn().mockResolvedValue({ id: "order_123", amount: 499900, currency: "INR" }) },
+      orders: { create: createOrderMock },
     });
     createGuestOrderMock.mockResolvedValue({ id: "guest_order_123" });
     createPendingOrderForSessionTokenMock.mockResolvedValue({ id: "session_order_123" });
@@ -214,6 +218,45 @@ describe("checkout order route", () => {
       expect.objectContaining({
         orderId: "order_123",
         shippingPhone: "+91 9876543210",
+      }),
+    );
+  });
+
+  it("includes the selected shipping address in Razorpay customer_details", async () => {
+    const { POST } = await import("./route");
+
+    await POST(
+      new Request("http://localhost/api/checkout/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [{ productId: "prod_1", quantity: 1 }],
+          shippingName: "Guest User",
+          shippingEmail: "guest@example.com",
+          shippingPhone: "+91 9876543210",
+          shippingAddress: "45 Market Road",
+          shippingCity: "Mumbai",
+          shippingState: "Maharashtra",
+          shippingPinCode: "400001",
+          shippingMethod: "surface",
+        }),
+      }),
+    );
+
+    expect(createOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer_details: expect.objectContaining({
+          name: "Guest User",
+          email: "guest@example.com",
+          contact: "+91 9876543210",
+          shipping_address: expect.objectContaining({
+            line1: "45 Market Road",
+            city: "Mumbai",
+            state: "Maharashtra",
+            zipcode: "400001",
+            country: "India",
+          }),
+        }),
       }),
     );
   });

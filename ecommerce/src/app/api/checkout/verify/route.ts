@@ -73,24 +73,37 @@ function extractMagicCheckoutCustomerData(paymentRecord: Record<string, unknown>
   const paymentSource = paymentRecord ?? {};
   const orderSource = gatewayOrder ?? {};
   const notes = {
-    ...(typeof paymentSource.notes === "object" && paymentSource.notes ? paymentSource.notes as Record<string, unknown> : {}),
-    ...(typeof orderSource.notes === "object" && orderSource.notes ? orderSource.notes as Record<string, unknown> : {}),
+    ...(typeof paymentSource.notes === "object" && paymentSource.notes ? (paymentSource.notes as Record<string, unknown>) : {}),
+    ...(typeof orderSource.notes === "object" && orderSource.notes ? (orderSource.notes as Record<string, unknown>) : {}),
   };
+
+  const paymentCustomer = typeof paymentSource.customer === "object" && paymentSource.customer ? (paymentSource.customer as Record<string, unknown>) : {};
+  const orderCustomer = typeof orderSource.customer === "object" && orderSource.customer ? (orderSource.customer as Record<string, unknown>) : {};
+  const paymentCustomerDetails = typeof paymentSource.customer_details === "object" && paymentSource.customer_details ? (paymentSource.customer_details as Record<string, unknown>) : {};
+  const orderCustomerDetails = typeof orderSource.customer_details === "object" && orderSource.customer_details ? (orderSource.customer_details as Record<string, unknown>) : {};
 
   const customerInfo: Record<string, unknown> = {
-    ...(typeof paymentSource.customer === "object" && paymentSource.customer ? paymentSource.customer as Record<string, unknown> : {}),
-    ...(typeof orderSource.customer === "object" && orderSource.customer ? orderSource.customer as Record<string, unknown> : {}),
+    ...paymentCustomer,
+    ...orderCustomer,
+    ...paymentCustomerDetails,
+    ...orderCustomerDetails,
   };
 
-  const shippingInfo: Record<string, unknown> = {
-    ...(typeof paymentSource.shipping === "object" && paymentSource.shipping ? paymentSource.shipping as Record<string, unknown> : {}),
-    ...(typeof orderSource.shipping === "object" && orderSource.shipping ? orderSource.shipping as Record<string, unknown> : {}),
-  };
+  const paymentShipping = typeof paymentSource.shipping === "object" && paymentSource.shipping ? (paymentSource.shipping as Record<string, unknown>) : {};
+  const orderShipping = typeof orderSource.shipping === "object" && orderSource.shipping ? (orderSource.shipping as Record<string, unknown>) : {};
+
+  const paymentShippingAddress = typeof paymentSource.shipping_address === "object" && paymentSource.shipping_address ? (paymentSource.shipping_address as Record<string, unknown>) : {};
+  const orderShippingAddress = typeof orderSource.shipping_address === "object" && orderSource.shipping_address ? (orderSource.shipping_address as Record<string, unknown>) : {};
+  const paymentCustomerShippingAddress = typeof paymentCustomerDetails.shipping_address === "object" && paymentCustomerDetails.shipping_address ? (paymentCustomerDetails.shipping_address as Record<string, unknown>) : {};
+  const orderCustomerShippingAddress = typeof orderCustomerDetails.shipping_address === "object" && orderCustomerDetails.shipping_address ? (orderCustomerDetails.shipping_address as Record<string, unknown>) : {};
 
   const shippingAddressInfo: Record<string, unknown> = {
-    ...(typeof shippingInfo.address === "object" && shippingInfo.address ? shippingInfo.address as Record<string, unknown> : {}),
-    ...(typeof paymentSource.shipping_address === "object" && paymentSource.shipping_address ? paymentSource.shipping_address as Record<string, unknown> : {}),
-    ...(typeof orderSource.shipping_address === "object" && orderSource.shipping_address ? orderSource.shipping_address as Record<string, unknown> : {}),
+    ...paymentShippingAddress,
+    ...orderShippingAddress,
+    ...(typeof paymentShipping.address === "object" && paymentShipping.address ? (paymentShipping.address as Record<string, unknown>) : {}),
+    ...(typeof orderShipping.address === "object" && orderShipping.address ? (orderShipping.address as Record<string, unknown>) : {}),
+    ...paymentCustomerShippingAddress,
+    ...orderCustomerShippingAddress,
   };
 
   const mergedRecord: Record<string, unknown> = {
@@ -98,7 +111,8 @@ function extractMagicCheckoutCustomerData(paymentRecord: Record<string, unknown>
     ...paymentSource,
     ...orderSource,
     ...customerInfo,
-    ...shippingInfo,
+    ...paymentShipping,
+    ...orderShipping,
     ...shippingAddressInfo,
   };
 
@@ -107,17 +121,10 @@ function extractMagicCheckoutCustomerData(paymentRecord: Record<string, unknown>
     "shippingName",
     "customer_name",
     "customerName",
-    "shipping.name",
-    "customer.name",
+    "name",
     "full_name",
     "fullName",
-  ]) ?? (isLikelyPersonName(typeof customerInfo.name === "string" ? customerInfo.name : undefined) ? customerInfo.name as string : undefined)
-    ?? (isLikelyPersonName(typeof shippingInfo.name === "string" ? shippingInfo.name : undefined) ? shippingInfo.name as string : undefined)
-    ?? (isLikelyPersonName(typeof paymentSource.name === "string" ? paymentSource.name : undefined) ? paymentSource.name as string : undefined)
-    ?? (isLikelyPersonName(typeof orderSource.name === "string" ? orderSource.name : undefined) ? orderSource.name as string : undefined)
-    ?? (isLikelyPersonName(typeof readNestedValue(customerInfo as Record<string, unknown>, ["full_name"]) === "string" ? readNestedValue(customerInfo as Record<string, unknown>, ["full_name"]) as string : undefined) ? readNestedValue(customerInfo as Record<string, unknown>, ["full_name"]) as string : undefined)
-    ?? (isLikelyPersonName(typeof readNestedValue(shippingInfo as Record<string, unknown>, ["full_name"]) === "string" ? readNestedValue(shippingInfo as Record<string, unknown>, ["full_name"]) as string : undefined) ? readNestedValue(shippingInfo as Record<string, unknown>, ["full_name"]) as string : undefined)
-    ?? undefined;
+  ]) ?? readNestedValue(customerInfo as Record<string, unknown>, ["name"]) ?? readNestedValue(paymentCustomerDetails as Record<string, unknown>, ["name"]) ?? readNestedValue(orderCustomerDetails as Record<string, unknown>, ["name"]) ?? readNestedValue(paymentShipping as Record<string, unknown>, ["name"]) ?? readNestedValue(orderShipping as Record<string, unknown>, ["name"]) ?? (isLikelyPersonName(typeof paymentSource.name === "string" ? paymentSource.name : undefined) ? paymentSource.name as string : undefined) ?? (isLikelyPersonName(typeof orderSource.name === "string" ? orderSource.name : undefined) ? orderSource.name as string : undefined) ?? undefined;
 
   const shippingEmailValue: string | undefined = readFirstDefinedValue(mergedRecord, [
     "shipping_email",
@@ -125,7 +132,7 @@ function extractMagicCheckoutCustomerData(paymentRecord: Record<string, unknown>
     "customer_email",
     "customerEmail",
     "email",
-  ]) ?? readNestedValue(customerInfo as Record<string, unknown>, ["email"]) ?? readNestedValue(shippingInfo as Record<string, unknown>, ["email"]) ?? undefined;
+  ]) ?? readNestedValue(customerInfo as Record<string, unknown>, ["email"]) ?? readNestedValue(paymentCustomerDetails as Record<string, unknown>, ["email"]) ?? readNestedValue(orderCustomerDetails as Record<string, unknown>, ["email"]) ?? readNestedValue(paymentShipping as Record<string, unknown>, ["email"]) ?? readNestedValue(orderShipping as Record<string, unknown>, ["email"]) ?? undefined;
 
   const shippingPhoneValue: string | undefined = readFirstDefinedValue(mergedRecord, [
     "shipping_phone",
@@ -134,7 +141,7 @@ function extractMagicCheckoutCustomerData(paymentRecord: Record<string, unknown>
     "customerPhone",
     "phone",
     "contact",
-  ]) ?? readNestedValue(customerInfo as Record<string, unknown>, ["contact"]) ?? readNestedValue(shippingInfo as Record<string, unknown>, ["contact"]) ?? undefined;
+  ]) ?? readNestedValue(customerInfo as Record<string, unknown>, ["contact"]) ?? readNestedValue(paymentCustomerDetails as Record<string, unknown>, ["contact"]) ?? readNestedValue(orderCustomerDetails as Record<string, unknown>, ["contact"]) ?? readNestedValue(paymentShipping as Record<string, unknown>, ["contact"]) ?? readNestedValue(orderShipping as Record<string, unknown>, ["contact"]) ?? undefined;
 
   const shippingAddressValue: string | undefined = readFirstDefinedValue(mergedRecord, [
     "shipping_address",
@@ -145,20 +152,20 @@ function extractMagicCheckoutCustomerData(paymentRecord: Record<string, unknown>
     "street",
     "street_address",
     "line_1",
-  ]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["line1"]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["line_1"]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["street"]) ?? undefined;
+  ]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["line1"]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["line_1"]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["address"]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["street"]) ?? undefined;
 
   const shippingCityValue: string | undefined = readFirstDefinedValue(mergedRecord, [
     "shipping_city",
     "shippingCity",
     "city",
-  ]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["city"]) ?? readNestedValue(shippingInfo as Record<string, unknown>, ["city"]) ?? undefined;
+  ]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["city"]) ?? readNestedValue(paymentShipping as Record<string, unknown>, ["city"]) ?? readNestedValue(orderShipping as Record<string, unknown>, ["city"]) ?? undefined;
 
   const shippingStateValue: string | undefined = readFirstDefinedValue(mergedRecord, [
     "shipping_state",
     "shippingState",
     "state",
     "province",
-  ]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["state"]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["province"]) ?? readNestedValue(shippingInfo as Record<string, unknown>, ["state"]) ?? undefined;
+  ]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["state"]) ?? readNestedValue(paymentShipping as Record<string, unknown>, ["state"]) ?? readNestedValue(orderShipping as Record<string, unknown>, ["state"]) ?? undefined;
 
   const shippingPinCodeValue: string | undefined = readFirstDefinedValue(mergedRecord, [
     "shipping_pin_code",
@@ -166,9 +173,10 @@ function extractMagicCheckoutCustomerData(paymentRecord: Record<string, unknown>
     "shipping_pincode",
     "pincode",
     "pin_code",
+    "zipcode",
     "zip",
     "postal_code",
-  ]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["zip"]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["postal_code"]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["pincode"]) ?? undefined;
+  ]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["zipcode"]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["zip"]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["postal_code"]) ?? readNestedValue(shippingAddressInfo as Record<string, unknown>, ["pincode"]) ?? undefined;
 
   const shippingCountryValue: string | undefined = readFirstDefinedValue(mergedRecord, [
     "shipping_country",

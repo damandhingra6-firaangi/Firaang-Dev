@@ -283,6 +283,14 @@ export async function POST(request: Request) {
       },
     }));
 
+    const shippingAddressPayload = {
+      line1: shippingAddress ?? "",
+      city: shippingCity ?? "",
+      state: shippingState ?? "",
+      zipcode: shippingPinCode ?? "",
+      country: shippingCountry ?? "India",
+    };
+
     const order = await razorpay.orders.create({
       amount: finalTotalAmount * 100,
       currency: currencyCode,
@@ -290,6 +298,13 @@ export async function POST(request: Request) {
       payment_capture: true,
       line_items_total: lineItemsTotal,
       line_items: lineItems,
+      customer_details: {
+        name: shippingName ?? "",
+        email: shippingEmail ?? "",
+        contact: shippingPhone ?? "",
+        shipping_address: shippingAddressPayload,
+        billing_address: shippingAddressPayload,
+      },
       notes: {
         itemCount: String(items.length),
         shippingState,
