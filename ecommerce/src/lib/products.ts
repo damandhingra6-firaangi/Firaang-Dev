@@ -10,13 +10,14 @@ type CatalogFetchOptions = {
   cacheMode?: RequestCache;
 };
 
-export async function getCatalogProducts(limit = 80, options: CatalogFetchOptions = {}): Promise<GridProduct[]> {
+export async function getCatalogProducts(limit = 250, options: CatalogFetchOptions = {}): Promise<GridProduct[]> {
   const storefrontProducts = await getStorefrontProducts(limit, options);
   return storefrontProducts;
 }
 
 export async function resolveCheckoutItems(items: CheckoutLineItem[]) {
-  const catalog = await getCatalogProducts();
+  const catalogLimit = Math.max(250, items.length * 2 + 50);
+  const catalog = await getCatalogProducts(catalogLimit);
   const byId = new Map<string, GridProduct>();
 
   for (const product of catalog) {
@@ -40,11 +41,13 @@ export async function resolveCheckoutItems(items: CheckoutLineItem[]) {
     }
   }
 
+  const staleProductIds = new Set<string>();
   const normalizedItems = items
     .map((item) => {
       const product = byId.get(item.productId);
 
       if (!product) {
+        staleProductIds.add(item.productId);
         return null;
       }
 
@@ -64,5 +67,6 @@ export async function resolveCheckoutItems(items: CheckoutLineItem[]) {
     items: normalizedItems,
     currencyCode,
     totalPaise,
+    staleProductIds: Array.from(staleProductIds),
   };
 }

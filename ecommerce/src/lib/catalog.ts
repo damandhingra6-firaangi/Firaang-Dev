@@ -53,6 +53,9 @@ export const CUSTOM_DESIGN_SURCHARGE_INR = 499;
 export type GridProduct = {
   id: string;
   parentId?: string;
+  selectedSize?: string;
+  selectedVariantId?: string;
+  selectedOptions?: Record<string, string>;
   handle?: string;
   tags?: string[];
   /** ISO-8601 date-time when the product was made available on the storefront. */

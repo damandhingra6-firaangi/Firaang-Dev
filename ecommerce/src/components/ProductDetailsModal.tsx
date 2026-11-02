@@ -287,6 +287,12 @@ export default function ProductDetailsModal({
     setIsPanning(false);
   }, [selectedVariantId]);
 
+  const selectedSizeValue = useMemo(() => {
+    const sizeEntry = Object.entries(selectedOptions).find(([key]) => key.toLowerCase() === "size");
+    const value = sizeEntry?.[1]?.trim();
+    return value && value.length > 0 ? value : undefined;
+  }, [selectedOptions]);
+
   const resolvedProduct = useMemo(() => {
     if (!product) {
       return null;
@@ -305,6 +311,9 @@ export default function ProductDetailsModal({
       ...product,
       id: activeVariant.id,
       parentId: product.id,
+      selectedSize: selectedSizeValue ?? product.selectedSize,
+      selectedVariantId: activeVariant.id,
+      selectedOptions: { ...selectedOptions },
       name: variantName,
       img: activeVariant.img,
       price: activeVariant.price,
@@ -312,7 +321,7 @@ export default function ProductDetailsModal({
       currencyCode: activeVariant.currencyCode,
       oldPrice: activeVariant.oldPrice,
     } satisfies GridProduct;
-  }, [activeVariant, product]);
+  }, [activeVariant, product, selectedOptions, selectedSizeValue]);
 
   const displayPricing = useMemo(
     () =>

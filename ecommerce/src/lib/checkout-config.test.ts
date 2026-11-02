@@ -45,16 +45,16 @@ describe("air shipping", () => {
 });
 
 describe("cod fee", () => {
-  it("applies flat fee up to 2000 and percentage above", () => {
-    expect(calculateCodFee(0)).toBe(50);
-    expect(calculateCodFee(2000)).toBe(50);
-    expect(calculateCodFee(2001)).toBe(50);
-    expect(calculateCodFee(4000)).toBe(100);
+  it("keeps cash-on-delivery fee at zero for the free-shipping contract", () => {
+    expect(calculateCodFee(0)).toBe(0);
+    expect(calculateCodFee(2000)).toBe(0);
+    expect(calculateCodFee(2001)).toBe(0);
+    expect(calculateCodFee(4000)).toBe(0);
   });
 });
 
 describe("high logistics surcharge", () => {
-  it("detects listed regions and adds surcharge", () => {
+  it("does not add any surcharge under the free standard shipping contract", () => {
     expect(isHighLogisticsState("Sikkim")).toBe(true);
     expect(isHighLogisticsState("Jammu and Kashmir")).toBe(true);
     expect(isHighLogisticsState("Maharashtra")).toBe(false);
@@ -64,9 +64,10 @@ describe("high logistics surcharge", () => {
       shippingMethod: "surface",
       shippingState: "Sikkim",
     });
-    expect(withSurcharge.baseShippingFee).toBe(65);
-    expect(withSurcharge.regionSurchargeFee).toBe(HIGH_LOGISTICS_SURCHARGE_INR);
-    expect(withSurcharge.shippingFee).toBe(90);
+    expect(withSurcharge.baseShippingFee).toBe(0);
+    expect(withSurcharge.regionSurchargeFee).toBe(0);
+    expect(withSurcharge.shippingFee).toBe(0);
+    expect(withSurcharge.shippingLabel).toBe("Standard Delivery");
   });
 });
 
@@ -95,7 +96,7 @@ describe("weight estimation", () => {
 });
 
 describe("checkout pricing", () => {
-  it("combines subtotal, shipping, cod fee, and discounts", () => {
+  it("forces free standard delivery and zero cod fee", () => {
     const pricing = calculateCheckoutPricing({
       subtotalAmount: 2100,
       shippingState: "Sikkim",
@@ -110,11 +111,12 @@ describe("checkout pricing", () => {
       },
     });
 
-    expect(pricing.baseShippingFee).toBe(65);
-    expect(pricing.regionSurchargeFee).toBe(25);
-    expect(pricing.shippingFee).toBe(90);
-    expect(pricing.codFee).toBe(55);
-    expect(pricing.totalAmount).toBe(2145);
+    expect(pricing.baseShippingFee).toBe(0);
+    expect(pricing.regionSurchargeFee).toBe(0);
+    expect(pricing.shippingFee).toBe(0);
+    expect(pricing.shippingLabel).toBe("Standard Delivery");
+    expect(pricing.codFee).toBe(0);
+    expect(pricing.totalAmount).toBe(2000);
   });
 
   it("keeps shipping pending without state", () => {
@@ -128,7 +130,7 @@ describe("checkout pricing", () => {
     expect(pricing.totalAmount).toBe(1000);
   });
 
-  it("supports air shipping in checkout summary", () => {
+  it("uses the free standard delivery label when shipping is resolved", () => {
     const pricing = calculateCheckoutPricing({
       subtotalAmount: 1500,
       shippingState: "Maharashtra",
@@ -137,8 +139,8 @@ describe("checkout pricing", () => {
     });
 
     expect(pricing.shippingMethod).toBe("air");
-    expect(pricing.shippingFee).toBe(140);
-    expect(pricing.shippingLabel).toBe("Air Shipping");
-    expect(pricing.totalAmount).toBe(1640);
+    expect(pricing.shippingFee).toBe(0);
+    expect(pricing.shippingLabel).toBe("Standard Delivery");
+    expect(pricing.totalAmount).toBe(1500);
   });
 });

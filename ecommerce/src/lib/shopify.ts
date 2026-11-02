@@ -429,6 +429,70 @@ function normalizeStoreDomain(value: string) {
   return value.replace(/^https?:\/\//, "").replace(/\/$/, "");
 }
 
+export async function fetchShopifyGraphQL<T>({
+  endpoint,
+  storefrontAccessToken,
+  query,
+  variables,
+  cacheMode = "force-cache",
+  revalidateSeconds,
+  tag,
+}: {
+  endpoint: string;
+  storefrontAccessToken: string;
+  query: string;
+  variables?: Record<string, unknown>;
+  cacheMode?: RequestCache;
+  revalidateSeconds?: number;
+  tag?: string;
+}): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), SHOPIFY_FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
+      },
+      body: JSON.stringify({ query, variables }),
+      signal: controller.signal,
+      cache: cacheMode,
+      ...(typeof revalidateSeconds === "number" && revalidateSeconds > 0
+        ? { next: { revalidate: revalidateSeconds } }
+        : {}),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => "");
+      const suffix = errorBody ? `: ${errorBody.slice(0, 500).replace(/\s+/g, " ")}` : "";
+      throw new Error(`Shopify GraphQL request failed with ${response.status}${suffix}`);
+    }
+
+    return (await response.json()) as T;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const isTimeout = controller.signal.aborted || /timed out|ETIMEDOUT|fetch failed|aborted/i.test(message);
+
+    if (isTimeout) {
+      console.error("[shopify] GraphQL request timed out", {
+        tag: tag ?? "shopify-graphql",
+        timeoutMs: SHOPIFY_FETCH_TIMEOUT_MS,
+      });
+    } else {
+      console.error("[shopify] GraphQL request failed", {
+        tag: tag ?? "shopify-graphql",
+        message,
+      });
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export function normalizeCollectionLookupKey(value: string): string {
   if (!value) {
     return "";
@@ -508,40 +572,30 @@ async function resolveShopifyCollectionHandle(lookupValue: string): Promise<stri
   const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
 
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
-      },
-      body: JSON.stringify({
-        query: `#graphql
-          query LookupCollection($first: Int!) {
-            collections(first: $first, sortKey: TITLE, reverse: false) {
-              edges {
-                node {
-                  handle
-                  title
-                }
-              }
-            }
-          }`,
-        variables: { first: 250 },
-      }),
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const json = (await response.json()) as {
+    const json = await fetchShopifyGraphQL<{
       data?: {
         collections?: {
           edges?: Array<{ node: { handle: string; title: string } }>;
         };
       };
-    };
+    }>({
+      endpoint,
+      storefrontAccessToken,
+      tag: "resolve-shopify-collection-handle",
+      cacheMode: "force-cache",
+      query: `#graphql
+        query LookupCollection($first: Int!) {
+          collections(first: $first, sortKey: TITLE, reverse: false) {
+            edges {
+              node {
+                handle
+                title
+              }
+            }
+          }
+        }`,
+      variables: { first: 250 },
+    });
 
     const collections = (json.data?.collections?.edges ?? []).map((edge) => ({
       handle: edge.node.handle,
@@ -982,8 +1036,8 @@ export async function getStorefrontProducts(limit = 10, options: StorefrontFetch
 
   const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
   const safeLimit = Math.max(1, Math.min(limit, 1000));
-  const pageSize = Math.min(250, safeLimit);
-  const detailLevel = options.detailLevel ?? "full";
+  const pageSize = Math.min(60, safeLimit);
+  const detailLevel = options.detailLevel ?? "summary";
   const query = detailLevel === "summary" ? productsSummaryQuery : productsQuery;
 
   try {
@@ -992,28 +1046,20 @@ export async function getStorefrontProducts(limit = 10, options: StorefrontFetch
     let hasNextPage = true;
 
     while (hasNextPage && productEdges.length < safeLimit) {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
-        },
-        cache: options.cacheMode ?? "force-cache",
-        next: {
-          revalidate: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
-        },
-        body: JSON.stringify({
-          query,
-          variables: { first: Math.min(pageSize, safeLimit - productEdges.length), after: cursor },
-        }),
+      const json: ShopifyProductsResponse = await fetchShopifyGraphQL<ShopifyProductsResponse>({
+        endpoint,
+        storefrontAccessToken,
+        tag: "shopify-products",
+        cacheMode: options.cacheMode ?? "force-cache",
+        revalidateSeconds: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
+        query,
+        variables: { first: Math.min(pageSize, safeLimit - productEdges.length), after: cursor },
       });
 
-      if (!response.ok) {
-        return [];
-      }
-
-      const json = (await response.json()) as ShopifyProductsResponse;
-      const pageEdges = json.data?.products?.edges ?? [];
+      const pageEdges = (json.data?.products?.edges ?? []) as Array<{
+        cursor?: string;
+        node: ShopifyProductNode;
+      }>;
       const pageInfo = json.data?.products?.pageInfo;
 
       productEdges.push(...pageEdges);
@@ -1203,12 +1249,9 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
 
   const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
   const safeLimit = Math.max(1, Math.min(limit, 1000));
-  const pageSize = Math.min(250, safeLimit);
-  const detailLevel = options.detailLevel ?? "full";
+  const pageSize = Math.min(60, safeLimit);
+  const detailLevel = options.detailLevel ?? "summary";
   const query = detailLevel === "summary" ? collectionProductsSummaryQuery : collectionProductsQuery;
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SHOPIFY_FETCH_TIMEOUT_MS);
 
   try {
     const productNodes: ShopifyProductNode[] = [];
@@ -1216,42 +1259,25 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
     let hasNextPage = true;
 
     while (hasNextPage && productNodes.length < safeLimit) {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
-        },
-        body: JSON.stringify({
-          query,
-          variables: {
-            handle: resolvedHandle,
-            first: Math.min(pageSize, safeLimit - productNodes.length),
-            after: cursor,
-          },
-        }),
-        signal: controller.signal,
-        cache: "force-cache",
-        next: {
-          revalidate: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
+      const json: ShopifyCollectionProductsResponse = await fetchShopifyGraphQL<ShopifyCollectionProductsResponse>({
+        endpoint,
+        storefrontAccessToken,
+        tag: "shopify-collection-products",
+        cacheMode: options.cacheMode ?? "force-cache",
+        revalidateSeconds: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
+        query,
+        variables: {
+          handle: resolvedHandle,
+          first: Math.min(pageSize, safeLimit - productNodes.length),
+          after: cursor,
         },
       });
 
-      if (!response.ok) {
-        console.error("[shopify-collection] response-not-ok", {
-          requestedHandle: normalizedHandle,
-          resolvedHandle,
-          status: response.status,
-          statusText: response.statusText,
-        });
-        return productNodes.length > 0
-          ? productNodes.slice(0, safeLimit).map((node) => mapStorefrontProductNode(node))
-          : [];
-      }
-
-      const json = (await response.json()) as ShopifyCollectionProductsResponse;
       const collection = json.data?.collection;
-      const pageEdges = collection?.products?.edges ?? [];
+      const pageEdges = (collection?.products?.edges ?? []) as Array<{
+        cursor?: string;
+        node: ShopifyProductNode;
+      }>;
       const pageInfo = collection?.products?.pageInfo;
 
       productNodes.push(...pageEdges.map((edge) => edge.node));
@@ -1265,13 +1291,11 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
 
     return productNodes.slice(0, safeLimit).map((node) => mapStorefrontProductNode(node));
   } catch (error) {
-    if (controller.signal.aborted) {
-      console.error(`Shopify collection fetch timed out after ${SHOPIFY_FETCH_TIMEOUT_MS}ms`, resolvedHandle);
-    } else {
-      console.error("Shopify collection fetch failed", error);
-    }
+    console.error("Shopify collection fetch failed", {
+      requestedHandle: normalizedHandle,
+      resolvedHandle,
+      error,
+    });
     return [];
-  } finally {
-    clearTimeout(timeoutId);
   }
 }

@@ -38,6 +38,36 @@ type AppliedCoupon = {
   discountAmount: number;
 };
 
+type RazorpayMagicCheckoutResponse = {
+  razorpay_payment_id?: string;
+  razorpay_order_id?: string;
+  razorpay_signature?: string;
+};
+
+type RazorpayMagicCheckoutOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  one_click_checkout?: boolean;
+  show_coupons?: boolean;
+  prefill?: {
+    name?: string;
+    email?: string;
+    contact?: string;
+  };
+  theme?: { color: string };
+  modal?: { ondismiss?: () => void };
+  handler?: (response: RazorpayMagicCheckoutResponse) => void | Promise<void>;
+};
+
+type RazorpayMagicCheckoutInstance = {
+  on: (eventName: "payment.failed", callback: (event: { error?: { description?: string } }) => void) => void;
+  open: () => void;
+};
+
 export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDrawerProps) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const router = useRouter();
@@ -45,6 +75,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const removeFromCart = useShopStore((state) => state.removeFromCart);
   const updateCartQuantity = useShopStore((state) => state.updateCartQuantity);
   const clearCart = useShopStore((state) => state.clearCart);
+  const pruneInvalidCartItems = useShopStore((state) => state.pruneInvalidCartItems);
   const isSignedIn = useAccountStore((state) => state.isSignedIn);
   const profile = useAccountStore((state) => state.profile);
   const upsertOrder = useAccountStore((state) => state.upsertOrder);
@@ -337,13 +368,49 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
 
   const loadRazorpayScript = async () => {
     if (typeof window === "undefined") return false;
-    if (window.Razorpay) return true;
+
+    const razorpayWindow = window as unknown as {
+      Razorpay?: new (options: RazorpayMagicCheckoutOptions) => RazorpayMagicCheckoutInstance;
+      __razorpayMagicCheckoutLoaded?: boolean;
+    };
+
+    if (razorpayWindow.__razorpayMagicCheckoutLoaded && razorpayWindow.Razorpay) {
+      return true;
+    }
+
+    const existingScript = document.getElementById("razorpay-magic-checkout-script");
+    if (existingScript && razorpayWindow.Razorpay) {
+      razorpayWindow.__razorpayMagicCheckoutLoaded = true;
+      return true;
+    }
+
+    if (razorpayWindow.Razorpay) {
+      Reflect.deleteProperty(razorpayWindow, "Razorpay");
+    }
+    existingScript?.remove();
+
     return new Promise<boolean>((resolve) => {
       const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.id = "razorpay-magic-checkout-script";
+      script.src = "https://checkout.razorpay.com/v1/magic-checkout.js";
       script.async = true;
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
+      script.onload = () => {
+        const magicCheckoutWindow = window as unknown as {
+          Razorpay?: new (options: RazorpayMagicCheckoutOptions) => RazorpayMagicCheckoutInstance;
+          __razorpayMagicCheckoutLoaded?: boolean;
+        };
+        magicCheckoutWindow.__razorpayMagicCheckoutLoaded = Boolean(magicCheckoutWindow.Razorpay);
+        resolve(Boolean(magicCheckoutWindow.Razorpay));
+      };
+      script.onerror = () => {
+        const magicCheckoutWindow = window as unknown as {
+          Razorpay?: new (options: RazorpayMagicCheckoutOptions) => RazorpayMagicCheckoutInstance;
+          __razorpayMagicCheckoutLoaded?: boolean;
+        };
+        magicCheckoutWindow.__razorpayMagicCheckoutLoaded = false;
+        Reflect.deleteProperty(magicCheckoutWindow, "Razorpay");
+        resolve(false);
+      };
       document.body.appendChild(script);
     });
   };
@@ -386,9 +453,44 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
     pushToast("Coupon removed", { variant: "info" });
   };
 
+  const validCheckoutItems = cartItems.filter((item) => {
+    const productId = item?.product?.id?.trim();
+    const quantity = Number(item?.quantity);
+    return Boolean(productId) && Number.isFinite(quantity) && quantity > 0;
+  });
+
+  const staleCartItemIds = cartItems
+    .filter((item) => {
+      const productId = item?.product?.id?.trim();
+      const quantity = Number(item?.quantity);
+      return !Boolean(productId) || !Number.isFinite(quantity) || quantity <= 0;
+    })
+    .map((item) => item.product?.id)
+    .filter((id): id is string => Boolean(id));
+
+  const repairStaleCart = () => {
+    if (staleCartItemIds.length === 0) {
+      return false;
+    }
+
+    staleCartItemIds.forEach((productId) => removeFromCart(productId));
+    pruneInvalidCartItems();
+    return true;
+  };
+
   const handleProceedToShipping = () => {
-    if (cartItems.length === 0) { pushToast("Add items to cart before checkout", { variant: "warning" }); return; }
-    if (!isSignedIn) { pushToast("Sign in to proceed to checkout", { variant: "warning" }); onClose(); router.push("/account?tab=overview"); return; }
+    if (cartItems.length > 0 && validCheckoutItems.length === 0) {
+      if (repairStaleCart()) {
+        pushToast("We removed stale cart items and refreshed your cart. Please try again.", { variant: "warning" });
+        return;
+      }
+      pushToast("Your cart contains stale or invalid items. Please refresh and try again.", { variant: "warning" });
+      return;
+    }
+
+    if (staleCartItemIds.length > 0) {
+      repairStaleCart();
+    }
 
     void trackClientEvent({
       eventName: "checkout_started",
@@ -411,10 +513,9 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
 
     if (mode === "drawer") {
       onClose();
-      router.push("/checkout");
-      return;
     }
-    setStep("shipping");
+
+    void handleOnlineCheckout();
   };
 
   const handleProceedToSummary = async () => {
@@ -443,9 +544,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
           error?: string;
         };
 
-        if (!response.ok) {
-          pushToast(payload.error ?? "Could not save shipping address", { variant: "warning" });
-        } else {
+        if (response.ok) {
           updateProfile({
             fullName: shippingName.trim() || profile.fullName,
             address: shippingAddress.trim(),
@@ -458,9 +557,11 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
           if (payload.addresses?.[0]?.id) {
             setSelectedSavedAddressId(payload.addresses[0].id);
           }
+        } else {
+          console.warn("Shipping address save skipped due to backend error", payload.error ?? response.statusText);
         }
-      } catch {
-        pushToast("Could not save shipping address", { variant: "warning" });
+      } catch (error) {
+        console.warn("Shipping address save skipped due to client-side failure", error);
       } finally {
         if (isMountedRef.current) {
           setIsSavingShippingAddress(false);
@@ -498,19 +599,35 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       const scriptReady = await loadRazorpayScript();
       if (!scriptReady) { pushToast("Failed to load payment gateway", { variant: "error" }); return; }
 
+      if (cartItems.length > 0 && validCheckoutItems.length === 0) {
+        if (repairStaleCart()) {
+          pushToast("We removed stale cart items and refreshed your cart. Please try again.", { variant: "warning" });
+          return;
+        }
+        pushToast("Your cart contains stale or invalid items. Please refresh and try again.", { variant: "warning" });
+        return;
+      }
+
+      if (staleCartItemIds.length > 0) {
+        repairStaleCart();
+      }
+
       const orderResponse = await fetch("/api/checkout/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: cartItems.map((item) => ({
+          items: validCheckoutItems.map((item) => ({
             productId: item.product.id,
-            quantity: item.quantity,
+            quantity: Math.max(1, Math.floor(item.quantity)),
+            selectedSize: item.product.selectedSize ?? undefined,
+            selectedVariantId: item.product.selectedVariantId ?? item.product.id,
             customDesignSurchargeINR: item.product.customization ? CUSTOM_DESIGN_SURCHARGE_INR : 0,
           })),
           displaySubtotalAmount,
           displayTotalAmount: displayTotalPayableAmount,
           shippingName: shippingName.trim(),
           shippingEmail: shippingEmail.trim(),
+          shippingPhone: profile.phone?.trim() || undefined,
           shippingAddress: shippingAddress.trim(),
           shippingCity: shippingCity.trim(),
           shippingState: shippingState.trim(),
@@ -521,13 +638,23 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       });
 
       const orderData = (await orderResponse.json().catch(() => ({}))) as {
-        orderId?: string; amount?: number; currency?: string; keyId?: string; error?: string;
+        orderId?: string; amount?: number; currency?: string; keyId?: string; error?: string; staleProductIds?: string[];
       };
 
       const effectiveRazorpayKey = orderData.keyId ?? razorpayKey;
 
+      if (orderData.staleProductIds?.length) {
+        orderData.staleProductIds.forEach((productId) => removeFromCart(productId));
+        pruneInvalidCartItems();
+      }
+
       if (!orderResponse.ok || !orderData.orderId || !orderData.amount || !orderData.currency) {
-        pushToast(orderData.error ?? "Unable to create order", { variant: "error" });
+        pushToast(
+          orderData.staleProductIds?.length
+            ? "Some outdated items were removed from your cart. Please review and try again."
+            : orderData.error ?? "Unable to create order",
+          { variant: orderData.staleProductIds?.length ? "warning" : "error" },
+        );
         return;
       }
 
@@ -536,17 +663,23 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
         return;
       }
 
-      const razorpay = new window.Razorpay({
+      const razorpay = new (window.Razorpay as new (options: RazorpayMagicCheckoutOptions) => RazorpayMagicCheckoutInstance)({
         key: effectiveRazorpayKey,
         amount: orderData.amount,
         currency: orderData.currency,
         name: "Firaang",
         description: "Secure checkout",
         order_id: orderData.orderId,
-        prefill: { name: shippingName.trim() || undefined, email: shippingEmail.trim() || undefined },
+        one_click_checkout: true,
+        show_coupons: true,
+        prefill: {
+          name: shippingName.trim() || undefined,
+          email: shippingEmail.trim() || undefined,
+          contact: profile.phone?.trim() || undefined,
+        },
         theme: { color: "#D3A736" },
         modal: { ondismiss: () => { pushToast("Payment cancelled", { variant: "warning" }); } },
-        handler: async (response) => {
+        handler: async (response: RazorpayMagicCheckoutResponse) => {
           const verifyResponse = await fetch("/api/checkout/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -556,17 +689,30 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
 
           const verification = (await verifyResponse.json()) as {
             verified?: boolean;
+            status?: "paid" | "pending" | "failed";
+            message?: string;
             order?: {
-              id: string; createdAt: string; totalAmount: number; currencyCode: string;
-              status: "paid" | "pending" | "failed" | "cancelled"; paymentMethod: "online" | "cod";
+              id: string;
+              createdAt: string;
+              totalAmount: number;
+              currencyCode: string;
+              status: "paid" | "pending" | "failed" | "cancelled";
+              paymentMethod: "online" | "cod";
               paymentId?: string;
               items: Array<{ productId: string; name: string; image: string; unitPrice: number; quantity: number; lineTotal: number }>;
             };
             meta?: { accountLinked?: boolean };
           };
 
-          if (!verification.verified) { pushToast("Payment could not be verified", { variant: "error" }); return; }
-          if (verification.order) upsertOrder(verification.order);
+          if (verification.status === "pending") {
+            pushToast(verification.message ?? "Payment is still pending. We will confirm it automatically.", { variant: "warning" });
+            return;
+          }
+
+          if (verification.status === "failed" || !verification.verified) {
+            pushToast(verification.message ?? "Payment verification failed", { variant: "error" });
+            return;
+          }
 
           updateProfile({
             fullName: shippingName.trim() || profile.fullName,
@@ -612,7 +758,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
         },
       });
 
-      razorpay.on("payment.failed", (event) => {
+      razorpay.on("payment.failed", (event: { error?: { description?: string } }) => {
         pushToast(event.error?.description ?? "Payment failed", { variant: "error" });
       });
       razorpay.open();
@@ -803,6 +949,9 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                             </Link>
                             {item.product.category ? (
                               <p className="mt-0.5 text-[11px] capitalize text-[#6b7280]">{item.product.category}</p>
+                            ) : null}
+                            {item.product.selectedSize ? (
+                              <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-[#ff3f6c]">Size: {item.product.selectedSize}</p>
                             ) : null}
                             <p className="mt-1.5 text-sm font-medium text-[#eac26a]">
                               {formatCurrency(convertAmount(lineDisplayUnitAmounts[index] ?? item.product.priceAmount, "INR", displayCurrency), displayCurrency)}

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createPendingOrderForSessionToken, getAccountSessionIdentityByToken, hasSuccessfullyUsedCouponForSessionToken, saveShippingAddressForSessionToken } from "@/lib/account-data";
+import { createGuestOrder, createPendingOrderForSessionToken, getAccountSessionIdentityByToken, hasSuccessfullyUsedCouponForSessionToken, saveShippingAddressForSessionToken } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { calculateCheckoutPricing, computeCouponDiscount, estimateOrderWeightKg, type ShippingMethod } from "@/lib/checkout-config";
@@ -26,14 +26,18 @@ type CreateOrderRequest = {
   items?: Array<{
     productId?: string;
     quantity?: number;
+    selectedSize?: string;
+    selectedVariantId?: string;
     customDesignSurchargeINR?: number;
   }>;
   shippingName?: string;
   shippingEmail?: string;
+  shippingPhone?: string;
   shippingAddress?: string;
   shippingCity?: string;
   shippingState?: string;
   shippingPinCode?: string;
+  shippingCountry?: string;
   shippingMethod?: ShippingMethod;
   couponCode?: string;
   displaySubtotalAmount?: number;
@@ -48,39 +52,49 @@ export async function POST(request: Request) {
     const rawItems = body.items ?? [];
     const shippingName = body.shippingName?.trim() ?? "";
     const shippingEmail = body.shippingEmail?.trim() ?? "";
+    const shippingPhone = body.shippingPhone?.trim() ?? "";
     const shippingAddress = body.shippingAddress?.trim() ?? "";
     const shippingCity = body.shippingCity?.trim() ?? "";
     const shippingState = body.shippingState?.trim() ?? "";
     const shippingPinCode = body.shippingPinCode?.trim() ?? "";
+    const shippingCountry = body.shippingCountry?.trim() || (shippingState ? "India" : "");
     const shippingMethod: ShippingMethod = body.shippingMethod === "air" ? "air" : "surface";
     const couponCode = body.couponCode?.trim().toUpperCase() ?? "";
 
-    if (rawItems.length === 0) {
-      return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+    const sanitizedItems = rawItems
+      .map((item) => {
+        const productId = typeof item.productId === "string" ? item.productId.trim() : "";
+        const quantityValue = Number(item.quantity);
+        const validQuantity = Number.isFinite(quantityValue) && quantityValue > 0 ? Math.max(1, Math.floor(quantityValue)) : 0;
+        const selectedSize = typeof item.selectedSize === "string" ? item.selectedSize.trim() : "";
+        const selectedVariantId = typeof item.selectedVariantId === "string" ? item.selectedVariantId.trim() : "";
+
+        if (!productId || validQuantity <= 0) {
+          return null;
+        }
+
+        return {
+          productId,
+          quantity: validQuantity,
+          ...(selectedSize ? { selectedSize } : {}),
+          ...(selectedVariantId ? { selectedVariantId } : {}),
+        };
+      })
+      .filter((item): item is { productId: string; quantity: number; selectedSize?: string; selectedVariantId?: string } => item !== null);
+
+    if (rawItems.length === 0 || sanitizedItems.length === 0) {
+      return NextResponse.json({ error: "Your cart contains stale or invalid items. Please refresh and try again." }, { status: 400 });
     }
 
-    if (!shippingAddress || !shippingState) {
-      return NextResponse.json({ error: "Shipping address, state, and PIN code are required" }, { status: 400 });
-    }
-
-    if (!shippingEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingEmail)) {
+    if (shippingEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingEmail)) {
       return NextResponse.json({ error: "A valid shipping email is required" }, { status: 400 });
-    }
-
-    if (!sessionToken) {
-      return NextResponse.json({ error: "Sign in required to place an order" }, { status: 401 });
     }
 
     if (shippingPinCode && !/^\d{6}$/.test(shippingPinCode)) {
       return NextResponse.json({ error: "PIN code must be 6 digits" }, { status: 400 });
     }
 
-    const checkoutItems = rawItems
-      .map((item) => ({
-        productId: item.productId ?? "",
-        quantity: typeof item.quantity === "number" ? item.quantity : 1,
-      }))
-      .filter((item) => item.productId.length > 0);
+    const checkoutItems = sanitizedItems;
 
     // Build a per-productId surcharge map (server clamps to the known constant to prevent tampering)
     const surchargeByProductId = new Map<string, number>();
@@ -91,18 +105,33 @@ export async function POST(request: Request) {
       }
     }
 
-    const { items: resolvedItems, currencyCode } = await resolveCheckoutItems(checkoutItems);
+    const { items: resolvedItems, currencyCode, staleProductIds = [] } = await resolveCheckoutItems(checkoutItems);
+    const sizeLookup = new Map(sanitizedItems.map((item) => [item.productId, item]));
 
     // Apply custom design surcharge to matching resolved items
     const items = resolvedItems.map((item) => {
       const surcharge = surchargeByProductId.get(item.product.id) ?? 0;
-      if (surcharge <= 0) return item;
-      return {
+      const matched = sizeLookup.get(item.product.id);
+      const selectedSize = matched?.selectedSize ?? item.product.selectedSize;
+      const selectedVariantId = matched?.selectedVariantId ?? item.product.selectedVariantId ?? item.product.id;
+      const enrichedItem = {
         ...item,
         product: {
           ...item.product,
-          name: `${item.product.name} (Custom Print)`,
-          priceAmount: item.product.priceAmount + surcharge,
+          selectedSize,
+          selectedVariantId,
+        },
+        selectedSize,
+        selectedVariantId,
+      };
+
+      if (surcharge <= 0) return enrichedItem;
+      return {
+        ...enrichedItem,
+        product: {
+          ...enrichedItem.product,
+          name: `${enrichedItem.product.name} (Custom Print)`,
+          priceAmount: enrichedItem.product.priceAmount + surcharge,
         },
       };
     });
@@ -113,7 +142,16 @@ export async function POST(request: Request) {
     }, 0);
 
     if (items.length === 0 || totalPaise <= 0) {
-      return NextResponse.json({ error: "No valid items found for checkout" }, { status: 400 });
+      console.warn("Checkout rejected: resolved item list is empty or total is non-positive.", {
+        rawItemCount: rawItems.length,
+        sanitizedItemCount: sanitizedItems.length,
+        productIds: sanitizedItems.map((item) => item.productId),
+        staleProductIds,
+      });
+      return NextResponse.json({
+        error: "Your cart contains stale or invalid items. Please refresh and try again.",
+        staleProductIds,
+      }, { status: 400 });
     }
 
     const subtotalAmount = Math.round(totalPaise / 100);
@@ -144,7 +182,7 @@ export async function POST(request: Request) {
     if (couponCode) {
       const couponRecord = await getActiveCouponByCode(couponCode);
       if (!couponRecord) {
-        const sessionIdentity = await getAccountSessionIdentityByToken(sessionToken);
+        const sessionIdentity = sessionToken ? await getAccountSessionIdentityByToken(sessionToken) : null;
         const campaignValidation = await validateCampaignCouponForCheckout({
           code: couponCode,
           subtotalAmount: pricingSubtotalAmount,
@@ -168,7 +206,7 @@ export async function POST(request: Request) {
         };
         campaignCouponCode = campaignValidation.checkoutCoupon.code;
       } else {
-        if (couponRecord.code === WELCOME5_COUPON_CODE) {
+        if (couponRecord.code === WELCOME5_COUPON_CODE && sessionToken) {
           const alreadyUsed = await hasSuccessfullyUsedCouponForSessionToken(sessionToken, couponRecord.code);
 
           if (alreadyUsed) {
@@ -204,10 +242,9 @@ export async function POST(request: Request) {
       validatedCoupon,
     });
 
-    if (pricing.shippingStatus !== "resolved") {
+    if (pricing.shippingStatus !== "resolved" && shippingState) {
       return NextResponse.json({ error: "Select a valid shipping state" }, { status: 400 });
     }
-
 
     const finalTotalAmount = useInclusiveDisplayPayable
       ? Math.max(0, pricingSubtotalAmount - pricing.discountAmount)
@@ -218,12 +255,41 @@ export async function POST(request: Request) {
     }
 
     const razorpay = getRazorpayClient();
+    const lineItemsTotal = items.reduce((sum, item) => {
+      return sum + Math.round(item.product.priceAmount * 100) * item.quantity;
+    }, 0);
+    const lineItems = items.map((item) => ({
+      type: "e-commerce",
+      sku: item.product.id,
+      variant_id: item.product.parentId || item.product.id,
+      price: String(Math.round(item.product.priceAmount * 100)),
+      offer_price: String(Math.round(item.product.priceAmount * 100)),
+      tax_amount: 0,
+      quantity: item.quantity,
+      name: item.product.name,
+      description: item.product.name,
+      weight: "0",
+      dimensions: {
+        length: "0",
+        width: "0",
+        height: "0",
+      },
+      image_url: item.product.img || "",
+      product_url: item.product.handle ? `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com"}/product/${item.product.handle}` : "https://example.com",
+      notes: {
+        productId: item.product.id,
+        selectedSize: item.selectedSize ?? item.product.selectedSize ?? "",
+        selectedVariantId: item.selectedVariantId ?? item.product.selectedVariantId ?? item.product.id,
+      },
+    }));
 
     const order = await razorpay.orders.create({
       amount: finalTotalAmount * 100,
       currency: currencyCode,
       receipt: `rcpt_${Date.now()}`,
       payment_capture: true,
+      line_items_total: lineItemsTotal,
+      line_items: lineItems,
       notes: {
         itemCount: String(items.length),
         shippingState,
@@ -237,6 +303,14 @@ export async function POST(request: Request) {
         shippingPinCode,
       },
     });
+
+    const successPayload = {
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? process.env.RAZORPAY_KEY_ID,
+      staleProductIds: staleProductIds.length > 0 ? staleProductIds : undefined,
+    };
 
     if (campaignCouponCode) {
       const reservation = await reserveCampaignCouponForOrder({ code: campaignCouponCode, orderId: order.id });
@@ -256,6 +330,7 @@ export async function POST(request: Request) {
       await saveShippingAddressForSessionToken(sessionToken, {
         fullName: shippingName || undefined,
         email: shippingEmail || undefined,
+        phone: shippingPhone || undefined,
         address: shippingAddress,
         city: shippingCity || undefined,
         state: shippingState,
@@ -282,10 +357,12 @@ export async function POST(request: Request) {
         currencyCode: order.currency,
         shippingName,
         shippingEmail,
+        shippingPhone,
         shippingAddress,
         shippingCity,
         shippingState,
         shippingPinCode,
+        shippingCountry,
         items: displayItems.map((item) => ({
           productId: item.product.id,
           name: item.product.name,
@@ -295,14 +372,51 @@ export async function POST(request: Request) {
           lineTotal:
             (useInclusiveDisplayPayable ? item.displayUnitPrice : item.product.priceAmount) *
             item.quantity,
+          selectedSize: item.selectedSize ?? item.product.selectedSize,
+          selectedVariantId: item.selectedVariantId ?? item.product.selectedVariantId ?? item.product.id,
         })),
       });
+    } else {
+      persistedOrder = await createGuestOrder({
+        orderId: order.id,
+        totalAmount,
+        subtotalAmount: pricingSubtotalAmount,
+        shippingFee: useInclusiveDisplayPayable ? 0 : pricing.shippingFee,
+        taxAmount: 0,
+        discountAmount: pricing.discountAmount,
+        codFee: pricing.codFee,
+        shippingLabel: pricing.shippingLabel,
+        shippingMethod: pricing.shippingMethod,
+        orderWeightKg,
+        couponCode: validatedCoupon?.code,
+        couponLabel: validatedCoupon?.label,
+        currencyCode: order.currency,
+        paymentMethod: "online",
+        shippingName,
+        shippingEmail,
+        shippingPhone,
+        shippingAddress,
+        shippingCity,
+        shippingState,
+        shippingPinCode,
+        shippingCountry,
+        items: displayItems.map((item) => ({
+          productId: item.product.id,
+          name: item.product.name,
+          image: item.product.img,
+          unitPrice: useInclusiveDisplayPayable ? item.displayUnitPrice : item.product.priceAmount,
+          quantity: item.quantity,
+          lineTotal: (useInclusiveDisplayPayable ? item.displayUnitPrice : item.product.priceAmount) * item.quantity,
+          selectedSize: item.selectedSize ?? item.product.selectedSize,
+          selectedVariantId: item.selectedVariantId ?? item.product.selectedVariantId ?? item.product.id,
+        })),
+      });
+    }
 
-      if (persistedOrder) {
-        await syncShopifyInventoryForOrder(persistedOrder.id, "reserve").catch((error) => {
-          console.error("Shopify inventory reserve sync failed", error);
-        });
-      }
+    if (persistedOrder) {
+      await syncShopifyInventoryForOrder(persistedOrder.id, "reserve").catch((error) => {
+        console.error("Shopify inventory reserve sync failed", error);
+      });
     }
 
     const cookieHeader = request.headers.get("cookie") ?? "";
@@ -340,10 +454,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
-      keyId: process.env.RAZORPAY_KEY_ID,
+      ...successPayload,
       meta: {
         accountLinked: persistedOrder !== null,
       },

@@ -11,6 +11,8 @@ type RazorpayCheckoutOptions = {
   name: string;
   description?: string;
   order_id: string;
+  one_click_checkout?: boolean;
+  show_coupons?: boolean;
   prefill?: {
     name?: string;
     email?: string;
@@ -33,6 +35,7 @@ type RazorpayInstance = {
 declare global {
   interface Window {
     Razorpay: new (options: RazorpayCheckoutOptions) => RazorpayInstance;
+    __razorpayMagicCheckoutLoaded?: boolean;
   }
 }
 

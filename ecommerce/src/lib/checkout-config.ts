@@ -1,8 +1,10 @@
 export const ORDER_CANCELLATION_WINDOW_DAYS = 7;
-export const COD_FLAT_FEE_UPTO_2000_INR = 50;
-export const COD_PERCENTAGE_ABOVE_2000 = 2.5;
+export const COD_FLAT_FEE_UPTO_2000_INR = 0;
+export const COD_PERCENTAGE_ABOVE_2000 = 0;
 export const DEFAULT_ITEM_WEIGHT_KG = 0.5;
-export const HIGH_LOGISTICS_SURCHARGE_INR = 25;
+export const HIGH_LOGISTICS_SURCHARGE_INR = 0;
+export const STANDARD_DELIVERY_LABEL = "Standard Delivery";
+export const STANDARD_DELIVERY_DESCRIPTION = "Free Standard Delivery";
 
 // ── Tiered order discount tiers (highest applicable wins) ─────────
 export const TIERED_DISCOUNT_TIERS = [
@@ -156,11 +158,8 @@ export function calculateAirShippingFee(weightKg: number) {
 }
 
 export function calculateCodFee(orderValueInr: number) {
-  const value = Math.max(0, Math.round(orderValueInr));
-  if (value <= 2000) {
-    return COD_FLAT_FEE_UPTO_2000_INR;
-  }
-  return Math.round((value * COD_PERCENTAGE_ABOVE_2000) / 100);
+  void orderValueInr;
+  return 0;
 }
 
 export function isHighLogisticsState(state: string) {
@@ -173,32 +172,13 @@ export function calculateShippingFee(input: {
   shippingMethod?: ShippingMethod;
   shippingState?: string;
 }) {
-  const shippingMethod: ShippingMethod = input.shippingMethod ?? "surface";
-  const normalizedShippingState = normalizeShippingState(input.shippingState ?? "");
-  const orderWeightKg = roundWeight(input.orderWeightKg);
-
-  const baseShippingFee =
-    shippingMethod === "air"
-      ? calculateAirShippingFee(orderWeightKg)
-      : calculateSurfaceShippingFee(orderWeightKg);
-  const regionSurchargeFee =
-    normalizedShippingState && baseShippingFee > 0 && isHighLogisticsState(normalizedShippingState)
-      ? HIGH_LOGISTICS_SURCHARGE_INR
-      : 0;
-  const shippingFee = baseShippingFee + regionSurchargeFee;
-
-  const methodLabel = shippingMethod === "air" ? "Air Shipping" : "Surface Shipping";
-  const shippingLabel =
-    normalizedShippingState && regionSurchargeFee > 0
-      ? `${methodLabel} + High-logistics surcharge`
-      : methodLabel;
-
+  void input;
   return {
-    shippingFee,
-    baseShippingFee,
-    regionSurchargeFee,
-    shippingLabel,
-    normalizedShippingState,
+    shippingFee: 0,
+    baseShippingFee: 0,
+    regionSurchargeFee: 0,
+    shippingLabel: STANDARD_DELIVERY_LABEL,
+    normalizedShippingState: normalizeShippingState(input.shippingState ?? ""),
   };
 }
 
@@ -306,7 +286,7 @@ export function calculateCheckoutPricing(input: {
           shippingFee: 0,
           baseShippingFee: 0,
           regionSurchargeFee: 0,
-          shippingLabel: "Select state to calculate shipping",
+          shippingLabel: STANDARD_DELIVERY_LABEL,
           normalizedShippingState,
         };
 
@@ -326,7 +306,7 @@ export function calculateCheckoutPricing(input: {
   // Total discount = tiered auto-discount + coupon discount (both applied)
   const discountAmount = tieredDiscountAmount + couponDiscountAmount;
 
-  const codFee = input.paymentMethod === "cod" ? calculateCodFee(subtotalAmount + resolvedShipping.shippingFee) : 0;
+  const codFee = calculateCodFee(subtotalAmount + resolvedShipping.shippingFee);
 
   return {
     subtotalAmount,

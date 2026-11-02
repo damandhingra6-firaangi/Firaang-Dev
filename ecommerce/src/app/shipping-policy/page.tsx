@@ -66,6 +66,7 @@ const sections = [
     title: "Shipping and Delivery Timelines",
     paragraphs: [
       "We aim to deliver orders as quickly as possible through our logistics partners.",
+      "Maximum Delivery Time: Orders are generally delivered within 7–8 business days from the date of order confirmation, depending on the delivery location and courier serviceability.",
       "Actual delivery timelines may vary depending on:",
     ],
     list: [

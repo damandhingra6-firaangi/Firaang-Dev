@@ -154,6 +154,183 @@ function getShopifyPhoneNumber(phone: string | undefined) {
   return normalizePhoneNumber(raw) || raw;
 }
 
+async function findExistingShopifyCustomer(input: { phone?: string; email?: string }) {
+  const normalizedPhone = input.phone?.trim();
+  const normalizedEmail = input.email?.trim().toLowerCase();
+  const adminConfig = await getShopifyAdminConfig();
+
+  const queryCandidates = [
+    normalizedPhone ? `phone:${normalizedPhone}` : undefined,
+    normalizedPhone ? normalizedPhone : undefined,
+    normalizedEmail ? `email:${normalizedEmail}` : undefined,
+    normalizedEmail ? normalizedEmail : undefined,
+  ].filter((value): value is string => Boolean(value));
+
+  for (const query of queryCandidates) {
+    try {
+      const response = await fetch(
+        `https://${normalizeStoreDomain(adminConfig.storeDomain)}/admin/api/${adminConfig.apiVersion}/customers/search.json?query=${encodeURIComponent(query)}`,
+        {
+          headers: {
+            "X-Shopify-Access-Token": adminConfig.accessToken,
+          },
+          cache: "no-store",
+        },
+      );
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = (await response.json()) as { customers?: Array<{ id?: number | string; email?: string | null; phone?: string | null }> };
+      const customer = data.customers?.find((entry) => {
+        const normalizedEntryPhone = entry.phone ? getShopifyPhoneNumber(entry.phone) : undefined;
+        const normalizedEntryEmail = entry.email?.trim().toLowerCase();
+
+        return (normalizedPhone && normalizedEntryPhone && normalizedEntryPhone === normalizedPhone)
+          || (normalizedEmail && normalizedEntryEmail && normalizedEntryEmail === normalizedEmail);
+      });
+
+      if (customer) {
+        return {
+          customerId: String(customer.id),
+          email: customer.email ?? undefined,
+          phone: customer.phone ?? undefined,
+        };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+async function findExistingShopifyCustomerAcrossAllCustomers(input: { phone?: string; email?: string }) {
+  const normalizedPhone = input.phone?.trim();
+  const normalizedEmail = input.email?.trim().toLowerCase();
+  const adminConfig = await getShopifyAdminConfig();
+
+  try {
+    const response = await fetch(
+      `https://${normalizeStoreDomain(adminConfig.storeDomain)}/admin/api/${adminConfig.apiVersion}/customers.json?limit=250`,
+      {
+        headers: {
+          "X-Shopify-Access-Token": adminConfig.accessToken,
+        },
+        cache: "no-store",
+      },
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as { customers?: Array<{ id?: number | string; email?: string | null; phone?: string | null }> };
+    const customer = data.customers?.find((entry) => {
+      const normalizedEntryPhone = entry.phone ? getShopifyPhoneNumber(entry.phone) : undefined;
+      const normalizedEntryEmail = entry.email?.trim().toLowerCase();
+
+      return (normalizedPhone && normalizedEntryPhone && normalizedEntryPhone === normalizedPhone)
+        || (normalizedEmail && normalizedEntryEmail && normalizedEntryEmail === normalizedEmail);
+    });
+
+    if (!customer) {
+      return null;
+    }
+
+    return {
+      customerId: String(customer.id),
+      email: customer.email ?? undefined,
+      phone: customer.phone ?? undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function ensureShopifyCustomerForOrder(input: { phone?: string; email?: string; firstName: string; lastName: string }) {
+  const normalizedPhone = input.phone ? getShopifyPhoneNumber(input.phone) : undefined;
+  const normalizedEmail = input.email?.trim().toLowerCase();
+
+  const existingCustomer = await findExistingShopifyCustomer({ phone: normalizedPhone, email: normalizedEmail });
+
+  if (existingCustomer) {
+    return { customerId: existingCustomer.customerId, created: false };
+  }
+
+  const shopifyEmail = normalizedEmail && normalizedEmail.includes("@") ? normalizedEmail : undefined;
+
+  if (!shopifyEmail && !normalizedPhone) {
+    return { customerId: undefined, created: false };
+  }
+
+  const adminConfig = await getShopifyAdminConfig();
+
+  const response = await fetch(
+    `https://${normalizeStoreDomain(adminConfig.storeDomain)}/admin/api/${adminConfig.apiVersion}/customers.json`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": adminConfig.accessToken,
+      },
+      body: JSON.stringify({
+        customer: {
+          first_name: input.firstName,
+          last_name: input.lastName,
+          email: shopifyEmail,
+          phone: normalizedPhone,
+          verified_email: Boolean(shopifyEmail),
+        },
+      }),
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    const duplicateErrorText = errorText.toLowerCase();
+    const looksLikeDuplicateCustomerError =
+      duplicateErrorText.includes("email_address")
+      || duplicateErrorText.includes("phone_number")
+      || duplicateErrorText.includes("has already been taken")
+      || duplicateErrorText.includes("already exists");
+
+    if (looksLikeDuplicateCustomerError) {
+      const retriedCustomer =
+        (await findExistingShopifyCustomer({ phone: normalizedPhone, email: normalizedEmail }))
+        ?? (await findExistingShopifyCustomerAcrossAllCustomers({ phone: normalizedPhone, email: normalizedEmail }));
+
+      if (retriedCustomer) {
+        return { customerId: retriedCustomer.customerId, created: false };
+      }
+    }
+
+    const retriedCustomer = await findExistingShopifyCustomer({ phone: normalizedPhone, email: normalizedEmail });
+
+    if (retriedCustomer) {
+      return { customerId: retriedCustomer.customerId, created: false };
+    }
+
+    throw new Error(`SHOPIFY_CUSTOMER_CREATE_HTTP_${response.status}:${errorText}`);
+  }
+
+  const data = (await response.json()) as { customer?: { id?: number | string } };
+  const customerId = data.customer?.id ? String(data.customer.id) : undefined;
+
+  if (!customerId) {
+    const retriedCustomer = await findExistingShopifyCustomer({ phone: normalizedPhone, email: normalizedEmail });
+    if (retriedCustomer) {
+      return { customerId: retriedCustomer.customerId, created: false };
+    }
+
+    throw new Error("SHOPIFY_CUSTOMER_CREATE_MISSING_ID");
+  }
+
+  return { customerId, created: true };
+}
+
 const DRAFT_ORDER_SCOPE_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let cachedShopifyAdminToken:
@@ -471,6 +648,7 @@ async function createPaidOrderViaRest(input: {
   customerFirstName: string;
   customerLastName: string;
   customerPhone?: string;
+  customerId?: string;
   orderId: string;
   paymentMethod: string;
   currencyCode?: string;
@@ -480,7 +658,7 @@ async function createPaidOrderViaRest(input: {
   shippingLabel?: string;
   shippingMethod?: "surface" | "air";
   couponCode?: string;
-  lineItems: Array<{ title: string; quantity: number; price: string }>;
+  lineItems: Array<{ title: string; quantity: number; price: string; selectedSize?: string; selectedVariantId?: string }>;
   shippingAddress?: {
     firstName: string;
     lastName: string;
@@ -493,97 +671,150 @@ async function createPaidOrderViaRest(input: {
   };
 }) {
   const adminConfig = await getShopifyAdminConfig();
-
-  const response = await fetch(
-    `https://${normalizeStoreDomain(adminConfig.storeDomain)}/admin/api/${adminConfig.apiVersion}/orders.json`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Access-Token": adminConfig.accessToken,
-      },
-      body: JSON.stringify({
-        order: {
-          email: input.customerEmail,
-          customer: {
-            first_name: input.customerFirstName,
-            last_name: input.customerLastName,
-            email: input.customerEmail,
-            phone: input.customerPhone,
-          },
-          financial_status: "paid",
-          send_receipt: false,
-          send_fulfillment_receipt: false,
-          currency: input.currencyCode,
-          taxes_included: false,
-          note: `Firaang order ${input.orderId}`,
-          tags: ["Firaang", "paid", input.paymentMethod, input.orderId].join(","),
-          line_items: input.lineItems.map((item) => ({
-            title: item.title,
-            quantity: item.quantity,
-            price: item.price,
-            taxable: false,
-            tax_lines: [],
-          })),
-          tax_lines:
-            (input.taxAmount ?? 0) > 0
-              ? [
-                  {
-                    title: "Tax",
-                    price: (input.taxAmount ?? 0).toFixed(2),
-                    rate: 0,
-                  },
-                ]
-              : [],
-          shipping_lines: [
-            {
-              title: input.shippingLabel || "Shipping",
-              code: input.shippingMethod || "surface",
-              price: (input.shippingFee ?? 0).toFixed(2),
-              source: "Firaang",
-              tax_lines: [],
-            },
-          ],
-          discount_codes:
-            (input.discountAmount ?? 0) > 0
-              ? [
-                  {
-                    code: input.couponCode || "FIRAANG",
-                    amount: (input.discountAmount ?? 0).toFixed(2),
-                    type: "fixed_amount",
-                  },
-                ]
-              : [],
-          shipping_address: input.shippingAddress,
-        },
-      }),
-      cache: "no-store",
-    },
-  );
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    return {
-      status: "failed" as const,
-      reason: `SHOPIFY_ORDER_CREATE_HTTP_${response.status}:${body}`,
-    };
-  }
-
-  const data = (await response.json()) as ShopifyRestOrderCreateResponse;
-  const shopifyOrderId = getRestOrderId(data.order);
-
-  if (!shopifyOrderId) {
-    const errorsAsString = data.errors ? JSON.stringify(data.errors) : "Unknown Shopify REST order create error";
-    return {
-      status: "failed" as const,
-      reason: errorsAsString,
-    };
-  }
-
-  return {
-    status: "synced" as const,
-    shopifyOrderId,
+  const normalizedCustomerId = input.customerId ? normalizeShopifyNumericId(input.customerId) : "";
+  const duplicateCustomerError = (message: string) => {
+    const lower = message.toLowerCase();
+    return lower.includes("email_address") || lower.includes("phone_number") || lower.includes("has already been taken") || lower.includes("already exists");
   };
+
+  const buildOrderPayload = (customerOverride?: { id?: number } | { first_name: string; last_name: string; email?: string; phone?: string }) => ({
+    order: {
+      email: input.customerEmail,
+      ...(customerOverride ? { customer: customerOverride } : {}),
+      financial_status: "paid",
+      send_receipt: false,
+      send_fulfillment_receipt: false,
+      currency: input.currencyCode,
+      taxes_included: false,
+      note: `Firaang order ${input.orderId}`,
+      tags: ["Firaang", "paid", input.paymentMethod, input.orderId].join(","),
+      line_items: input.lineItems.map((item) => ({
+        title: item.title,
+        quantity: item.quantity,
+        price: item.price,
+        taxable: false,
+        tax_lines: [],
+        ...(item.selectedSize || item.selectedVariantId
+          ? {
+              properties: [
+                ...(item.selectedSize ? [{ name: "Size", value: item.selectedSize }] : []),
+                ...(item.selectedVariantId ? [{ name: "Variant ID", value: item.selectedVariantId }] : []),
+              ],
+            }
+          : {}),
+      })),
+      tax_lines:
+        (input.taxAmount ?? 0) > 0
+          ? [
+              {
+                title: "Tax",
+                price: (input.taxAmount ?? 0).toFixed(2),
+                rate: 0,
+              },
+            ]
+          : [],
+      shipping_lines: [
+        {
+          title: input.shippingLabel || "Shipping",
+          code: input.shippingMethod || "surface",
+          price: (input.shippingFee ?? 0).toFixed(2),
+          source: "Firaang",
+          tax_lines: [],
+        },
+      ],
+      discount_codes:
+        (input.discountAmount ?? 0) > 0
+          ? [
+              {
+                code: input.couponCode || "FIRAANG",
+                amount: (input.discountAmount ?? 0).toFixed(2),
+                type: "fixed_amount",
+              },
+            ]
+          : [],
+      shipping_address: input.shippingAddress,
+    },
+  });
+
+  const createOrderRequest = async (customerOverride?: { id?: number } | { first_name: string; last_name: string; email?: string; phone?: string }) => {
+    const response = await fetch(
+      `https://${normalizeStoreDomain(adminConfig.storeDomain)}/admin/api/${adminConfig.apiVersion}/orders.json`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": adminConfig.accessToken,
+        },
+        body: JSON.stringify(buildOrderPayload(customerOverride)),
+        cache: "no-store",
+      },
+    );
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      return { status: "failed" as const, reason: `SHOPIFY_ORDER_CREATE_HTTP_${response.status}:${body}`, response };
+    }
+
+    const data = (await response.json()) as ShopifyRestOrderCreateResponse;
+    const shopifyOrderId = getRestOrderId(data.order);
+
+    if (!shopifyOrderId) {
+      const errorsAsString = data.errors ? JSON.stringify(data.errors) : "Unknown Shopify REST order create error";
+      return { status: "failed" as const, reason: errorsAsString };
+    }
+
+    return {
+      status: "synced" as const,
+      shopifyOrderId,
+      shopifyCustomerId: input.customerId,
+    };
+  };
+
+  const initialCustomerOverride = normalizedCustomerId
+    ? { id: Number(normalizedCustomerId) }
+    : {
+        first_name: input.customerFirstName,
+        last_name: input.customerLastName,
+        email: input.customerEmail,
+        phone: input.customerPhone,
+      };
+
+  const initialResult = await createOrderRequest(initialCustomerOverride);
+
+  if (initialResult.status === "synced") {
+    return initialResult;
+  }
+
+  if (normalizedCustomerId) {
+    return initialResult;
+  }
+
+  if (!duplicateCustomerError(initialResult.reason)) {
+    return initialResult;
+  }
+
+  const recoveredCustomer =
+    (input.customerEmail ? await findExistingShopifyCustomer({ email: input.customerEmail, phone: input.customerPhone }) : null)
+    ?? (input.customerPhone ? await findExistingShopifyCustomer({ phone: input.customerPhone, email: input.customerEmail }) : null)
+    ?? (input.customerEmail || input.customerPhone ? await findExistingShopifyCustomerAcrossAllCustomers({ email: input.customerEmail, phone: input.customerPhone }) : null);
+
+  if (recoveredCustomer?.customerId) {
+    const recoveredWithCustomerId = await createOrderRequest({ id: Number(normalizeShopifyNumericId(recoveredCustomer.customerId)) });
+    if (recoveredWithCustomerId.status === "synced") {
+      return { ...recoveredWithCustomerId, shopifyCustomerId: recoveredCustomer.customerId };
+    }
+    return recoveredWithCustomerId;
+  }
+
+  const retryWithoutCustomer = await createOrderRequest();
+  if (retryWithoutCustomer.status === "synced") {
+    return {
+      ...retryWithoutCustomer,
+      shopifyCustomerId: input.customerId,
+    };
+  }
+
+  return initialResult;
 }
 
 async function completeDraftOrderViaRest(draftOrderId: string, paymentPending: boolean) {
@@ -877,13 +1108,20 @@ export async function syncPaidOrderToShopify(orderId: string) {
       status: "skipped" as const,
       reason: "already_synced",
       shopifyOrderId: orderWithCustomer.order.shopifyOrderId,
+      shopifyCustomerId: orderWithCustomer.order.shopifyCustomerId,
     };
   }
 
   const customerName = orderWithCustomer.order.shippingName ?? orderWithCustomer.customer?.fullName ?? "Firaang Customer";
   const customerEmail = getShopifyCustomerEmail(orderWithCustomer.customer) ?? orderWithCustomer.order.shippingEmail;
-  const customerPhone = getShopifyPhoneNumber(orderWithCustomer.customer?.phone);
+  const customerPhone = getShopifyPhoneNumber(orderWithCustomer.order.shippingPhone ?? orderWithCustomer.customer?.phone);
   const { firstName, lastName } = splitCustomerName(customerName);
+  const customerRecord = await ensureShopifyCustomerForOrder({
+    email: customerEmail,
+    phone: customerPhone,
+    firstName,
+    lastName,
+  });
 
   const lineItems = orderWithCustomer.order.items.map((item) => ({
     title: item.name,
@@ -899,7 +1137,7 @@ export async function syncPaidOrderToShopify(orderId: string) {
         city: orderWithCustomer.order.shippingCity ?? "",
         province: orderWithCustomer.order.shippingState ?? "",
         zip: orderWithCustomer.order.shippingPinCode ?? "",
-        country: "India",
+        country: orderWithCustomer.order.shippingCountry ?? "India",
         phone: customerPhone,
       }
     : undefined;
@@ -909,6 +1147,7 @@ export async function syncPaidOrderToShopify(orderId: string) {
     customerFirstName: firstName,
     customerLastName: lastName,
     customerPhone,
+    customerId: customerRecord.customerId,
     orderId: orderWithCustomer.order.id,
     paymentMethod: orderWithCustomer.order.paymentMethod,
     currencyCode: orderWithCustomer.order.currencyCode,

@@ -8,6 +8,7 @@ type SizeChartRule = {
 };
 
 const APPAREL_SIZES = ["XS", "S", "M", "L", "XL", "2XL"];
+const FALLBACK_TSHIRT_SIZE_VALUES = ["S", "M", "L", "XL", "XXL"];
 
 function createEmptyRows(sizeLabels: string[], columns: number) {
   return sizeLabels.map((size) => [size, ...Array.from({ length: columns - 1 }, () => "-")]);
@@ -120,6 +121,22 @@ function normalize(value: string | undefined) {
 export function getConfiguredSizeChart(product: Pick<GridProduct, "name" | "handle">): ProductSizeChart | null {
   const handle = normalize(product.handle);
   const title = normalize(product.name);
+  const tShirtPattern = /(t[-\s]*shirt|tee|oversized|full[-\s]*sleeve|baby\s*tee|shirt)/i;
+
+  if (tShirtPattern.test(handle) || tShirtPattern.test(title)) {
+    return {
+      headers: ["Size", "Chest", "Length", "Shoulder", "To Fit Chest"],
+      rows: [
+        ["XS", "38", "26", "16", "34-36"],
+        ["S", "40", "27", "17", "36-38"],
+        ["M", "42", "28", "18", "38-40"],
+        ["L", "44", "29", "19", "40-42"],
+        ["XL", "46", "30", "20", "42-44"],
+        ["XXL", "48", "31", "21", "44-46"],
+      ],
+      note: "Approximate garment measurements in inches. Slight variation may occur (+/- 0.5 in).",
+    };
+  }
 
   const match = PRODUCT_SIZE_CHART_RULES.find((rule) => {
     const ruleHandle = normalize(rule.handle);
@@ -137,6 +154,16 @@ export function getConfiguredSizeChart(product: Pick<GridProduct, "name" | "hand
   });
 
   return match?.chart ?? null;
+}
+
+export function getDefaultTShirtSizeValues(product: Pick<GridProduct, "name" | "handle">): string[] {
+  const text = `${product.handle ?? ""} ${product.name ?? ""}`.toLowerCase();
+
+  if (!/(t[-\s]*shirt|tee|oversized|full[-\s]*sleeve|baby\s*tee|shirt)/i.test(text)) {
+    return [];
+  }
+
+  return FALLBACK_TSHIRT_SIZE_VALUES;
 }
 
 export { PRODUCT_SIZE_CHART_RULES };

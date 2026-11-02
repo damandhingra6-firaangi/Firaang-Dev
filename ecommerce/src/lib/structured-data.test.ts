@@ -69,6 +69,11 @@ describe("product structured data", () => {
       merchantReturnDays: 5,
       returnMethod: "https://schema.org/ReturnByMail",
       returnFees: "https://schema.org/ReturnShippingFees",
+      returnShippingFeesAmount: {
+        "@type": "MonetaryAmount",
+        value: 0,
+        currency: "INR",
+      },
     });
   });
 });

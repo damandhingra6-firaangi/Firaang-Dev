@@ -36,6 +36,9 @@ export type AccountSavedAddress = {
 
 export type AccountOrderItem = {
   productId: string;
+  selectedSize?: string;
+  selectedVariantId?: string;
+  selectedOptions?: Record<string, string>;
   name: string;
   image: string;
   unitPrice: number;
@@ -77,7 +80,7 @@ export type AccountOrder = {
   status: "paid" | "pending" | "failed" | "cancelled";
   paymentMethod: "online" | "cod";
   paymentGateway?: "razorpay";
-  paymentStatus?: "created" | "authorized" | "captured" | "failed" | "refunded";
+  paymentStatus?: "created" | "pending" | "authorized" | "captured" | "failed" | "refunded";
   cancelledAt?: string;
   cancelReason?: string;
   paymentId?: string;
@@ -85,6 +88,7 @@ export type AccountOrder = {
   refundAmount?: number;
   refundedAt?: string;
   shopifyOrderId?: string;
+  shopifyCustomerId?: string;
   shopifySyncStatus?: "pending" | "synced" | "failed" | "skipped";
   shopifySyncError?: string;
   inventorySyncStatus?: "pending" | "reserved" | "released" | "partial" | "failed" | "skipped";
@@ -100,10 +104,12 @@ export type AccountOrder = {
   items: AccountOrderItem[];
   shippingName?: string;
   shippingEmail?: string;
+  shippingPhone?: string;
   shippingAddress?: string;
   shippingCity?: string;
   shippingState?: string;
   shippingPinCode?: string;
+  shippingCountry?: string;
 };
 
 export type AccountSessionSnapshot = {
@@ -201,13 +207,14 @@ type AccountOrderDocument = {
   status: "paid" | "pending" | "failed" | "cancelled";
   paymentMethod?: "online" | "cod";
   paymentGateway?: "razorpay";
-  paymentStatus?: "created" | "authorized" | "captured" | "failed" | "refunded";
+  paymentStatus?: "created" | "pending" | "authorized" | "captured" | "failed" | "refunded";
   cancelledAt?: Date;
   cancelReason?: string;
   refundId?: string;
   refundAmount?: number;
   refundedAt?: Date;
   shopifyOrderId?: string;
+  shopifyCustomerId?: string;
   shopifySyncStatus?: "pending" | "synced" | "failed" | "skipped";
   shopifySyncError?: string;
   inventorySyncStatus?: "pending" | "reserved" | "released" | "partial" | "failed" | "skipped";
@@ -225,10 +232,12 @@ type AccountOrderDocument = {
   updatedAt: Date;
   shippingName?: string;
   shippingEmail?: string;
+  shippingPhone?: string;
   shippingAddress?: string;
   shippingCity?: string;
   shippingState?: string;
   shippingPinCode?: string;
+  shippingCountry?: string;
 };
 
 const USERS_COLLECTION_NAME = process.env.MONGODB_USERS_COLLECTION ?? "users";
@@ -695,6 +704,7 @@ function mapOrder(document: AccountOrderDocument): AccountOrder {
     refundAmount: document.refundAmount,
     refundedAt: document.refundedAt?.toISOString(),
     shopifyOrderId: document.shopifyOrderId,
+    shopifyCustomerId: document.shopifyCustomerId,
     shopifySyncStatus: document.shopifySyncStatus,
     shopifySyncError: document.shopifySyncError,
     inventorySyncStatus: document.inventorySyncStatus,
@@ -714,10 +724,12 @@ function mapOrder(document: AccountOrderDocument): AccountOrder {
     items: document.items,
     shippingName: document.shippingName,
     shippingEmail: document.shippingEmail,
+    shippingPhone: document.shippingPhone,
     shippingAddress: document.shippingAddress,
     shippingCity: document.shippingCity,
     shippingState: document.shippingState,
     shippingPinCode: document.shippingPinCode,
+    shippingCountry: document.shippingCountry,
   };
 }
 
@@ -1313,6 +1325,97 @@ export async function saveShippingAddressForSessionToken(
   return refreshedUser ? mapProfile(refreshedUser) : null;
 }
 
+export async function createGuestOrder(input: {
+  orderId: string;
+  totalAmount: number;
+  subtotalAmount?: number;
+  shippingFee?: number;
+  taxAmount?: number;
+  discountAmount?: number;
+  codFee?: number;
+  shippingLabel?: string;
+  shippingMethod?: "surface" | "air";
+  orderWeightKg?: number;
+  couponCode?: string;
+  couponLabel?: string;
+  currencyCode: string;
+  paymentMethod?: "online" | "cod";
+  items: AccountOrderItem[];
+  shippingName?: string;
+  shippingEmail?: string;
+  shippingPhone?: string;
+  shippingAddress?: string;
+  shippingCity?: string;
+  shippingState?: string;
+  shippingPinCode?: string;
+  shippingCountry?: string;
+}) {
+  const { orders } = await getCollections();
+  const userId = new ObjectId();
+  const now = new Date();
+  const isOnlinePayment = (input.paymentMethod ?? "online") === "online";
+  const initialEvents = [
+    { type: "created" as const, at: now, note: "Guest checkout order created" },
+    { type: "reserved" as const, at: now, note: "Inventory reserved from cart" },
+  ];
+
+  await orders.updateOne(
+    { orderId: input.orderId },
+    {
+      $set: {
+        userId,
+        totalAmount: input.totalAmount,
+        subtotalAmount: input.subtotalAmount,
+        shippingFee: input.shippingFee,
+        taxAmount: input.taxAmount,
+        discountAmount: input.discountAmount,
+        codFee: input.codFee,
+        shippingLabel: input.shippingLabel,
+        shippingMethod: input.shippingMethod,
+        orderWeightKg: input.orderWeightKg,
+        couponCode: input.couponCode,
+        couponLabel: input.couponLabel,
+        currencyCode: input.currencyCode,
+        paymentMethod: input.paymentMethod ?? "online",
+        paymentGateway: isOnlinePayment ? "razorpay" : undefined,
+        paymentStatus: isOnlinePayment ? "created" : undefined,
+        inventorySyncStatus: "pending",
+        items: input.items,
+        status: "pending",
+        fulfillmentStatus: "unfulfilled",
+        shippingName: input.shippingName,
+        shippingEmail: input.shippingEmail,
+        shippingPhone: input.shippingPhone,
+        shippingAddress: input.shippingAddress,
+        shippingCity: input.shippingCity,
+        shippingState: input.shippingState,
+        shippingPinCode: input.shippingPinCode,
+        shippingCountry: input.shippingCountry,
+        events: initialEvents,
+        updatedAt: now,
+      },
+      $setOnInsert: {
+        createdAt: now,
+      },
+    },
+    { upsert: true },
+  );
+
+  const document = await orders.findOne({ orderId: input.orderId });
+
+  if (document) {
+    await recordInventoryMovementByOrderId({
+      orderId: input.orderId,
+      userId,
+      type: "reserved",
+      items: input.items,
+      note: "Inventory reserved at checkout",
+    });
+  }
+
+  return document ? mapOrder(document) : null;
+}
+
 export async function createPendingOrderForSessionToken(
   token: string,
   input: {
@@ -1333,10 +1436,12 @@ export async function createPendingOrderForSessionToken(
     items: AccountOrderItem[];
     shippingName?: string;
     shippingEmail?: string;
+    shippingPhone?: string;
     shippingAddress?: string;
     shippingCity?: string;
     shippingState?: string;
     shippingPinCode?: string;
+    shippingCountry?: string;
   },
 ) {
   const { sessions, orders } = await getCollections();
@@ -1379,10 +1484,12 @@ export async function createPendingOrderForSessionToken(
         fulfillmentStatus: "unfulfilled",
         shippingName: input.shippingName,
         shippingEmail: input.shippingEmail,
+        shippingPhone: input.shippingPhone,
         shippingAddress: input.shippingAddress,
         shippingCity: input.shippingCity,
         shippingState: input.shippingState,
         shippingPinCode: input.shippingPinCode,
+        shippingCountry: input.shippingCountry,
         events: initialEvents,
         updatedAt: now,
       },
@@ -1513,6 +1620,12 @@ export async function markOrderPaidByOrderId(input: {
   paymentStatus?: "authorized" | "captured";
 }) {
   const { orders } = await getCollections();
+  const existingDocument = await orders.findOne({ orderId: input.orderId });
+
+  if (existingDocument?.status === "paid" && existingDocument.paymentId === input.paymentId) {
+    return mapOrder(existingDocument);
+  }
+
   const orderDocument = await orders.findOne({ orderId: input.orderId });
   const order = await updateOrderByOrderId(input.orderId, {
     status: "paid",
@@ -1536,6 +1649,25 @@ export async function markOrderPaidByOrderId(input: {
     orderId: input.orderId,
     type: input.paymentStatus === "authorized" ? "paid" : "committed",
     note: input.paymentStatus === "authorized" ? "Payment authorized" : "Payment captured and inventory committed",
+  });
+
+  return order;
+}
+
+export async function markOrderPendingByOrderId(input: { orderId: string; paymentId?: string }) {
+  const { orders } = await getCollections();
+  const existingDocument = await orders.findOne({ orderId: input.orderId });
+
+  if (existingDocument?.status === "paid") {
+    return mapOrder(existingDocument);
+  }
+
+  const order = await updateOrderByOrderId(input.orderId, {
+    status: "pending",
+    paymentId: input.paymentId,
+    paymentGateway: "razorpay",
+    paymentStatus: "pending",
+    fulfillmentStatus: "unfulfilled",
   });
 
   return order;
@@ -1612,11 +1744,13 @@ export async function markOrderRefundedByOrderId(input: {
 export async function attachShopifySyncResultToOrder(input: {
   orderId: string;
   shopifyOrderId?: string;
+  shopifyCustomerId?: string;
   shopifySyncStatus: "synced" | "failed" | "skipped";
   shopifySyncError?: string;
 }) {
   const order = await updateOrderByOrderId(input.orderId, {
     shopifyOrderId: input.shopifyOrderId,
+    shopifyCustomerId: input.shopifyCustomerId,
     shopifySyncStatus: input.shopifySyncStatus,
     shopifySyncError: input.shopifySyncError,
   });
@@ -1630,6 +1764,58 @@ export async function attachShopifySyncResultToOrder(input: {
   }
 
   return order;
+}
+
+export async function syncCustomerAndShippingDetailsByOrderId(orderId: string, input: {
+  shippingName?: string;
+  shippingEmail?: string;
+  shippingPhone?: string;
+  shippingAddress?: string;
+  shippingCity?: string;
+  shippingState?: string;
+  shippingPinCode?: string;
+  shippingCountry?: string;
+  shippingMethod?: "surface" | "air";
+  shippingLabel?: string;
+}) {
+  const { orders } = await getCollections();
+  const existing = await orders.findOne({ orderId });
+
+  if (!existing) {
+    return null;
+  }
+
+  const nextValues: Record<string, unknown> = {
+    updatedAt: new Date(),
+  };
+
+  const entries: Array<[string, string | undefined]> = [
+    ["shippingName", input.shippingName],
+    ["shippingEmail", input.shippingEmail],
+    ["shippingPhone", input.shippingPhone],
+    ["shippingAddress", input.shippingAddress],
+    ["shippingCity", input.shippingCity],
+    ["shippingState", input.shippingState],
+    ["shippingPinCode", input.shippingPinCode],
+    ["shippingCountry", input.shippingCountry],
+    ["shippingMethod", input.shippingMethod],
+    ["shippingLabel", input.shippingLabel],
+  ];
+
+  for (const [field, value] of entries) {
+    const normalized = typeof value === "string" ? value.trim() : value;
+    if (normalized && normalized !== "undefined") {
+      nextValues[field] = normalized;
+    }
+  }
+
+  if (Object.keys(nextValues).length <= 1) {
+    return mapOrder(existing);
+  }
+
+  await orders.updateOne({ orderId }, { $set: nextValues });
+  const updated = await orders.findOne({ orderId });
+  return updated ? mapOrder(updated) : null;
 }
 
 export async function claimOrderConfirmationEmailSend(orderId: string) {
@@ -1691,6 +1877,10 @@ export async function markOrderPaidForSessionToken(token: string, input: { order
   }
 
   const existingOrder = await orders.findOne({ orderId: input.orderId, userId: session.userId });
+
+  if (existingOrder?.status === "paid" && existingOrder.paymentId === input.paymentId) {
+    return mapOrder(existingOrder);
+  }
 
   await orders.updateOne(
     { orderId: input.orderId, userId: session.userId },

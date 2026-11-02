@@ -10,6 +10,35 @@ type CartItem = {
   quantity: number;
 };
 
+function isValidCartItem(item: unknown): item is CartItem {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
+
+  const candidate = item as Partial<CartItem>;
+  const product = candidate.product;
+  const quantity = Number(candidate.quantity);
+
+  return Boolean(product?.id?.trim()) && Number.isFinite(quantity) && quantity > 0 && Number.isFinite(product?.priceAmount);
+}
+
+function sanitizeCartRecord(cart: Record<string, CartItem> | undefined | null): Record<string, CartItem> {
+  if (!cart || typeof cart !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(cart).flatMap(([productId, item]) => {
+      if (!isValidCartItem(item)) {
+        return [];
+      }
+
+      const safeQuantity = Math.max(1, Math.floor(Number(item.quantity)));
+      return [[productId, { ...item, quantity: safeQuantity }]];
+    }),
+  );
+}
+
 type ShopState = {
   wishlist: Record<string, GridProduct>;
   cart: Record<string, CartItem>;
@@ -19,6 +48,7 @@ type ShopState = {
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
+  pruneInvalidCartItems: () => void;
 };
 
 export const useShopStore = create<ShopState>()(
@@ -141,12 +171,27 @@ export const useShopStore = create<ShopState>()(
           };
         }),
       clearCart: () => set({ cart: {} }),
+      pruneInvalidCartItems: () =>
+        set((state) => ({
+          cart: sanitizeCartRecord(state.cart),
+        })),
     }),
     {
       name: "Firaang-shop-store",
+      merge: (persistedState, currentState) => {
+        const merged = {
+          ...currentState,
+          ...(persistedState as Partial<ShopState>),
+        } as ShopState;
+
+        return {
+          ...merged,
+          cart: sanitizeCartRecord(merged.cart),
+        };
+      },
       partialize: (state) => ({
         wishlist: state.wishlist,
-        cart: state.cart,
+        cart: sanitizeCartRecord(state.cart),
       }),
     }
   )

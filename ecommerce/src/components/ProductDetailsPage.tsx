@@ -38,6 +38,8 @@ import { convertAmount, formatCurrency } from "@/lib/currency";
 import { buildProductDetailSpecs } from "@/lib/product-details";
 import { formatProductDescriptionBlocks, getProductDescriptionSummary, normalizeProductDescriptionText } from "@/lib/product-description";
 import { getDisplayPricing } from "@/lib/pricing-display";
+import { getConfiguredSizeChart, getDefaultTShirtSizeValues } from "@/lib/size-charts";
+import { isOptionAvailableForSelection } from "@/lib/variant-options";
 import { getWishlistIds, useShopStore } from "@/store/useShopStore";
 import { useAccountStore } from "@/store/useAccountStore";
 import { useUiStore } from "@/store/useUiStore";
@@ -142,7 +144,8 @@ function isColorOption(optionName: string) {
 }
 
 function isSizeOption(optionName: string) {
-  return optionName.trim().toLowerCase() === "size";
+  const normalized = optionName.trim().toLowerCase();
+  return normalized === "size" || normalized === "sizes" || normalized.includes("size");
 }
 
 function normalizeSizeLabel(value: string) {
@@ -451,7 +454,10 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
 
   const colorGroup = optionGroups.find((group) => isColorOption(group.name));
   const sizeGroup = optionGroups.find((group) => isSizeOption(group.name));
-  const hasSizeOptions = Boolean(sizeGroup?.values.length);
+  const fallbackSizeValues = getDefaultTShirtSizeValues(product);
+  const effectiveSizeValues = sizeGroup?.values.length ? sizeGroup.values : fallbackSizeValues;
+  const hasSizeOptions = Boolean(effectiveSizeValues.length);
+  const hasSizeChartSupport = Boolean(effectiveSizeValues.length || product.sizeChart || getConfiguredSizeChart(product));
   const hasColorOptions = Boolean(colorGroup?.values.length);
   const pricingSource = variants.find((variant) => variant.id === selectedVariantId) ?? variants[0] ?? null;
   const basePrice = pricingSource?.priceAmount ?? product.priceAmount;
@@ -537,6 +543,12 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
     return variants.find((variant) => variant.id === selectedVariantId) ?? variants[0] ?? null;
   }, [selectedVariantId, variants]);
 
+  const selectedSizeValue = useMemo(() => {
+    const sizeEntry = Object.entries(selectedOptions).find(([key]) => key.toLowerCase() === "size");
+    const value = sizeEntry?.[1]?.trim();
+    return value && value.length > 0 ? value : undefined;
+  }, [selectedOptions]);
+
   const resolvedProduct = useMemo(() => {
     if (!activeVariant) {
       return product;
@@ -546,6 +558,9 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
       ...product,
       id: activeVariant.id,
       parentId: product.id,
+      selectedSize: selectedSizeValue ?? product.selectedSize,
+      selectedVariantId: activeVariant.id,
+      selectedOptions: { ...selectedOptions },
       name: activeVariant.name && activeVariant.name !== "Default Title" ? `${product.name} - ${activeVariant.name}` : product.name,
       img: activeVariant.img,
       price: activeVariant.price,
@@ -553,7 +568,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
       currencyCode: activeVariant.currencyCode,
       oldPrice: activeVariant.oldPrice,
     } satisfies GridProduct;
-  }, [activeVariant, product]);
+  }, [activeVariant, product, selectedOptions, selectedSizeValue]);
 
   const activeMedia = useMemo(() => {
     if (selectedMediaId) {
@@ -727,17 +742,11 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   }, [copyFeedback]);
 
   const optionAvailability = (optionName: string, optionValue: string) => {
-    const nextOptions = { ...selectedOptions, [optionName]: optionValue };
-
-    return variants.some((variant) => {
-      if (!variant.availableForSale) {
-        return false;
-      }
-
-      return variant.options.every((option) => {
-        const selectedValue = nextOptions[option.name];
-        return !selectedValue || selectedValue === option.value;
-      });
+    return isOptionAvailableForSelection({
+      variants,
+      selectedOptions,
+      optionName,
+      optionValue,
     });
   };
 
@@ -767,14 +776,19 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
     }
 
     setIsAdding(true);
-    const productToAdd = hasAnyDesign
-      ? {
-          ...resolvedProduct,
-          priceAmount: resolvedProduct.priceAmount + CUSTOM_DESIGN_SURCHARGE_INR,
-          price: formatCurrency(convertAmount(resolvedProduct.priceAmount + CUSTOM_DESIGN_SURCHARGE_INR, "INR", displayCurrency), displayCurrency),
-          customization: designCustomization ?? undefined,
-        }
-      : resolvedProduct;
+    const productToAdd = {
+      ...(hasAnyDesign
+        ? {
+            ...resolvedProduct,
+            priceAmount: resolvedProduct.priceAmount + CUSTOM_DESIGN_SURCHARGE_INR,
+            price: formatCurrency(convertAmount(resolvedProduct.priceAmount + CUSTOM_DESIGN_SURCHARGE_INR, "INR", displayCurrency), displayCurrency),
+            customization: designCustomization ?? undefined,
+          }
+        : resolvedProduct),
+      selectedSize: selectedSizeValue ?? resolvedProduct.selectedSize,
+      selectedVariantId: activeVariant?.id ?? resolvedProduct.selectedVariantId ?? resolvedProduct.id,
+      selectedOptions: { ...selectedOptions },
+    } satisfies GridProduct;
     addToCart(productToAdd);
     openCart();
     pushToast(
@@ -1311,15 +1325,15 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
               />
             ) : null}
 
-            {hasSizeOptions ? (
+            {hasSizeChartSupport ? (
               <OptionGroup
                 title="Size"
                 subtitle="Choose the size that fits your look best."
-                values={sizeGroup?.values ?? []}
+                values={effectiveSizeValues}
                 selected={selectedOptions[sizeGroup?.name ?? ""] ?? selectedOptions.Size ?? selectedOptions.size ?? ""}
                 onSelect={(value) => selectOptionValue(sizeGroup?.name ?? "Size", value)}
                 isDisabled={(value) => !optionAvailability(sizeGroup?.name ?? "Size", value)}
-                showSizeGuide
+                showSizeGuide={Boolean(product.sizeChart || getConfiguredSizeChart(product) || sizeGroup?.values.length || fallbackSizeValues.length)}
                 onSizeChartClick={() => setIsSizeChartOpen(true)}
               />
             ) : null}
