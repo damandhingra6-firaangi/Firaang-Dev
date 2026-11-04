@@ -3,7 +3,7 @@ import Navbar from "@/components/Navbar";
 import JewelleryComingSoonGate from "@/components/JewelleryComingSoonGate";
 import ShopListing from "@/components/ShopListing";
 import { isJewellerySlug } from "@/lib/jewellery";
-import { getStorefrontProducts } from "@/lib/shopify";
+import { getStorefrontProducts, getStorefrontProductsForMetadata } from "@/lib/shopify";
 import { buildCategoryTree, slugify } from "@/lib/product-taxonomy";
 
 type CategoryPageProps = {

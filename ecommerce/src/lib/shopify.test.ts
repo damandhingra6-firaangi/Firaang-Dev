@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   collectionProductsSummaryQuery,
   fetchShopifyGraphQL,
+  getStorefrontProductsForMetadata,
   normalizeCollectionLookupKey,
   resolveCollectionHandleFromList,
 } from "./shopify";
@@ -59,5 +60,19 @@ describe("collection lookup normalization", () => {
         variables: {},
       }),
     ).rejects.toThrow(/ETIMEDOUT|fetch failed|timed out/i);
+  });
+
+  it("falls back to local catalog data when metadata Shopify requests time out", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("fetch failed [cause]: AggregateError: ETIMEDOUT");
+      }),
+    );
+
+    const products = await getStorefrontProductsForMetadata(40, { detailLevel: "summary" });
+
+    expect(products.length).toBeGreaterThan(0);
+    expect(products[0]?.name).toBeTruthy();
   });
 });

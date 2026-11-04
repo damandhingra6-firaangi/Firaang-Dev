@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Metadata } from "next";
 import { fallbackProducts } from "@/lib/catalog";
 import { createPageMetadata } from "@/lib/seo";
-import { getStorefrontProducts } from "@/lib/shopify";
+import { getStorefrontProductsForMetadata } from "@/lib/shopify";
 import { buildCategoryTree } from "@/lib/product-taxonomy";
 
 type LayoutProps = {
@@ -21,7 +21,7 @@ export async function generateMetadata({
   const { category: categorySlug } = await params;
 
   // Fetch products to get category info
-  const storefrontProducts = await getStorefrontProducts(40, { detailLevel: "summary" });
+  const storefrontProducts = await getStorefrontProductsForMetadata(40, { detailLevel: "summary" });
   const products = storefrontProducts.length > 0 ? storefrontProducts : fallbackProducts;
   const categoryTree = buildCategoryTree(products);
 

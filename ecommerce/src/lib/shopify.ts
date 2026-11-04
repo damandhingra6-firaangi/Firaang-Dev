@@ -1,4 +1,4 @@
-import { GridProduct, ProductMedia, ProductSizeChart } from "@/lib/catalog";
+import { fallbackProducts, GridProduct, ProductMedia, ProductSizeChart } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { deriveProductFit } from "@/lib/product-fit";
 import { deriveProductTaxonomy } from "@/lib/product-taxonomy";
@@ -437,6 +437,7 @@ export async function fetchShopifyGraphQL<T>({
   cacheMode = "force-cache",
   revalidateSeconds,
   tag,
+  logErrors = false,
 }: {
   endpoint: string;
   storefrontAccessToken: string;
@@ -445,6 +446,7 @@ export async function fetchShopifyGraphQL<T>({
   cacheMode?: RequestCache;
   revalidateSeconds?: number;
   tag?: string;
+  logErrors?: boolean;
 }): Promise<T> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), SHOPIFY_FETCH_TIMEOUT_MS);
@@ -475,19 +477,21 @@ export async function fetchShopifyGraphQL<T>({
 
     return (await response.json()) as T;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const isTimeout = controller.signal.aborted || /timed out|ETIMEDOUT|fetch failed|aborted/i.test(message);
+    if (logErrors) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isTimeout = controller.signal.aborted || /timed out|ETIMEDOUT|fetch failed|aborted/i.test(message);
 
-    if (isTimeout) {
-      console.error("[shopify] GraphQL request timed out", {
-        tag: tag ?? "shopify-graphql",
-        timeoutMs: SHOPIFY_FETCH_TIMEOUT_MS,
-      });
-    } else {
-      console.error("[shopify] GraphQL request failed", {
-        tag: tag ?? "shopify-graphql",
-        message,
-      });
+      if (isTimeout) {
+        console.error("[shopify] GraphQL request timed out", {
+          tag: tag ?? "shopify-graphql",
+          timeoutMs: SHOPIFY_FETCH_TIMEOUT_MS,
+        });
+      } else {
+        console.error("[shopify] GraphQL request failed", {
+          tag: tag ?? "shopify-graphql",
+          message,
+        });
+      }
     }
 
     throw error;
@@ -1029,7 +1033,11 @@ export const collectionProductsSummaryQuery = `#graphql
   }
 `;
 
-export async function getStorefrontProducts(limit = 10, options: StorefrontFetchOptions = {}): Promise<GridProduct[]> {
+export async function getStorefrontProducts(
+  limit = 10,
+  options: StorefrontFetchOptions = {},
+  logErrors = true,
+): Promise<GridProduct[]> {
   const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
   const storefrontAccessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
 
@@ -1057,6 +1065,7 @@ export async function getStorefrontProducts(limit = 10, options: StorefrontFetch
         revalidateSeconds: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
         query,
         variables: { first: Math.min(pageSize, safeLimit - productEdges.length), after: cursor },
+        logErrors,
       });
 
       const pageEdges = (json.data?.products?.edges ?? []) as Array<{
@@ -1075,10 +1084,22 @@ export async function getStorefrontProducts(limit = 10, options: StorefrontFetch
     }
 
     return productEdges.slice(0, safeLimit).map(({ node }) => mapStorefrontProductNode(node));
-  } catch (error) {
-    console.error("Shopify fetch failed", error);
+  } catch {
     return [];
   }
+}
+
+export async function getStorefrontProductsForMetadata(limit = 40, options: StorefrontFetchOptions = {}): Promise<GridProduct[]> {
+  const products = await getStorefrontProducts(limit, {
+    ...options,
+    cacheMode: options.cacheMode ?? "force-cache",
+  }, false);
+
+  if (products.length > 0) {
+    return products;
+  }
+
+  return fallbackProducts.slice(0, Math.max(1, Math.min(limit, fallbackProducts.length)));
 }
 
 function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {

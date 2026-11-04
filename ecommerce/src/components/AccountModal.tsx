@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardList, KeyRound, Loader2, LogOut, Mail, ShieldEllipsis, Smartphone, Sparkles, X } from "lucide-react";
+import { ClipboardList, Loader2, LogOut, Sparkles, X } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import { ORDER_CANCELLATION_WINDOW_DAYS } from "@/lib/checkout-config";
 import { useAccountStore } from "@/store/useAccountStore";
@@ -29,14 +29,6 @@ const CANCEL_REASONS = [
 type ProfileFormErrors = {
   fullName?: string;
   email?: string;
-};
-
-type CredentialFormErrors = {
-  identifier?: string;
-  fullName?: string;
-  emailOrPhone?: string;
-  password?: string;
-  confirmPassword?: string;
 };
 
 const profileEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -133,23 +125,6 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [googleState, setGoogleState] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [mobileNumber, setMobileNumber] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [normalizedOtpPhone, setNormalizedOtpPhone] = useState("");
-  const [mobileOtpStep, setMobileOtpStep] = useState<"phone" | "otp">("phone");
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [debugOtp, setDebugOtp] = useState("");
-  const [credentialMode, setCredentialMode] = useState<"login" | "signup">("login");
-  const [loginIdentifier, setLoginIdentifier] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [signupFullName, setSignupFullName] = useState("");
-  const [signupEmail, setSignupEmail] = useState("");
-  const [signupPhone, setSignupPhone] = useState("");
-  const [signupPassword, setSignupPassword] = useState("");
-  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
-  const [isCredentialSubmitting, setIsCredentialSubmitting] = useState(false);
-  const [credentialErrors, setCredentialErrors] = useState<CredentialFormErrors>({});
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [cancelTargetOrderId, setCancelTargetOrderId] = useState<string | null>(null);
@@ -182,11 +157,6 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
     }
 
     setActiveView(initialView);
-    setMobileOtpStep("phone");
-    setOtpCode("");
-    setDebugOtp("");
-    setNormalizedOtpPhone("");
-    setCredentialErrors({});
   }, [initialView, isVisible]);
 
   useEffect(() => {
@@ -308,244 +278,6 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
       pushToast("Google sign-in failed", { variant: "error" });
     } finally {
       setIsAuthenticating(false);
-    }
-  };
-
-  const handleRequestOtp = async () => {
-    if (isSendingOtp) {
-      return;
-    }
-
-    if (!mobileNumber.trim()) {
-      pushToast("Enter your mobile number", { variant: "warning" });
-      return;
-    }
-
-    setIsSendingOtp(true);
-
-    try {
-      const response = await fetch("/api/auth/mobile/request-otp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          phone: mobileNumber,
-        }),
-      });
-
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        phone?: string;
-        debugOtp?: string;
-      };
-
-      if (!response.ok || !payload.phone) {
-        pushToast(payload.error ?? "Could not send OTP", { variant: "error" });
-        return;
-      }
-
-      setNormalizedOtpPhone(payload.phone);
-      setMobileNumber(payload.phone);
-      setDebugOtp(payload.debugOtp ?? "");
-      setOtpCode("");
-      setMobileOtpStep("otp");
-      pushToast("OTP sent", { variant: "success" });
-    } catch (error) {
-      console.error("Request OTP failed", error);
-      pushToast("Could not send OTP", { variant: "error" });
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (isVerifyingOtp) {
-      return;
-    }
-
-    if (!otpCode.trim()) {
-      pushToast("Enter the OTP", { variant: "warning" });
-      return;
-    }
-
-    setIsVerifyingOtp(true);
-
-    try {
-      const response = await fetch("/api/auth/mobile/verify-otp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          phone: normalizedOtpPhone || mobileNumber,
-          otp: otpCode.trim(),
-        }),
-      });
-
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        profile?: typeof profile;
-        orders?: typeof orders;
-      };
-
-      if (!response.ok || !payload.profile || !payload.orders) {
-        pushToast(payload.error ?? "Could not verify OTP", { variant: "error" });
-        return;
-      }
-
-      setSession({
-        profile: payload.profile,
-        orders: payload.orders,
-      });
-      setActiveView("profile");
-      setMobileOtpStep("phone");
-      setOtpCode("");
-      setDebugOtp("");
-      setNormalizedOtpPhone("");
-      pushToast("Logged in successfully", { variant: "success" });
-    } catch (error) {
-      console.error("Verify OTP failed", error);
-      pushToast("Could not verify OTP", { variant: "error" });
-    } finally {
-      setIsVerifyingOtp(false);
-    }
-  };
-
-  const handleCredentialLogin = async () => {
-    const trimmedIdentifier = loginIdentifier.trim();
-    const trimmedPassword = loginPassword;
-    const nextErrors: CredentialFormErrors = {};
-
-    if (!trimmedIdentifier) {
-      nextErrors.identifier = "Email or phone is required.";
-    }
-
-    if (!trimmedPassword) {
-      nextErrors.password = "Password is required.";
-    }
-
-    if (nextErrors.identifier || nextErrors.password) {
-      setCredentialErrors(nextErrors);
-      pushToast(nextErrors.identifier ?? nextErrors.password ?? "Enter your login details", { variant: "warning" });
-      return;
-    }
-
-    setCredentialErrors({});
-    setIsCredentialSubmitting(true);
-
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          identifier: trimmedIdentifier,
-          password: trimmedPassword,
-        }),
-      });
-
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        profile?: typeof profile;
-        orders?: typeof orders;
-      };
-
-      if (!response.ok || !payload.profile || !payload.orders) {
-        pushToast(payload.error ?? "Could not log in", { variant: "error" });
-        return;
-      }
-
-      setSession({
-        profile: payload.profile,
-        orders: payload.orders,
-      });
-      setActiveView("profile");
-      setLoginPassword("");
-      pushToast("Logged in successfully", { variant: "success" });
-    } catch (error) {
-      console.error("Password login failed", error);
-      pushToast("Could not log in", { variant: "error" });
-    } finally {
-      setIsCredentialSubmitting(false);
-    }
-  };
-
-  const handleCredentialSignup = async () => {
-    const trimmedFullName = signupFullName.trim();
-    const trimmedEmail = signupEmail.trim();
-    const trimmedPhone = signupPhone.trim();
-    const nextErrors: CredentialFormErrors = {};
-
-    if (trimmedFullName.length < 2) {
-      nextErrors.fullName = "Full name must be at least 2 characters.";
-    }
-
-    if (!trimmedEmail && !trimmedPhone) {
-      nextErrors.emailOrPhone = "Email or phone is required.";
-    } else if (trimmedEmail && !profileEmailRegex.test(trimmedEmail)) {
-      nextErrors.emailOrPhone = "Please enter a valid email address.";
-    }
-
-    if (signupPassword.length < 8) {
-      nextErrors.password = "Password must be at least 8 characters.";
-    }
-
-    if (signupConfirmPassword !== signupPassword) {
-      nextErrors.confirmPassword = "Passwords do not match.";
-    }
-
-    if (nextErrors.fullName || nextErrors.emailOrPhone || nextErrors.password || nextErrors.confirmPassword) {
-      setCredentialErrors(nextErrors);
-      pushToast(
-        nextErrors.fullName ?? nextErrors.emailOrPhone ?? nextErrors.password ?? nextErrors.confirmPassword ?? "Check your details",
-        { variant: "warning" },
-      );
-      return;
-    }
-
-    setCredentialErrors({});
-    setIsCredentialSubmitting(true);
-
-    try {
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fullName: trimmedFullName,
-          email: trimmedEmail,
-          phone: trimmedPhone,
-          password: signupPassword,
-        }),
-      });
-
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        profile?: typeof profile;
-        orders?: typeof orders;
-      };
-
-      if (!response.ok || !payload.profile || !payload.orders) {
-        pushToast(payload.error ?? "Could not create account", { variant: "error" });
-        return;
-      }
-
-      setSession({
-        profile: payload.profile,
-        orders: payload.orders,
-      });
-      setActiveView("profile");
-      setSignupPassword("");
-      setSignupConfirmPassword("");
-      pushToast("Account created successfully", { variant: "success" });
-    } catch (error) {
-      console.error("Password signup failed", error);
-      pushToast("Could not create account", { variant: "error" });
-    } finally {
-      setIsCredentialSubmitting(false);
     }
   };
 
@@ -739,7 +471,7 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
 
         <div className="border-b border-[#e6e8f0] px-5 py-4 md:px-7">
           <div className="flex flex-wrap gap-2">
-            {(["signin", "profile", "orders"] as const).map((view) => (
+            {(["profile", "orders"] as const).map((view) => (
               <button
                 key={view}
                 type="button"
@@ -750,7 +482,7 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
                     : "border border-[#e6e8f0] bg-white text-[#6b7280] hover:border-[#ff3f6c]/50 hover:text-[#ff3f6c]"
                 }`}
               >
-                {view === "signin" ? "Login or Signup" : view === "profile" ? "My Profile" : "Orders"}
+                {view === "profile" ? "My Profile" : "Orders"}
               </button>
             ))}
           </div>
@@ -758,11 +490,11 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
 
         <div className={`min-h-0 flex-1 bg-[#f7f8fc] px-5 py-5 md:px-7 md:py-6 ${isModal ? "overflow-y-auto" : "overflow-visible"}`}>
           {activeView === "signin" ? (
-            <div className="mx-auto w-full max-w-2xl space-y-4">
+            <div className="mx-auto w-full max-w-2xl">
               <div className="rounded-[24px] border border-[#e6e8f0] bg-white p-5 shadow-sm md:p-6">
-                <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#e6e8f0] px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[#ff3f6c]">
+                <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#e6e8f0] px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[#ff3f6c]">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Login or Signup
+                  Continue with Google
                 </p>
 
                 {isSignedIn ? (
@@ -770,278 +502,25 @@ export default function AccountModal({ isOpen, initialView, onClose, mode = "mod
                     <p className="font-semibold">You are signed in as {profile.email || profile.phone}</p>
                   </div>
                 ) : (
-                  <div className="space-y-5">
-<div className="rounded-2xl border border-[#e6e8f0] bg-white p-4">
-                      <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#1f2430]">
-                        <Sparkles className="h-4 w-4 text-[#ff3f6c]" />
-                        Continue with Google
-                      </p>
-
-                      {isGoogleConfigured ? (
-                        <>
-                          <div className="min-h-12" ref={googleButtonRef} />
-                          {googleState === "loading" || isAuthenticating ? (
-                            <p className="mt-3 inline-flex items-center gap-2 text-sm text-[#6b7280]">
-                              <Loader2 className="h-4 w-4 animate-spin text-[#ff3f6c]" />
-                              Loading Google...
-                            </p>
-                          ) : null}
-                          {googleState === "error" ? (
-                            <p className="mt-3 rounded-xl border border-rose-400/30 bg-rose-950/45 px-4 py-3 text-sm text-rose-100">
-                              Google login is unavailable right now.
-                            </p>
-                          ) : null}
-                        </>
-                      ) : (
-                        <p className="text-sm text-[#6b7280]">Google login is not configured.</p>
-                      )}
-                    </div>
-
-<div className="rounded-2xl border border-[#e6e8f0] bg-white p-4">
-                      <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#1f2430]">
-                        <Smartphone className="h-4 w-4 text-[#ff3f6c]" />
-                        Login with Mobile OTP
-                      </p>
-
-                      {mobileOtpStep === "phone" ? (
-                        <div className="space-y-3">
-                          <input
-                            type="tel"
-                            value={mobileNumber}
-                            onChange={(event) => setMobileNumber(event.target.value)}
-                            placeholder="Enter mobile number"
-                            className="w-full rounded-xl border border-[#e6e8f0] bg-[#f7f8fc] px-4 py-3 text-sm text-[#1f2430] outline-none transition focus:border-[#ff3f6c]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void handleRequestOtp();
-                            }}
-                            disabled={isSendingOtp}
-                            className="gold-button w-full"
-                          >
-                            {isSendingOtp ? "Sending OTP..." : "Send OTP"}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <p className="text-xs text-[#9ca3af]">OTP sent to {normalizedOtpPhone || mobileNumber}</p>
-                          <div className="relative">
-                            <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#ff3f6c]/80" />
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              maxLength={6}
-                              value={otpCode}
-                              onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, ""))}
-                              placeholder="Enter 6-digit OTP"
-                              className="w-full rounded-xl border border-[#e6e8f0] bg-[#f7f8fc] py-3 pl-10 pr-4 text-sm text-[#1f2430] outline-none transition focus:border-[#ff3f6c]"
-                            />
-                          </div>
-                          {debugOtp ? <p className="text-xs text-[#ff3f6c]">Dev OTP: {debugOtp}</p> : null}
-                          <div className="flex flex-col gap-2 sm:flex-row">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                void handleVerifyOtp();
-                              }}
-                              disabled={isVerifyingOtp}
-                              className="gold-button w-full"
-                            >
-                              {isVerifyingOtp ? "Verifying..." : "Verify OTP"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setMobileOtpStep("phone");
-                                setOtpCode("");
-                                setDebugOtp("");
-                              }}
-                              className="outline-button w-full"
-                            >
-                              Change Number
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="rounded-2xl border border-[#e6e8f0] bg-white p-4">
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <p className="flex items-center gap-2 text-sm font-semibold text-[#1f2430]">
-                          <ShieldEllipsis className="h-4 w-4 text-[#ff3f6c]" />
-                          Email or Phone with Password
-                        </p>
-                        <div className="inline-flex rounded-full border border-[#e6e8f0] bg-[#f7f8fc] p-1 text-xs font-semibold uppercase tracking-[0.12em]">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCredentialMode("login");
-                              setCredentialErrors({});
-                            }}
-                            className={`rounded-full px-3 py-1.5 transition ${credentialMode === "login" ? "bg-[#ff3f6c] text-white" : "text-[#6b7280]"}`}
-                          >
-                            Log In
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCredentialMode("signup");
-                              setCredentialErrors({});
-                            }}
-                            className={`rounded-full px-3 py-1.5 transition ${credentialMode === "signup" ? "bg-[#ff3f6c] text-white" : "text-[#6b7280]"}`}
-                          >
-                            Sign Up
-                          </button>
-                        </div>
-                      </div>
-
-                      {credentialMode === "login" ? (
-                        <div className="space-y-3">
-                          <label className="block">
-                            <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#9ca3af]">Email or Phone</span>
-                            <div className="relative">
-                              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#ff3f6c]/80" />
-                              <input
-                                type="text"
-                                value={loginIdentifier}
-                                onChange={(event) => {
-                                  setLoginIdentifier(event.target.value);
-                                  if (credentialErrors.identifier) {
-                                    setCredentialErrors((prev) => ({ ...prev, identifier: undefined }));
-                                  }
-                                }}
-                                placeholder="name@example.com or +91..."
-                                className="w-full rounded-xl border border-[#e6e8f0] bg-[#f7f8fc] py-3 pl-10 pr-4 text-sm text-[#1f2430] outline-none transition focus:border-[#ff3f6c]"
-                              />
-                            </div>
-                            {credentialErrors.identifier ? <p className="mt-1 text-xs text-[#c65353]">{credentialErrors.identifier}</p> : null}
-                          </label>
-                          <label className="block">
-                            <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#9ca3af]">Password</span>
-                            <input
-                              type="password"
-                              value={loginPassword}
-                              onChange={(event) => {
-                                setLoginPassword(event.target.value);
-                                if (credentialErrors.password) {
-                                  setCredentialErrors((prev) => ({ ...prev, password: undefined }));
-                                }
-                              }}
-                              placeholder="Enter your password"
-                              className="w-full rounded-xl border border-[#e6e8f0] bg-[#f7f8fc] px-4 py-3 text-sm text-[#1f2430] outline-none transition focus:border-[#ff3f6c]"
-                            />
-                            {credentialErrors.password ? <p className="mt-1 text-xs text-[#c65353]">{credentialErrors.password}</p> : null}
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void handleCredentialLogin();
-                            }}
-                            disabled={isCredentialSubmitting}
-                            className="gold-button w-full"
-                          >
-                            {isCredentialSubmitting ? "Logging In..." : "Log In"}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <label className="block">
-                            <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#9ca3af]">Full Name</span>
-                            <input
-                              type="text"
-                              value={signupFullName}
-                              onChange={(event) => {
-                                setSignupFullName(event.target.value);
-                                if (credentialErrors.fullName) {
-                                  setCredentialErrors((prev) => ({ ...prev, fullName: undefined }));
-                                }
-                              }}
-                              placeholder="Enter full name"
-                              className="w-full rounded-xl border border-[#e6e8f0] bg-[#f7f8fc] px-4 py-3 text-sm text-[#1f2430] outline-none transition focus:border-[#ff3f6c]"
-                            />
-                            {credentialErrors.fullName ? <p className="mt-1 text-xs text-[#c65353]">{credentialErrors.fullName}</p> : null}
-                          </label>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <label className="block">
-                              <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#9ca3af]">Email</span>
-                              <input
-                                type="email"
-                                value={signupEmail}
-                                onChange={(event) => {
-                                  setSignupEmail(event.target.value);
-                                  if (credentialErrors.emailOrPhone) {
-                                    setCredentialErrors((prev) => ({ ...prev, emailOrPhone: undefined }));
-                                  }
-                                }}
-                                placeholder="name@example.com"
-                                className="w-full rounded-xl border border-[#e6e8f0] bg-[#f7f8fc] px-4 py-3 text-sm text-[#1f2430] outline-none transition focus:border-[#ff3f6c]"
-                              />
-                            </label>
-                            <label className="block">
-                              <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#9ca3af]">Phone</span>
-                              <input
-                                type="tel"
-                                value={signupPhone}
-                                onChange={(event) => {
-                                  setSignupPhone(event.target.value);
-                                  if (credentialErrors.emailOrPhone) {
-                                    setCredentialErrors((prev) => ({ ...prev, emailOrPhone: undefined }));
-                                  }
-                                }}
-                                placeholder="9876543210"
-                                className="w-full rounded-xl border border-[#e6e8f0] bg-[#f7f8fc] px-4 py-3 text-sm text-[#1f2430] outline-none transition focus:border-[#ff3f6c]"
-                              />
-                            </label>
-                          </div>
-                          {credentialErrors.emailOrPhone ? <p className="text-xs text-[#c65353]">{credentialErrors.emailOrPhone}</p> : null}
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <label className="block">
-                              <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#9ca3af]">Password</span>
-                              <input
-                                type="password"
-                                value={signupPassword}
-                                onChange={(event) => {
-                                  setSignupPassword(event.target.value);
-                                  if (credentialErrors.password) {
-                                    setCredentialErrors((prev) => ({ ...prev, password: undefined }));
-                                  }
-                                }}
-                                placeholder="At least 8 characters"
-                                className="w-full rounded-xl border border-[#e6e8f0] bg-[#f7f8fc] px-4 py-3 text-sm text-[#1f2430] outline-none transition focus:border-[#ff3f6c]"
-                              />
-                              {credentialErrors.password ? <p className="mt-1 text-xs text-[#c65353]">{credentialErrors.password}</p> : null}
-                            </label>
-                            <label className="block">
-                              <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-[#9ca3af]">Confirm Password</span>
-                              <input
-                                type="password"
-                                value={signupConfirmPassword}
-                                onChange={(event) => {
-                                  setSignupConfirmPassword(event.target.value);
-                                  if (credentialErrors.confirmPassword) {
-                                    setCredentialErrors((prev) => ({ ...prev, confirmPassword: undefined }));
-                                  }
-                                }}
-                                placeholder="Re-enter password"
-                                className="w-full rounded-xl border border-[#e6e8f0] bg-[#f7f8fc] px-4 py-3 text-sm text-[#1f2430] outline-none transition focus:border-[#ff3f6c]"
-                              />
-                              {credentialErrors.confirmPassword ? <p className="mt-1 text-xs text-[#c65353]">{credentialErrors.confirmPassword}</p> : null}
-                            </label>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void handleCredentialSignup();
-                            }}
-                            disabled={isCredentialSubmitting}
-                            className="gold-button w-full"
-                          >
-                            {isCredentialSubmitting ? "Creating Account..." : "Create Account"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                  <div className="space-y-3">
+                    {isGoogleConfigured ? (
+                      <>
+                        <div className="min-h-12" ref={googleButtonRef} />
+                        {googleState === "loading" || isAuthenticating ? (
+                          <p className="inline-flex items-center gap-2 text-sm text-[#6b7280]">
+                            <Loader2 className="h-4 w-4 animate-spin text-[#ff3f6c]" />
+                            Loading Google...
+                          </p>
+                        ) : null}
+                        {googleState === "error" ? (
+                          <p className="rounded-xl border border-rose-400/30 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+                            Google login is unavailable right now.
+                          </p>
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className="text-sm text-[#6b7280]">Google login is not configured.</p>
+                    )}
                   </div>
                 )}
               </div>

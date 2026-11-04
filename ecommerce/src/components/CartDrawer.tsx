@@ -97,10 +97,12 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | null>(null);
   const [isSavingShippingAddress, setIsSavingShippingAddress] = useState(false);
   const isMountedRef = useRef(false);
   const hasTrackedViewCartRef = useRef(false);
+  const scriptPromiseRef = useRef<Promise<boolean> | null>(null);
   const savedAddresses = profile.savedAddresses ?? [];
 
   type SavedAddress = NonNullable<typeof profile.savedAddresses>[number];
@@ -143,7 +145,16 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
     setShippingCity((cur) => cur || profile.city);
     setShippingState((cur) => cur || profile.state);
     setShippingPinCode((cur) => cur || profile.pinCode);
+    setCheckoutError(null);
   }, [isOpen, profile]);
+
+  useEffect(() => {
+    if (!isOpen || isCheckingOut) {
+      return;
+    }
+
+    void loadRazorpayScript().catch(() => false);
+  }, [isOpen, isCheckingOut]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -378,6 +389,10 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       return true;
     }
 
+    if (scriptPromiseRef.current) {
+      return scriptPromiseRef.current;
+    }
+
     const existingScript = document.getElementById("razorpay-magic-checkout-script");
     if (existingScript && razorpayWindow.Razorpay) {
       razorpayWindow.__razorpayMagicCheckoutLoaded = true;
@@ -389,7 +404,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
     }
     existingScript?.remove();
 
-    return new Promise<boolean>((resolve) => {
+    scriptPromiseRef.current = new Promise<boolean>((resolve) => {
       const script = document.createElement("script");
       script.id = "razorpay-magic-checkout-script";
       script.src = "https://checkout.razorpay.com/v1/magic-checkout.js";
@@ -401,6 +416,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
         };
         magicCheckoutWindow.__razorpayMagicCheckoutLoaded = Boolean(magicCheckoutWindow.Razorpay);
         resolve(Boolean(magicCheckoutWindow.Razorpay));
+        scriptPromiseRef.current = null;
       };
       script.onerror = () => {
         const magicCheckoutWindow = window as unknown as {
@@ -410,9 +426,12 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
         magicCheckoutWindow.__razorpayMagicCheckoutLoaded = false;
         Reflect.deleteProperty(magicCheckoutWindow, "Razorpay");
         resolve(false);
+        scriptPromiseRef.current = null;
       };
       document.body.appendChild(script);
     });
+
+    return scriptPromiseRef.current;
   };
 
   const handleApplyCoupon = async () => {
@@ -582,8 +601,16 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   };
 
   const handleOnlineCheckout = async () => {
+    if (isCheckingOut) {
+      return;
+    }
+
     const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-    if (!razorpayKey) { pushToast("Checkout is not configured", { variant: "error" }); return; }
+    if (!razorpayKey) {
+      setCheckoutError("Checkout is not configured.");
+      pushToast("Checkout is not configured", { variant: "error" });
+      return;
+    }
 
     trackVendorAddPaymentInfo({
       currencyCode: "INR",
@@ -595,9 +622,13 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
     });
 
     setIsCheckingOut(true);
+    setCheckoutError(null);
+
     try {
       const scriptReady = await loadRazorpayScript();
-      if (!scriptReady) { pushToast("Failed to load payment gateway", { variant: "error" }); return; }
+      if (!scriptReady) {
+        throw new Error("Failed to load payment gateway");
+      }
 
       if (cartItems.length > 0 && validCheckoutItems.length === 0) {
         if (repairStaleCart()) {
@@ -649,17 +680,18 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       }
 
       if (!orderResponse.ok || !orderData.orderId || !orderData.amount || !orderData.currency) {
-        pushToast(
-          orderData.staleProductIds?.length
-            ? "Some outdated items were removed from your cart. Please review and try again."
-            : orderData.error ?? "Unable to create order",
-          { variant: orderData.staleProductIds?.length ? "warning" : "error" },
-        );
+        const errorMessage = orderData.staleProductIds?.length
+          ? "Some outdated items were removed from your cart. Please review and try again."
+          : orderData.error ?? "Unable to create order";
+        setCheckoutError(errorMessage);
+        pushToast(errorMessage, { variant: orderData.staleProductIds?.length ? "warning" : "error" });
         return;
       }
 
       if (!effectiveRazorpayKey) {
-        pushToast("Checkout key is missing on server", { variant: "error" });
+        const errorMessage = "Checkout key is missing on server";
+        setCheckoutError(errorMessage);
+        pushToast(errorMessage, { variant: "error" });
         return;
       }
 
@@ -678,7 +710,12 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
           contact: profile.phone?.trim() || undefined,
         },
         theme: { color: "#D3A736" },
-        modal: { ondismiss: () => { pushToast("Payment cancelled", { variant: "warning" }); } },
+        modal: {
+          ondismiss: () => {
+            setCheckoutError(null);
+            pushToast("Payment cancelled", { variant: "warning" });
+          },
+        },
         handler: async (response: RazorpayMagicCheckoutResponse) => {
           const verifyResponse = await fetch("/api/checkout/verify", {
             method: "POST",
@@ -759,14 +796,21 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       });
 
       razorpay.on("payment.failed", (event: { error?: { description?: string } }) => {
+        setCheckoutError(event.error?.description ?? "Payment failed");
         pushToast(event.error?.description ?? "Payment failed", { variant: "error" });
       });
+
+      setCheckoutError(null);
       razorpay.open();
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Checkout failed. Please try again.";
+      setCheckoutError(message);
       console.error("Checkout failed", error);
-      pushToast("Checkout failed. Please try again.", { variant: "error" });
+      pushToast(message, { variant: "error" });
     } finally {
-      if (isMountedRef.current) setIsCheckingOut(false);
+      if (isMountedRef.current) {
+        setIsCheckingOut(false);
+      }
     }
   };
 
@@ -1227,9 +1271,31 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
             </button>
           )}
           {step === "summary" && (
-            <button type="button" disabled={isCheckingOut || !hasShippingDetails || pricing.shippingStatus !== "resolved"} onClick={() => void handleOnlineCheckout()} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#ff3f6c] px-5 py-4 text-base font-bold text-white transition hover:bg-[#ff5f84] disabled:cursor-not-allowed disabled:opacity-50">
-              {isCheckingOut ? "Processing..." : <>Pay Securely{displayTotalPayableAmount > 0 ? ` - ${formatCurrency(convertAmount(displayTotalPayableAmount, "INR", displayCurrency), displayCurrency)}` : ""}</>}
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={isCheckingOut || !hasShippingDetails || pricing.shippingStatus !== "resolved"}
+                onClick={() => void handleOnlineCheckout()}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#ff3f6c] px-5 py-4 text-base font-bold text-white transition hover:bg-[#ff5f84] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isCheckingOut ? (
+                  <>
+                    <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />
+                    Preparing Secure Checkout...
+                  </>
+                ) : (
+                  <>
+                    Pay Securely{displayTotalPayableAmount > 0 ? ` - ${formatCurrency(convertAmount(displayTotalPayableAmount, "INR", displayCurrency), displayCurrency)}` : ""}
+                  </>
+                )}
+              </button>
+              {isCheckingOut ? (
+                <p className="text-center text-xs text-[#6b7280]">Connecting to secure payment...</p>
+              ) : null}
+              {checkoutError ? (
+                <p className="text-center text-xs text-red-500">{checkoutError}</p>
+              ) : null}
+            </>
           )}
         </div>
       </aside>
