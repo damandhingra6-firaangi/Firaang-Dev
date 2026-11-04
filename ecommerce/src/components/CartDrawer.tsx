@@ -96,13 +96,15 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const [checkoutLoadingMessage, setCheckoutLoadingMessage] = useState("Preparing secure checkout…");
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | null>(null);
   const [isSavingShippingAddress, setIsSavingShippingAddress] = useState(false);
   const isMountedRef = useRef(false);
   const hasTrackedViewCartRef = useRef(false);
   const scriptPromiseRef = useRef<Promise<boolean> | null>(null);
+  const checkoutLoadingTimeoutRef = useRef<number | null>(null);
   const savedAddresses = profile.savedAddresses ?? [];
 
   type SavedAddress = NonNullable<typeof profile.savedAddresses>[number];
@@ -132,9 +134,41 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
     }));
   };
 
+  const resetCheckoutLoadingState = () => {
+    if (checkoutLoadingTimeoutRef.current !== null) {
+      window.clearTimeout(checkoutLoadingTimeoutRef.current);
+      checkoutLoadingTimeoutRef.current = null;
+    }
+    setIsCheckoutLoading(false);
+    setCheckoutLoadingMessage("Preparing secure checkout…");
+  };
+
+  const beginCheckoutLoading = () => {
+    setCheckoutError(null);
+    setIsCheckoutLoading(true);
+    setCheckoutLoadingMessage("Preparing secure checkout…");
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (checkoutLoadingTimeoutRef.current !== null) {
+      window.clearTimeout(checkoutLoadingTimeoutRef.current);
+    }
+
+    checkoutLoadingTimeoutRef.current = window.setTimeout(() => {
+      setCheckoutLoadingMessage("Almost there…");
+    }, 3000);
+  };
+
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
+    return () => {
+      isMountedRef.current = false;
+      if (checkoutLoadingTimeoutRef.current !== null) {
+        window.clearTimeout(checkoutLoadingTimeoutRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -149,12 +183,12 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   }, [isOpen, profile]);
 
   useEffect(() => {
-    if (!isOpen || isCheckingOut) {
+    if (!isOpen || isCheckoutLoading) {
       return;
     }
 
     void loadRazorpayScript().catch(() => false);
-  }, [isOpen, isCheckingOut]);
+  }, [isOpen, isCheckoutLoading]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -530,10 +564,6 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       dedupeTtlMs: 10000,
     });
 
-    if (mode === "drawer") {
-      onClose();
-    }
-
     void handleOnlineCheckout();
   };
 
@@ -601,7 +631,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   };
 
   const handleOnlineCheckout = async () => {
-    if (isCheckingOut) {
+    if (isCheckoutLoading) {
       return;
     }
 
@@ -621,15 +651,9 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       dedupeTtlMs: 60000,
     });
 
-    setIsCheckingOut(true);
-    setCheckoutError(null);
+    beginCheckoutLoading();
 
     try {
-      const scriptReady = await loadRazorpayScript();
-      if (!scriptReady) {
-        throw new Error("Failed to load payment gateway");
-      }
-
       if (cartItems.length > 0 && validCheckoutItems.length === 0) {
         if (repairStaleCart()) {
           pushToast("We removed stale cart items and refreshed your cart. Please try again.", { variant: "warning" });
@@ -643,30 +667,37 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
         repairStaleCart();
       }
 
-      const orderResponse = await fetch("/api/checkout/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: validCheckoutItems.map((item) => ({
-            productId: item.product.id,
-            quantity: Math.max(1, Math.floor(item.quantity)),
-            selectedSize: item.product.selectedSize ?? undefined,
-            selectedVariantId: item.product.selectedVariantId ?? item.product.id,
-            customDesignSurchargeINR: item.product.customization ? CUSTOM_DESIGN_SURCHARGE_INR : 0,
-          })),
-          displaySubtotalAmount,
-          displayTotalAmount: displayTotalPayableAmount,
-          shippingName: shippingName.trim(),
-          shippingEmail: shippingEmail.trim(),
-          shippingPhone: profile.phone?.trim() || undefined,
-          shippingAddress: shippingAddress.trim(),
-          shippingCity: shippingCity.trim(),
-          shippingState: shippingState.trim(),
-          shippingPinCode: shippingPinCode.trim(),
-          shippingMethod,
-          couponCode: appliedCoupon?.code || undefined,
+      const [scriptReady, orderResponse] = await Promise.all([
+        loadRazorpayScript().catch(() => false),
+        fetch("/api/checkout/order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: validCheckoutItems.map((item) => ({
+              productId: item.product.id,
+              quantity: Math.max(1, Math.floor(item.quantity)),
+              selectedSize: item.product.selectedSize ?? undefined,
+              selectedVariantId: item.product.selectedVariantId ?? item.product.id,
+              customDesignSurchargeINR: item.product.customization ? CUSTOM_DESIGN_SURCHARGE_INR : 0,
+            })),
+            displaySubtotalAmount,
+            displayTotalAmount: displayTotalPayableAmount,
+            shippingName: shippingName.trim(),
+            shippingEmail: shippingEmail.trim(),
+            shippingPhone: profile.phone?.trim() || undefined,
+            shippingAddress: shippingAddress.trim(),
+            shippingCity: shippingCity.trim(),
+            shippingState: shippingState.trim(),
+            shippingPinCode: shippingPinCode.trim(),
+            shippingMethod,
+            couponCode: appliedCoupon?.code || undefined,
+          }),
         }),
-      });
+      ]);
+
+      if (!scriptReady) {
+        throw new Error("Failed to load payment gateway");
+      }
 
       const orderData = (await orderResponse.json().catch(() => ({}))) as {
         orderId?: string; amount?: number; currency?: string; keyId?: string; error?: string; staleProductIds?: string[];
@@ -712,6 +743,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
         theme: { color: "#D3A736" },
         modal: {
           ondismiss: () => {
+            resetCheckoutLoadingState();
             setCheckoutError(null);
             pushToast("Payment cancelled", { variant: "warning" });
           },
@@ -801,15 +833,16 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       });
 
       setCheckoutError(null);
+      resetCheckoutLoadingState();
       razorpay.open();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Checkout failed. Please try again.";
       setCheckoutError(message);
       console.error("Checkout failed", error);
-      pushToast(message, { variant: "error" });
+      pushToast("Couldn't start checkout. Please try again.", { variant: "error" });
     } finally {
       if (isMountedRef.current) {
-        setIsCheckingOut(false);
+        resetCheckoutLoadingState();
       }
     }
   };
@@ -1260,8 +1293,22 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                   <span className="font-semibold">{formatCurrency(convertAmount(displaySubtotalAmount, "INR", displayCurrency), displayCurrency)}</span>
                 </div>
               ) : null}
-              <button type="button" disabled={cartItems.length === 0} onClick={handleProceedToShipping} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#ff3f6c] px-5 py-3.5 font-semibold text-white transition hover:bg-[#ff5f84] disabled:cursor-not-allowed disabled:opacity-50">
-                Proceed to Checkout <ChevronRight className="h-4 w-4" />
+              <button
+                type="button"
+                disabled={cartItems.length === 0 || isCheckoutLoading}
+                onClick={handleProceedToShipping}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#ff3f6c] px-5 py-3.5 font-semibold text-white transition hover:bg-[#ff5f84] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isCheckoutLoading ? (
+                  <>
+                    <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />
+                    {checkoutLoadingMessage}
+                  </>
+                ) : (
+                  <>
+                    Proceed to Checkout <ChevronRight className="h-4 w-4" />
+                  </>
+                )}
               </button>
             </>
           )}
@@ -1274,14 +1321,14 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
             <>
               <button
                 type="button"
-                disabled={isCheckingOut || !hasShippingDetails || pricing.shippingStatus !== "resolved"}
+                disabled={isCheckoutLoading || !hasShippingDetails || pricing.shippingStatus !== "resolved"}
                 onClick={() => void handleOnlineCheckout()}
                 className="flex w-full items-center justify-center gap-2 rounded-full bg-[#ff3f6c] px-5 py-4 text-base font-bold text-white transition hover:bg-[#ff5f84] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isCheckingOut ? (
+                {isCheckoutLoading ? (
                   <>
                     <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />
-                    Preparing Secure Checkout...
+                    {checkoutLoadingMessage}
                   </>
                 ) : (
                   <>
@@ -1289,7 +1336,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                   </>
                 )}
               </button>
-              {isCheckingOut ? (
+              {isCheckoutLoading ? (
                 <p className="text-center text-xs text-[#6b7280]">Connecting to secure payment...</p>
               ) : null}
               {checkoutError ? (
