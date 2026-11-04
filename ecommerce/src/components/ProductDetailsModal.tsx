@@ -528,7 +528,7 @@ export default function ProductDetailsModal({
               <Sparkles className="h-3 w-3" />
               Product Details
             </p>
-            <h3 className="max-w-4xl text-xl leading-tight text-[var(--popup-footer-text)] sm:text-2xl md:text-3xl">
+            <h3 className="max-w-4xl text-[1.1rem] leading-tight text-[var(--popup-footer-text)] sm:text-xl md:text-2xl">
               {resolvedProduct?.name ?? product.name}
             </h3>
           </div>
@@ -829,7 +829,7 @@ export default function ProductDetailsModal({
             <div className="flex min-w-0 flex-col self-start md:max-h-none">
               <div className="mb-5 rounded-[1.75rem] border border-[var(--gold)]/15 bg-black/10 p-5 md:p-6">
                 <div className="mb-5 flex items-end gap-3 border-b border-[var(--gold)]/15 pb-5">
-                  <p className="text-3xl leading-none sm:text-4xl">
+                  <p className="text-[1.8rem] leading-none sm:text-[2.2rem] md:text-[2.5rem]">
                     {formatCurrency(
                       convertAmount(
                         displayPricing.priceAmount,
@@ -840,7 +840,7 @@ export default function ProductDetailsModal({
                     )}
                   </p>
                   {displayPricing.compareAtAmount ? (
-                    <p className="text-base text-[var(--popup-muted)] line-through sm:text-lg">
+                    <p className="text-sm text-[var(--popup-muted)] line-through sm:text-base">
                       {formatCurrency(
                         convertAmount(
                           displayPricing.compareAtAmount,
@@ -853,7 +853,7 @@ export default function ProductDetailsModal({
                   ) : null}
                 </div>
 
-                <div className="space-y-3 text-[15px] leading-7 text-[var(--popup-subtext)]">
+                <div className="space-y-3 text-[14px] leading-6 text-[var(--popup-subtext)] sm:text-[15px] sm:leading-7">
                   {descriptionBlocks.length > 0 ? (
                     descriptionBlocks.map((block, index) =>
                       block.type === "label" ? (
@@ -1014,7 +1014,7 @@ export default function ProductDetailsModal({
               <button
                 type="button"
                 disabled={activeVariant ? !activeVariant.availableForSale : false}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-[var(--gold)] px-5 py-3 font-medium text-[var(--popup-input-text)] transition hover:bg-[var(--popup-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-full border border-[var(--gold)] px-5 py-3 font-medium text-[var(--popup-input-text)] transition hover:bg-[var(--popup-hover)] disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => {
                   if (resolvedProduct) {
                     onAddToCart(resolvedProduct);
@@ -1030,7 +1030,7 @@ export default function ProductDetailsModal({
               <button
                 type="button"
                 disabled={activeVariant ? !activeVariant.availableForSale : false}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[var(--gold)] px-5 py-3 font-medium text-[#3b0810] transition hover:bg-[#f0c654] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[var(--gold)]"
+                className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-full bg-[var(--gold)] px-5 py-3 font-medium text-[#3b0810] transition hover:bg-[#f0c654] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[var(--gold)]"
                 onClick={() => {
                   if (resolvedProduct) {
                     onBuyNow(resolvedProduct);
@@ -1042,7 +1042,7 @@ export default function ProductDetailsModal({
               </button>
               <button
                 type="button"
-                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-[var(--gold)] px-5 py-3 text-[var(--popup-input-text)] transition hover:bg-[var(--popup-hover)]"
+                className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-full border border-[var(--gold)] px-5 py-3 text-[var(--popup-input-text)] transition hover:bg-[var(--popup-hover)]"
                 onClick={() => {
                   if (resolvedProduct) {
                     onToggleWishlist(resolvedProduct);

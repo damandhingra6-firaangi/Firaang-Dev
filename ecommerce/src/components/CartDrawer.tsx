@@ -982,7 +982,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
               ) : null}
             </div>
           ))}
-          <span className="ml-3 text-[11px] uppercase tracking-[0.12em] text-[#6b7280]">
+          <span className="ml-3 text-[10px] uppercase tracking-[0.12em] text-[#6b7280] sm:text-[11px]">
             {step === "cart" ? "Review Items" : step === "shipping" ? "Delivery" : "Payment"}
           </span>
         </div>
@@ -1021,7 +1021,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                             <SafeImage src={item.product.img} alt={item.product.name} className="h-24 w-24 rounded-xl object-cover" />
                           </Link>
                           <div className="min-w-0 flex-1">
-                            <Link href={productHref} className="text-sm font-semibold leading-snug text-[#1f2430] transition hover:text-[#ff3f6c] focus-visible:outline-none focus-visible:underline">
+                            <Link href={productHref} className="line-clamp-2 text-[13px] font-semibold leading-snug text-[#1f2430] transition hover:text-[#ff3f6c] focus-visible:outline-none focus-visible:underline sm:text-sm">
                               {item.product.name}
                             </Link>
                             {item.product.category ? (
@@ -1030,25 +1030,25 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                             {item.product.selectedSize ? (
                               <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-[#ff3f6c]">Size: {item.product.selectedSize}</p>
                             ) : null}
-                            <p className="mt-1.5 text-sm font-medium text-[#eac26a]">
+                            <p className="mt-1.5 text-[13px] font-medium text-[#eac26a] sm:text-sm">
                               {formatCurrency(convertAmount(lineDisplayUnitAmounts[index] ?? item.product.priceAmount, "INR", displayCurrency), displayCurrency)}
-                              <span className="ml-1 text-xs text-[#6b7280]">/ piece (incl. ₹100 shipping)</span>
+                              <span className="ml-1 text-[10px] text-[#6b7280] sm:text-xs">/ piece (incl. ₹100 shipping)</span>
                             </p>
-                            <div className="mt-2.5 flex items-center justify-between">
+                            <div className="mt-2.5 flex items-center justify-between gap-2">
                               <div className="flex items-center gap-1.5 rounded-full border border-[#ff3f6c]/40 px-1 py-0.5">
-                                <button type="button" className="rounded-full p-1 transition hover:bg-[#f1f3f9]" onClick={() => handleDecreaseQuantity(item.product.id)} aria-label={`Decrease ${item.product.name} quantity`}>
+                                <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full p-1 transition hover:bg-[#f1f3f9]" onClick={() => handleDecreaseQuantity(item.product.id)} aria-label={`Decrease ${item.product.name} quantity`}>
                                   <Minus className="h-3 w-3" />
                                 </button>
                                 <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
-                                <button type="button" className="rounded-full p-1 transition hover:bg-[#f1f3f9]" onClick={() => handleIncreaseQuantity(item.product.id)} aria-label={`Increase ${item.product.name} quantity`}>
+                                <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full p-1 transition hover:bg-[#f1f3f9]" onClick={() => handleIncreaseQuantity(item.product.id)} aria-label={`Increase ${item.product.name} quantity`}>
                                   <Plus className="h-3 w-3" />
                                 </button>
                               </div>
                               <div className="flex items-center gap-3">
-                                <span className="text-sm font-semibold text-[#1f2430]">
+                                <span className="text-[13px] font-semibold text-[#1f2430] sm:text-sm">
                                   {formatCurrency(convertAmount(lineTotal, "INR", displayCurrency), displayCurrency)}
                                 </span>
-                                <button type="button" className="rounded-full p-1.5 text-[#ff3f6c]/70 transition hover:bg-[#f1f3f9] hover:text-red-400" onClick={() => handleRemoveItem(item.product.id)} aria-label={`Remove ${item.product.name}`}>
+                                <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full p-1.5 text-[#ff3f6c]/70 transition hover:bg-[#f1f3f9] hover:text-red-400" onClick={() => handleRemoveItem(item.product.id)} aria-label={`Remove ${item.product.name}`}>
                                   <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>

@@ -54,8 +54,8 @@ const ROCKSTAR_HERO_SLIDE: HeroSlide = {
   subtitle: "",
   primaryCtaLabel: "EXPLORE THE DROP",
   primaryCtaHref: "/shop?section=collections&collection=rockstar",
-  imageClassName: "object-contain object-center bg-black",
-  mobileImageClassName: "object-contain object-center bg-black",
+  imageClassName: "object-cover object-center bg-black md:object-contain md:bg-black",
+  mobileImageClassName: "object-cover object-center bg-black md:object-contain md:bg-black",
 };
 
 const BASE_HERO_SLIDE: HeroSlide = {

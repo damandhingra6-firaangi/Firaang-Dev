@@ -64,7 +64,7 @@ export default function ProductCard({
           <button
             type="button"
             aria-label={`Quick view ${title}`}
-            className="inline-flex h-9 items-center justify-center rounded-full bg-[var(--gold)] px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#3b0810]"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-[var(--gold)] px-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#3b0810] sm:text-[11px]"
             onClick={(event) => {
               event.stopPropagation();
               onQuickView?.();
@@ -77,7 +77,7 @@ export default function ProductCard({
           <button
             type="button"
             aria-label={`Add ${title} to wishlist`}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--gold)] bg-[var(--arrivals-action-bg)] text-[var(--arrivals-card-title)]"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--gold)] bg-[var(--arrivals-action-bg)] text-[var(--arrivals-card-title)] sm:h-9 sm:w-9"
             onClick={(event) => {
               event.stopPropagation();
               onToggleWishlist?.();
@@ -89,7 +89,7 @@ export default function ProductCard({
           <button
             type="button"
             aria-label={`Add ${title} to cart`}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--gold)] bg-[var(--arrivals-action-bg)] text-[var(--arrivals-card-title)]"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--gold)] bg-[var(--arrivals-action-bg)] text-[var(--arrivals-card-title)] sm:h-9 sm:w-9"
             onClick={(event) => {
               event.stopPropagation();
               onAddToCart?.();
@@ -100,18 +100,18 @@ export default function ProductCard({
         </div>
       </div>
 
-      <div className="space-y-1 p-2.5 md:p-3">
-        <h3 className="line-clamp-2 min-h-[28px] font-sans text-[10px] font-medium leading-[1.18] text-[#242424] md:min-h-[30px] md:text-[11px]">
+      <div className="space-y-1.5 p-2.5 md:p-3">
+        <h3 className="line-clamp-2 min-h-[2.7em] font-sans text-[14px] font-medium leading-[1.2] text-[#242424] sm:text-[15px] md:text-[16px]">
           {title}
         </h3>
 
         <div className="flex items-end gap-1.5 md:gap-2">
-          <p className="font-sans text-[20px] font-semibold leading-none tracking-[-0.01em] text-[#111111] md:text-[22px]">
+          <p className="font-sans text-[18px] font-semibold leading-none tracking-[-0.01em] text-[#111111] sm:text-[19px] md:text-[22px]">
             {currentPrice}
           </p>
 
           {oldPrice ? (
-            <p className="mb-0.5 font-sans text-[9px] font-medium line-through md:text-[10px]" style={{ color: borderColor ?? "#909090" }}>{oldPrice}</p>
+            <p className="mb-0.5 font-sans text-[10px] font-medium line-through sm:text-[11px]" style={{ color: borderColor ?? "#909090" }}>{oldPrice}</p>
           ) : null}
         </div>
       </div>
