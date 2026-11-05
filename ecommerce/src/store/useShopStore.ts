@@ -48,7 +48,7 @@ type ShopState = {
   moveWishlistItemToCart: (productId: string) => void;
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, quantity: number) => void;
-  clearCart: () => void;
+  clearCart: (force?: boolean) => void;
   setCheckoutLoading: (isLoading: boolean) => void;
   pruneInvalidCartItems: () => void;
 };
@@ -185,8 +185,8 @@ export const useShopStore = create<ShopState>()(
             },
           };
         }),
-      clearCart: () =>
-        set((state) => (state.isCheckoutLoading ? state : { cart: {} })),
+      clearCart: (force = false) =>
+        set((state) => (state.isCheckoutLoading && !force ? state : { cart: {} })),
       setCheckoutLoading: (isLoading) => set({ isCheckoutLoading: isLoading }),
       pruneInvalidCartItems: () =>
         set((state) => ({

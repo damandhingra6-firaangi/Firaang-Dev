@@ -752,6 +752,7 @@ async function getCollections() {
       orders.createIndex({ shopifyOrderId: 1 }, { name: "order_shopify_id_lookup", sparse: true }),
       orders.createIndex({ userId: 1, createdAt: -1 }, { name: "order_user_created_desc" }),
       orders.createIndex({ userId: 1, couponCode: 1, status: 1 }, { name: "order_user_coupon_status_lookup" }),
+      orders.createIndex({ status: 1, createdAt: -1 }, { name: "order_status_created_desc" }),
       orders.createIndex({ paymentId: 1 }, { name: "order_payment_id_lookup", sparse: true }),
       inventoryMovements.createIndex({ orderId: 1, type: 1 }, { name: "inventory_order_type_unique", unique: true }),
       inventoryMovements.createIndex({ createdAt: -1 }, { name: "inventory_created_desc" }),
@@ -1175,6 +1176,39 @@ export async function getAccountSessionIdentityByToken(token: string): Promise<{
     userId: session.userId.toHexString(),
     email: user.email?.trim() || undefined,
   };
+}
+
+export async function getOrderForSessionOrAccessToken(input: {
+  orderId: string;
+  sessionToken?: string | null;
+  accessToken?: string | null;
+}): Promise<AccountOrder | null> {
+  const { orders, sessions } = await getCollections();
+  const normalizedOrderId = input.orderId.trim();
+
+  if (!normalizedOrderId) {
+    return null;
+  }
+
+  const orderDocument = await orders.findOne({ orderId: normalizedOrderId });
+
+  if (!orderDocument) {
+    return null;
+  }
+
+  if (input.sessionToken) {
+    const session = await sessions.findOne({ tokenHash: hashSessionToken(input.sessionToken) });
+
+    if (session && session.expiresAt.getTime() > Date.now() && session.userId.equals(orderDocument.userId)) {
+      return mapOrder(orderDocument);
+    }
+  }
+
+  if (input.accessToken && input.accessToken === normalizedOrderId) {
+    return mapOrder(orderDocument);
+  }
+
+  return null;
 }
 
 export async function getAccountSnapshotByUserId(userId: string): Promise<AccountSessionSnapshot | null> {

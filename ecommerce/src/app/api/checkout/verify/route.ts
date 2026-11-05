@@ -202,6 +202,177 @@ type VerifyPaymentRequest = {
   razorpay_signature?: string;
 };
 
+function logPaymentFlow(label: string, details: Record<string, unknown> = {}) {
+  if (process.env.NODE_ENV === "production" && process.env.DEBUG_PAYMENT_FLOW !== "1") {
+    return;
+  }
+
+  console.info("[payment-flow]", label, details);
+}
+
+async function runPostPaymentBackgroundTasks(input: {
+  orderId: string;
+  siteUrl: string;
+  savedOrder: any;
+  hydratedOrder: any;
+  request: Request;
+}) {
+  const { orderId, siteUrl, savedOrder, hydratedOrder, request } = input;
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const attribution = parseAttributionCookie(parseCookieValue(cookieHeader, "Firaang_analytics_attr"));
+  const geo = parseGeoFromRequestHeaders(request.headers);
+
+  const asyncTasks: Promise<unknown>[] = [];
+
+  if (savedOrder && savedOrder.shopifySyncStatus !== "synced") {
+    asyncTasks.push(
+      (async () => {
+        const syncPaidOrder = typeof syncPaidOrderToShopify === "function" ? syncPaidOrderToShopify : null;
+        const syncResult = syncPaidOrder
+          ? await Promise.resolve(syncPaidOrder(orderId)).catch((error) => ({
+              status: "failed" as const,
+              reason: error instanceof Error ? error.message : "Unknown Shopify sync failure",
+            }))
+          : { status: "skipped" as const, reason: "sync_handler_unavailable" };
+
+        if (syncResult.status === "synced") {
+          await attachShopifySyncResultToOrder({
+            orderId,
+            shopifyOrderId: syncResult.shopifyOrderId,
+            shopifyCustomerId: syncResult.shopifyCustomerId,
+            shopifySyncStatus: "synced",
+          });
+        } else if (syncResult.status === "failed") {
+          await attachShopifySyncResultToOrder({
+            orderId,
+            shopifySyncStatus: "failed",
+            shopifySyncError: syncResult.reason,
+          });
+        } else {
+          await attachShopifySyncResultToOrder({
+            orderId,
+            shopifySyncStatus: "skipped",
+          });
+        }
+      })(),
+    );
+  }
+
+  if (hydratedOrder && hydratedOrder.inventorySyncStatus !== "reserved") {
+    asyncTasks.push(
+      (async () => {
+        const syncInventory = typeof syncShopifyInventoryForOrder === "function" ? syncShopifyInventoryForOrder : null;
+        if (!syncInventory) {
+          return;
+        }
+
+        await Promise.resolve(syncInventory(orderId, "reserve")).catch((error) => {
+          console.error("Shopify inventory reserve sync failed during verification", error);
+        });
+      })(),
+    );
+  }
+
+  if (hydratedOrder) {
+    asyncTasks.push(
+      (async () => {
+        const claimed = await claimOrderConfirmationEmailSend(hydratedOrder.id);
+        if (!claimed) {
+          return;
+        }
+
+        try {
+          await notifyOrderPaid({
+            orderId: hydratedOrder.id,
+            customerName: hydratedOrder.shippingName,
+            customerEmail: hydratedOrder.shippingEmail,
+            totalAmount: hydratedOrder.totalAmount,
+            currencyCode: hydratedOrder.currencyCode,
+            subtotalAmount: hydratedOrder.subtotalAmount,
+            shippingFee: hydratedOrder.shippingFee,
+            taxAmount: hydratedOrder.taxAmount,
+            discountAmount: hydratedOrder.discountAmount,
+            shippingMethod: hydratedOrder.shippingMethod,
+            paymentStatus: hydratedOrder.paymentStatus,
+            paymentMethod: hydratedOrder.paymentMethod,
+            orderDate: hydratedOrder.createdAt,
+            estimatedDeliveryDate: hydratedOrder.deliveredAt,
+            viewOrderUrl: `${siteUrl}/track-order?orderId=${encodeURIComponent(hydratedOrder.id)}`,
+            continueShoppingUrl: siteUrl,
+            shippingAddress: {
+              name: hydratedOrder.shippingName,
+              email: hydratedOrder.shippingEmail,
+              line1: hydratedOrder.shippingAddress,
+              city: hydratedOrder.shippingCity,
+              state: hydratedOrder.shippingState,
+              pinCode: hydratedOrder.shippingPinCode,
+            },
+            items: hydratedOrder.items.map((item: any) => ({
+              name: item.name,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              lineTotal: item.lineTotal,
+              image: item.image,
+            })),
+          });
+          await markOrderConfirmationEmailSent(hydratedOrder.id);
+        } catch (error) {
+          await releaseOrderConfirmationEmailClaim(hydratedOrder.id);
+          console.error("Order confirmation email failed during verification", error);
+        }
+      })(),
+    );
+  }
+
+  if (typeof trackAnalyticsEvent === "function") {
+    asyncTasks.push(
+      Promise.resolve(trackAnalyticsEvent({
+        eventName: "order_paid",
+        visitorId: parseCookieValue(cookieHeader, "Firaang_analytics_vid") ?? "server-anonymous",
+        sessionId: parseCookieValue(cookieHeader, "Firaang_analytics_sid") ?? `paid-${Date.now()}`,
+        pagePath: "/checkout",
+        pageType: "checkout",
+        referrerUrl: request.headers.get("referer") ?? undefined,
+        source: attribution.source,
+        campaign: attribution.campaign,
+        medium: attribution.medium,
+        term: attribution.term,
+        content: attribution.content,
+        gclid: attribution.gclid,
+        fbclid: attribution.fbclid,
+        msclkid: attribution.msclkid,
+        ttclid: attribution.ttclid,
+        country: geo.country,
+        region: geo.region,
+        city: geo.city,
+        userAgent: request.headers.get("user-agent") ?? "",
+        orderId,
+        orderAmount: savedOrder?.totalAmount,
+        currencyCode: savedOrder?.currencyCode,
+        metadata: {
+          paymentMethod: savedOrder?.paymentMethod ?? "online",
+        },
+      })).catch(() => {
+        // Payment verification should not fail due to analytics.
+      }),
+    );
+  }
+
+  if (asyncTasks.length === 0) {
+    return;
+  }
+
+  const startedAt = Date.now();
+  logPaymentFlow("post-payment background tasks started", { orderId, taskCount: asyncTasks.length });
+
+  await Promise.allSettled(asyncTasks);
+
+  logPaymentFlow("post-payment background tasks completed", {
+    orderId,
+    elapsedMs: Date.now() - startedAt,
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const siteUrl = getSiteUrl();
@@ -231,6 +402,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ verified: false, status: "failed", error: "Invalid payment signature" }, { status: 400 });
     }
 
+    const verificationStart = Date.now();
     const razorpay = getRazorpayClient();
     const paymentRecord = await razorpay.payments.fetch(paymentId).catch((error) => {
       console.error("Razorpay payment fetch failed during verification", error);
@@ -238,6 +410,12 @@ export async function POST(request: Request) {
     });
 
     const gatewayPaymentStatus = mapRazorpayPaymentVerificationState(paymentRecord?.status);
+    logPaymentFlow("verify: payment fetched", {
+      orderId,
+      paymentId,
+      elapsedMs: Date.now() - verificationStart,
+      status: paymentRecord?.status,
+    });
 
     if (!paymentRecord) {
       return NextResponse.json({ verified: false, status: "failed", error: "Unable to verify payment status" }, { status: 400 });
@@ -277,6 +455,7 @@ export async function POST(request: Request) {
     const paidOrderStatus: "authorized" | "captured" =
       paymentRecord.status === "authorized" ? "authorized" : "captured";
 
+    const saveStart = Date.now();
     const savedOrder = sessionToken
       ? await markOrderPaidForSessionToken(sessionToken, {
           orderId,
@@ -287,6 +466,11 @@ export async function POST(request: Request) {
           paymentId,
           paymentStatus: paidOrderStatus,
         });
+    logPaymentFlow("verify: order marked paid", {
+      orderId,
+      elapsedMs: Date.now() - saveStart,
+      usingSessionToken: Boolean(sessionToken),
+    });
 
     const hydratedOrder = savedOrder
       ? {
@@ -302,136 +486,9 @@ export async function POST(request: Request) {
         }
       : enrichedOrder;
 
-    if (savedOrder && savedOrder.shopifySyncStatus !== "synced") {
-      const syncPaidOrder = typeof syncPaidOrderToShopify === "function"
-        ? syncPaidOrderToShopify
-        : null;
-
-      const syncResult = syncPaidOrder
-        ? await Promise.resolve(syncPaidOrder(orderId)).catch((error) => ({
-            status: "failed" as const,
-            reason: error instanceof Error ? error.message : "Unknown Shopify sync failure",
-          }))
-        : { status: "skipped" as const, reason: "sync_handler_unavailable" };
-
-      if (syncResult.status === "synced") {
-        await attachShopifySyncResultToOrder({
-          orderId,
-          shopifyOrderId: syncResult.shopifyOrderId,
-          shopifyCustomerId: syncResult.shopifyCustomerId,
-          shopifySyncStatus: "synced",
-        });
-      } else if (syncResult.status === "failed") {
-        await attachShopifySyncResultToOrder({
-          orderId,
-          shopifySyncStatus: "failed",
-          shopifySyncError: syncResult.reason,
-        });
-      } else {
-        await attachShopifySyncResultToOrder({
-          orderId,
-          shopifySyncStatus: "skipped",
-        });
-      }
-
-      if (hydratedOrder && hydratedOrder.inventorySyncStatus !== "reserved") {
-        const syncInventory = typeof syncShopifyInventoryForOrder === "function"
-          ? syncShopifyInventoryForOrder
-          : null;
-
-        if (syncInventory) {
-          await Promise.resolve(syncInventory(orderId, "reserve")).catch((error) => {
-            console.error("Shopify inventory reserve sync failed during verification", error);
-          });
-        }
-      }
-
-      if (hydratedOrder) {
-        const claimed = await claimOrderConfirmationEmailSend(hydratedOrder.id);
-
-        if (claimed) {
-          try {
-            await notifyOrderPaid({
-              orderId: hydratedOrder.id,
-              customerName: hydratedOrder.shippingName,
-              customerEmail: hydratedOrder.shippingEmail,
-              totalAmount: hydratedOrder.totalAmount,
-              currencyCode: hydratedOrder.currencyCode,
-              subtotalAmount: hydratedOrder.subtotalAmount,
-              shippingFee: hydratedOrder.shippingFee,
-              taxAmount: hydratedOrder.taxAmount,
-              discountAmount: hydratedOrder.discountAmount,
-              shippingMethod: hydratedOrder.shippingMethod,
-              paymentStatus: hydratedOrder.paymentStatus,
-              paymentMethod: hydratedOrder.paymentMethod,
-              orderDate: hydratedOrder.createdAt,
-              estimatedDeliveryDate: hydratedOrder.deliveredAt,
-              viewOrderUrl: `${siteUrl}/track-order?orderId=${encodeURIComponent(hydratedOrder.id)}`,
-              continueShoppingUrl: siteUrl,
-              shippingAddress: {
-                name: hydratedOrder.shippingName,
-                email: hydratedOrder.shippingEmail,
-                line1: hydratedOrder.shippingAddress,
-                city: hydratedOrder.shippingCity,
-                state: hydratedOrder.shippingState,
-                pinCode: hydratedOrder.shippingPinCode,
-              },
-              items: hydratedOrder.items.map((item) => ({
-                name: item.name,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                lineTotal: item.lineTotal,
-                image: item.image,
-              })),
-            });
-            await markOrderConfirmationEmailSent(hydratedOrder.id);
-          } catch (error) {
-            await releaseOrderConfirmationEmailClaim(hydratedOrder.id);
-            console.error("Order confirmation email failed during verification", error);
-          }
-        }
-      }
-    }
-
-    const cookieHeader = request.headers.get("cookie") ?? "";
-    const attribution = parseAttributionCookie(parseCookieValue(cookieHeader, "Firaang_analytics_attr"));
-    const geo = parseGeoFromRequestHeaders(request.headers);
-
-    if (typeof trackAnalyticsEvent === "function") {
-      await Promise.resolve(trackAnalyticsEvent({
-        eventName: "order_paid",
-        visitorId: parseCookieValue(cookieHeader, "Firaang_analytics_vid") ?? "server-anonymous",
-        sessionId: parseCookieValue(cookieHeader, "Firaang_analytics_sid") ?? `paid-${Date.now()}`,
-        pagePath: "/checkout",
-        pageType: "checkout",
-        referrerUrl: request.headers.get("referer") ?? undefined,
-        source: attribution.source,
-        campaign: attribution.campaign,
-        medium: attribution.medium,
-        term: attribution.term,
-        content: attribution.content,
-        gclid: attribution.gclid,
-        fbclid: attribution.fbclid,
-        msclkid: attribution.msclkid,
-        ttclid: attribution.ttclid,
-        country: geo.country,
-        region: geo.region,
-        city: geo.city,
-        userAgent: request.headers.get("user-agent") ?? "",
-        orderId,
-        orderAmount: savedOrder?.totalAmount,
-        currencyCode: savedOrder?.currencyCode,
-        metadata: {
-          paymentMethod: savedOrder?.paymentMethod ?? "online",
-        },
-      })).catch(() => {
-        // Payment verification should not fail due to analytics.
-      });
-    }
-
     const responseOrder = savedOrder ?? hydratedOrder ?? null;
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       verified: true,
       status: "paid",
       order: responseOrder,
@@ -439,6 +496,22 @@ export async function POST(request: Request) {
         accountLinked: responseOrder !== null,
       },
     });
+
+    void runPostPaymentBackgroundTasks({
+      orderId,
+      siteUrl,
+      savedOrder,
+      hydratedOrder,
+      request,
+    });
+
+    logPaymentFlow("verify: response ready", {
+      orderId,
+      elapsedMs: Date.now() - verificationStart,
+      responseStatus: "paid",
+    });
+
+    return response;
   } catch (error) {
     console.error("Payment verification failed", error);
     return NextResponse.json({ error: "Payment verification failed" }, { status: 500 });

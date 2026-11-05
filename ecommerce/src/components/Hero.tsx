@@ -43,6 +43,21 @@ type HeroSlide = {
   storyTiles?: StoryBannerItem[];
 };
 
+const NEW_HERO_BANNER_SLIDE: HeroSlide = {
+  id: "new-hero-banner",
+  imageOnly: true,
+  image: "/Banner.webp",
+  mobileImage: "/Mobile_view.webp",
+  alt: "Firaang hero banner",
+  eyebrow: "FIRAANG",
+  title: ["Firaang", ""],
+  subtitle: "",
+  primaryCtaLabel: "SHOP NOW",
+  primaryCtaHref: "/shop",
+  imageClassName: "bg-[#f6f1ed]",
+  mobileImageClassName: "bg-[#f6f1ed]",
+};
+
 const ROCKSTAR_HERO_SLIDE: HeroSlide = {
   id: "rockstar-hero",
   imageOnly: true,
@@ -74,8 +89,8 @@ const BASE_HERO_SLIDE: HeroSlide = {
 
 const DEVOTIONAL_HERO_SLIDE: HeroSlide = {
   id: "devotional-collection-hero",
-  image: "/HomePageBannerDevotional.jpg",
-  mobileImage: "/Mobile_banner_devotional.png",
+  image: "/HomePageBannerDevotional.webp",
+  mobileImage: "/Mobile_banner_devotional.webp",
   alt: "Devotional Collection banner featuring Lord Shiva-inspired artwork and temple setting",
   eyebrow: "DEVOTIONAL COLLECTION",
   title: ["Wear your faith.", "Carry your devotion."],
@@ -96,8 +111,8 @@ const DEVOTIONAL_HERO_SLIDE: HeroSlide = {
 
 const WELCOME_COUPON_HERO_SLIDE: HeroSlide = {
   id: "welcome-coupon-hero",
-  image: "/Banner1.png",
-  mobileImage: "/Banner_Mobile.png",
+  image: "/Banner1.webp",
+  mobileImage: "/Banner_Mobile.webp",
   alt: "Firaang welcome offer banner with fashion models",
   eyebrow: "WELCOME TO FIRAANG",
   title: ["EXTRA 5% OFF", ""],
@@ -128,8 +143,8 @@ function buildStoryHeroSlide(storyBannerItems: StoryBannerItem[]): HeroSlide | n
   return {
     id: "our-story-hero",
     variant: "story",
-    image: storyBannerItems[0]?.image ?? "/Home Page Banner.png",
-    mobileImage: storyBannerItems[0]?.image ?? "/Mobile view_02.png",
+    image: storyBannerItems[0]?.image ?? "/Home Page Banner.webp",
+    mobileImage: storyBannerItems[0]?.image ?? "/Mobile view_02.webp",
     alt: "Firaang story campaign featuring curated T-shirt designs",
     eyebrow: "OUR STORY",
     title: ["Different by", "Design."],
@@ -196,7 +211,7 @@ function HeroResponsiveImage({
   };
 
   return (
-    <picture className="absolute inset-0 block h-full w-full" style={{ aspectRatio: "16 / 9" }}>
+    <picture className="absolute inset-0 block h-full w-full overflow-hidden" style={{ aspectRatio: "16 / 9", backgroundColor: "#f6f1ed" }}>
       <source media="(max-width: 767px)" srcSet={slide.mobileImage || resolvedSource} sizes="100vw" />
       <Image
         src={resolvedSource}
@@ -210,6 +225,11 @@ function HeroResponsiveImage({
         quality={75}
         onError={handleImageError}
         className={className}
+        style={{
+          objectFit: "contain",
+          objectPosition: "center center",
+          backgroundColor: "#f6f1ed",
+        }}
       />
     </picture>
   );
@@ -222,8 +242,8 @@ function mapFeaturedCollectionToSlide(collection: ShopifyCollectionLaunch): Hero
 
   return {
     id: collection.id,
-    image: collection.imageUrl || "/Home Page Banner.png",
-    mobileImage: collection.imageUrl || "/Mobile view_02.png",
+    image: collection.imageUrl || "/Home Page Banner.webp",
+    mobileImage: collection.imageUrl || "/Mobile view_02.webp",
     alt: `${collection.title} launch collection`,
     eyebrow: `✨ ${collection.title.toUpperCase()}`,
     title: [headlineLineOne, headlineLineTwo],
@@ -244,7 +264,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
     [featuredCollections],
   );
   const slides = useMemo(
-    () => [ROCKSTAR_HERO_SLIDE, BASE_HERO_SLIDE, storySlide, WELCOME_COUPON_HERO_SLIDE, DEVOTIONAL_HERO_SLIDE, ...filteredFeaturedCollections.map(mapFeaturedCollectionToSlide)].filter(
+    () => [NEW_HERO_BANNER_SLIDE, ROCKSTAR_HERO_SLIDE, BASE_HERO_SLIDE, DEVOTIONAL_HERO_SLIDE, ...filteredFeaturedCollections.map(mapFeaturedCollectionToSlide)].filter(
       (slide): slide is HeroSlide => Boolean(slide),
     ),
     [filteredFeaturedCollections, storySlide],

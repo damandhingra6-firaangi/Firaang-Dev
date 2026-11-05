@@ -50,4 +50,45 @@ describe("shop checkout lock", () => {
     useShopStore.getState().setCheckoutLoading(false);
     expect(useShopStore.getState().isCheckoutLoading).toBe(false);
   });
+
+  it("allows clearing the cart after payment success even while checkout is locked", () => {
+    useShopStore.setState({
+      cart: {
+        "p-1": {
+          product: {
+            id: "p-1",
+            name: "Test Tee",
+            handle: "test-tee",
+            priceAmount: 1200,
+            oldPrice: 1500,
+            currencyCode: "INR",
+            img: "/test.jpg",
+            category: "tops",
+            subCategory: "tees",
+            parentId: null,
+            collection: "test",
+            rating: 4.5,
+            popularity: 10,
+            tags: [],
+            available: true,
+            selectedSize: "M",
+            selectedVariantId: "p-1",
+            description: "Test description",
+            brand: "Firaang",
+            availableForSale: true,
+            discountPercent: 20,
+            displayPriceAmount: 1200,
+            displayOldPriceAmount: 1500,
+          } as any,
+          quantity: 1,
+        },
+      },
+      isCheckoutLoading: true,
+    });
+
+    useShopStore.getState().clearCart(true);
+
+    expect(useShopStore.getState().cart).toEqual({});
+    expect(useShopStore.getState().isCheckoutLoading).toBe(true);
+  });
 });

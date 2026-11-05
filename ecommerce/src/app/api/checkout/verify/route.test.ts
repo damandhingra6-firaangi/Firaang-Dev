@@ -151,6 +151,9 @@ describe("checkout verification route", () => {
         paymentStatus: "captured",
       }),
     );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
     expect(notifyOrderPaidMock).toHaveBeenCalledWith(
       expect.objectContaining({
         customerName: "Test Customer",

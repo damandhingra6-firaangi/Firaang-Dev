@@ -100,6 +100,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const setCheckoutLoading = useShopStore((state) => state.setCheckoutLoading);
   const [checkoutLoadingMessage, setCheckoutLoadingMessage] = useState("Preparing secure checkout…");
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [paymentSuccessOverlayVisible, setPaymentSuccessOverlayVisible] = useState(false);
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | null>(null);
   const [isSavingShippingAddress, setIsSavingShippingAddress] = useState(false);
   const isMountedRef = useRef(false);
@@ -152,6 +153,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const beginCheckoutLoading = () => {
     setCheckoutError(null);
     setCheckoutLoading(true);
+    setPaymentSuccessOverlayVisible(false);
     setCheckoutLoadingMessage("Preparing secure checkout…");
 
     if (typeof window === "undefined") {
@@ -781,6 +783,9 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
         return;
       }
 
+      const successRoute = `/order-success/${encodeURIComponent(orderData.orderId)}`;
+      router.prefetch(successRoute);
+
       const razorpay = new (window.Razorpay as new (options: RazorpayMagicCheckoutOptions) => RazorpayMagicCheckoutInstance)({
         key: effectiveRazorpayKey,
         amount: orderData.amount,
@@ -804,88 +809,131 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
           },
         },
         handler: async (response: RazorpayMagicCheckoutResponse) => {
-          const verifyResponse = await fetch("/api/checkout/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(response),
-          });
-          if (!verifyResponse.ok) {
-            resetCheckoutLoadingState();
-            pushToast("Payment verification failed", { variant: "error" });
-            return;
-          }
+          const paymentFlowStart = performance.now();
+          console.info("[payment-flow] razorpay success handler fired", { at: performance.now() });
 
-          const verification = (await verifyResponse.json()) as {
-            verified?: boolean;
-            status?: "paid" | "pending" | "failed";
-            message?: string;
-            order?: {
-              id: string;
-              createdAt: string;
-              totalAmount: number;
-              currencyCode: string;
-              status: "paid" | "pending" | "failed" | "cancelled";
-              paymentMethod: "online" | "cod";
-              paymentId?: string;
-              items: Array<{ productId: string; name: string; image: string; unitPrice: number; quantity: number; lineTotal: number }>;
-            };
-            meta?: { accountLinked?: boolean };
-          };
-
-          if (verification.status === "pending") {
-            resetCheckoutLoadingState();
-            pushToast(verification.message ?? "Payment is still pending. We will confirm it automatically.", { variant: "warning" });
-            return;
-          }
-
-          if (verification.status === "failed" || !verification.verified) {
-            resetCheckoutLoadingState();
-            pushToast(verification.message ?? "Payment verification failed", { variant: "error" });
-            return;
-          }
-
-          updateProfile({
-            fullName: shippingName.trim() || profile.fullName,
-            address: shippingAddress.trim(),
-            city: shippingCity.trim(),
-            state: shippingState.trim(),
-            pinCode: shippingPinCode.trim(),
-          });
-
-          const purchaseTransactionId = verification.order?.id ?? orderData.orderId;
-          const purchaseCurrencyCode = verification.order?.currencyCode ?? orderData.currency;
-
-          if (purchaseTransactionId && purchaseCurrencyCode) {
-            trackVendorPurchase({
-              transactionId: purchaseTransactionId,
-              currencyCode: purchaseCurrencyCode,
-              value: verification.order?.totalAmount ?? displayTotalPayableAmount,
-              coupon: appliedCoupon?.code,
-              items:
-                verification.order?.items.map((item) =>
-                  mapProductToAnalyticsItem({
-                    id: item.productId,
-                    name: item.name,
-                    price: item.unitPrice,
-                    quantity: item.quantity,
-                    brand: "Firaang",
-                  }),
-                ) ?? analyticsItems,
-            });
-          }
-
-          resetCheckoutLoadingState();
+          setCheckoutLoading(true);
+          setCheckoutLoadingMessage("Payment successful! Confirming your order…");
+          setPaymentSuccessOverlayVisible(true);
           setAppliedCoupon(null);
           setCouponInput("");
-          clearCart();
           setStep("cart");
           onClose();
-          pushToast(
-            verification.meta?.accountLinked
-              ? "Payment successful! Order saved to your account."
-              : "Payment successful! Sign in to sync orders across devices.",
-            { variant: "success" }
-          );
+
+          try {
+            const verificationStart = performance.now();
+            const verifyResponse = await fetch("/api/checkout/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(response),
+            });
+            console.info("[payment-flow] verify response", {
+              elapsedMs: performance.now() - verificationStart,
+              status: verifyResponse.status,
+            });
+
+            if (!verifyResponse.ok) {
+              setPaymentSuccessOverlayVisible(false);
+              resetCheckoutLoadingState();
+              pushToast("Payment verification failed", { variant: "error" });
+              return;
+            }
+
+            const verification = (await verifyResponse.json()) as {
+              verified?: boolean;
+              status?: "paid" | "pending" | "failed";
+              message?: string;
+              order?: {
+                id: string;
+                createdAt: string;
+                totalAmount: number;
+                currencyCode: string;
+                status: "paid" | "pending" | "failed" | "cancelled";
+                paymentMethod: "online" | "cod";
+                paymentId?: string;
+                items: Array<{ productId: string; name: string; image: string; unitPrice: number; quantity: number; lineTotal: number }>;
+              };
+              meta?: { accountLinked?: boolean };
+            };
+
+            console.info("[payment-flow] verify payload", {
+              elapsedMs: performance.now() - paymentFlowStart,
+              status: verification.status,
+              verified: verification.verified,
+            });
+
+            if (verification.status === "pending") {
+              setPaymentSuccessOverlayVisible(false);
+              resetCheckoutLoadingState();
+              pushToast(verification.message ?? "Payment is still pending. We will confirm it automatically.", { variant: "warning" });
+              return;
+            }
+
+            if (verification.status === "failed" || !verification.verified) {
+              setPaymentSuccessOverlayVisible(false);
+              resetCheckoutLoadingState();
+              pushToast(verification.message ?? "Payment verification failed", { variant: "error" });
+              return;
+            }
+
+            updateProfile({
+              fullName: shippingName.trim() || profile.fullName,
+              address: shippingAddress.trim(),
+              city: shippingCity.trim(),
+              state: shippingState.trim(),
+              pinCode: shippingPinCode.trim(),
+            });
+
+            const purchaseTransactionId = verification.order?.id ?? orderData.orderId;
+            const purchaseCurrencyCode = verification.order?.currencyCode ?? orderData.currency;
+
+            if (purchaseTransactionId && purchaseCurrencyCode) {
+              trackVendorPurchase({
+                transactionId: purchaseTransactionId,
+                currencyCode: purchaseCurrencyCode,
+                value: verification.order?.totalAmount ?? displayTotalPayableAmount,
+                coupon: appliedCoupon?.code,
+                items:
+                  verification.order?.items.map((item) =>
+                    mapProductToAnalyticsItem({
+                      id: item.productId,
+                      name: item.name,
+                      price: item.unitPrice,
+                      quantity: item.quantity,
+                      brand: "Firaang",
+                    }),
+                  ) ?? analyticsItems,
+              });
+            }
+
+            clearCart(true);
+            setPaymentSuccessOverlayVisible(false);
+            resetCheckoutLoadingState();
+
+            const successOrderId = verification.order?.id ?? orderData.orderId;
+            if (successOrderId) {
+              const secureCookieValue = encodeURIComponent(successOrderId);
+              document.cookie = `Firaang_order_success=${secureCookieValue}; path=/; max-age=3600; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`;
+            }
+
+            pushToast(
+              verification.meta?.accountLinked
+                ? "Payment successful! Order saved to your account."
+                : "Payment successful! Sign in to sync orders across devices.",
+              { variant: "success" }
+            );
+
+            if (successOrderId) {
+              const redirectTarget = `/order-success/${encodeURIComponent(successOrderId)}`;
+              console.info("[payment-flow] redirect start", { elapsedMs: performance.now() - paymentFlowStart, target: redirectTarget });
+              router.replace(redirectTarget);
+            }
+          } catch (error) {
+            console.error("Payment success handler failed", error);
+            setPaymentSuccessOverlayVisible(false);
+            resetCheckoutLoadingState();
+            pushToast("Payment verification failed", { variant: "error" });
+          }
         },
       });
 
@@ -1010,6 +1058,16 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
 
   return (
     <>
+      {paymentSuccessOverlayVisible ? (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-[#111827]/70 backdrop-blur-sm">
+          <div className="rounded-[28px] border border-white/10 bg-white px-8 py-7 text-center shadow-[0_20px_60px_rgba(17,24,39,0.35)]">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[#ff3f6c]/15 border-t-[#ff3f6c]" />
+            <h3 className="text-xl font-semibold text-[#1f2430]">Payment successful!</h3>
+            <p className="mt-2 text-sm text-[#596172]">Confirming your order…</p>
+          </div>
+        </div>
+      ) : null}
+
       {mode === "drawer" ? (
         <div
           className={`fixed inset-0 z-[85] bg-black/60 transition-opacity duration-300 ${isOpen ? "visible opacity-100" : "invisible opacity-0"}`}
