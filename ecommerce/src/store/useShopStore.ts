@@ -42,12 +42,14 @@ function sanitizeCartRecord(cart: Record<string, CartItem> | undefined | null): 
 type ShopState = {
   wishlist: Record<string, GridProduct>;
   cart: Record<string, CartItem>;
+  isCheckoutLoading: boolean;
   toggleWishlist: (product: GridProduct) => void;
   addToCart: (product: GridProduct) => void;
   moveWishlistItemToCart: (productId: string) => void;
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
+  setCheckoutLoading: (isLoading: boolean) => void;
   pruneInvalidCartItems: () => void;
 };
 
@@ -56,6 +58,7 @@ export const useShopStore = create<ShopState>()(
     (set) => ({
       wishlist: {},
       cart: {},
+      isCheckoutLoading: false,
       toggleWishlist: (product) =>
         set((state) => {
           const nextWishlist = { ...state.wishlist };
@@ -70,6 +73,10 @@ export const useShopStore = create<ShopState>()(
         }),
       addToCart: (product) =>
         set((state) => {
+          if (state.isCheckoutLoading) {
+            return state;
+          }
+
           const existing = state.cart[product.id];
 
           void trackClientEvent({
@@ -102,6 +109,10 @@ export const useShopStore = create<ShopState>()(
         }),
       moveWishlistItemToCart: (productId) =>
         set((state) => {
+          if (state.isCheckoutLoading) {
+            return state;
+          }
+
           const product = state.wishlist[productId];
 
           if (!product) {
@@ -144,13 +155,17 @@ export const useShopStore = create<ShopState>()(
         }),
       removeFromCart: (productId) =>
         set((state) => {
+          if (state.isCheckoutLoading) {
+            return state;
+          }
+
           const nextCart = { ...state.cart };
           delete nextCart[productId];
           return { cart: nextCart };
         }),
       updateCartQuantity: (productId, quantity) =>
         set((state) => {
-          if (!state.cart[productId]) {
+          if (state.isCheckoutLoading || !state.cart[productId]) {
             return state;
           }
 
@@ -170,7 +185,9 @@ export const useShopStore = create<ShopState>()(
             },
           };
         }),
-      clearCart: () => set({ cart: {} }),
+      clearCart: () =>
+        set((state) => (state.isCheckoutLoading ? state : { cart: {} })),
+      setCheckoutLoading: (isLoading) => set({ isCheckoutLoading: isLoading }),
       pruneInvalidCartItems: () =>
         set((state) => ({
           cart: sanitizeCartRecord(state.cart),

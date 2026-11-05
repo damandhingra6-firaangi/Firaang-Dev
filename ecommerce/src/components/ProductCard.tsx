@@ -18,6 +18,7 @@ type Props = {
   onQuickView?: () => void;
   onToggleWishlist?: () => void;
   onAddToCart?: () => void;
+  disabled?: boolean;
 };
 
 export default function ProductCard({
@@ -33,6 +34,7 @@ export default function ProductCard({
   onQuickView,
   onToggleWishlist,
   onAddToCart,
+  disabled = false,
 }: Props) {
   return (
     <article
@@ -89,10 +91,13 @@ export default function ProductCard({
           <button
             type="button"
             aria-label={`Add ${title} to cart`}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--gold)] bg-[var(--arrivals-action-bg)] text-[var(--arrivals-card-title)] sm:h-9 sm:w-9"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--gold)] bg-[var(--arrivals-action-bg)] text-[var(--arrivals-card-title)] disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:w-9"
+            disabled={disabled}
             onClick={(event) => {
               event.stopPropagation();
-              onAddToCart?.();
+              if (!disabled) {
+                onAddToCart?.();
+              }
             }}
           >
             <ShoppingBag className="h-4 w-4" />

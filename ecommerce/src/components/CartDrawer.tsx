@@ -96,7 +96,8 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
-  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const isCheckoutLoading = useShopStore((state) => state.isCheckoutLoading);
+  const setCheckoutLoading = useShopStore((state) => state.setCheckoutLoading);
   const [checkoutLoadingMessage, setCheckoutLoadingMessage] = useState("Preparing secure checkout…");
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | null>(null);
@@ -105,6 +106,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const hasTrackedViewCartRef = useRef(false);
   const scriptPromiseRef = useRef<Promise<boolean> | null>(null);
   const checkoutLoadingTimeoutRef = useRef<number | null>(null);
+  const checkoutLockTimeoutRef = useRef<number | null>(null);
   const savedAddresses = profile.savedAddresses ?? [];
 
   type SavedAddress = NonNullable<typeof profile.savedAddresses>[number];
@@ -139,13 +141,17 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       window.clearTimeout(checkoutLoadingTimeoutRef.current);
       checkoutLoadingTimeoutRef.current = null;
     }
-    setIsCheckoutLoading(false);
+    if (checkoutLockTimeoutRef.current !== null) {
+      window.clearTimeout(checkoutLockTimeoutRef.current);
+      checkoutLockTimeoutRef.current = null;
+    }
+    setCheckoutLoading(false);
     setCheckoutLoadingMessage("Preparing secure checkout…");
   };
 
   const beginCheckoutLoading = () => {
     setCheckoutError(null);
-    setIsCheckoutLoading(true);
+    setCheckoutLoading(true);
     setCheckoutLoadingMessage("Preparing secure checkout…");
 
     if (typeof window === "undefined") {
@@ -155,10 +161,19 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
     if (checkoutLoadingTimeoutRef.current !== null) {
       window.clearTimeout(checkoutLoadingTimeoutRef.current);
     }
+    if (checkoutLockTimeoutRef.current !== null) {
+      window.clearTimeout(checkoutLockTimeoutRef.current);
+    }
 
     checkoutLoadingTimeoutRef.current = window.setTimeout(() => {
       setCheckoutLoadingMessage("Almost there…");
     }, 3000);
+
+    checkoutLockTimeoutRef.current = window.setTimeout(() => {
+      resetCheckoutLoadingState();
+      setCheckoutError("Checkout timed out. Please try again.");
+      pushToast("Checkout took too long to respond. Please try again.", { variant: "warning" });
+    }, 30000);
   };
 
   useEffect(() => {
@@ -167,6 +182,11 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       isMountedRef.current = false;
       if (checkoutLoadingTimeoutRef.current !== null) {
         window.clearTimeout(checkoutLoadingTimeoutRef.current);
+        checkoutLoadingTimeoutRef.current = null;
+      }
+      if (checkoutLockTimeoutRef.current !== null) {
+        window.clearTimeout(checkoutLockTimeoutRef.current);
+        checkoutLockTimeoutRef.current = null;
       }
     };
   }, []);
@@ -196,6 +216,22 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !isCheckoutLoading) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isCheckoutLoading]);
 
   useEffect(() => {
     if (!isOpen || !isSignedIn) {
@@ -469,6 +505,10 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   };
 
   const handleApplyCoupon = async () => {
+    if (isCheckoutLoading) {
+      return;
+    }
+
     const code = couponInput.trim().toUpperCase();
     if (!code) { setCouponError("Enter a coupon code"); return; }
     setIsValidatingCoupon(true);
@@ -500,6 +540,10 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   };
 
   const handleRemoveCoupon = () => {
+    if (isCheckoutLoading) {
+      return;
+    }
+
     setAppliedCoupon(null);
     setCouponInput("");
     setCouponError(null);
@@ -532,6 +576,10 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   };
 
   const handleProceedToShipping = () => {
+    if (isCheckoutLoading) {
+      return;
+    }
+
     if (cartItems.length > 0 && validCheckoutItems.length === 0) {
       if (repairStaleCart()) {
         pushToast("We removed stale cart items and refreshed your cart. Please try again.", { variant: "warning" });
@@ -568,6 +616,10 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   };
 
   const handleProceedToSummary = async () => {
+    if (isCheckoutLoading) {
+      return;
+    }
+
     if (!validateShippingDetails()) { pushToast("Please fix shipping form errors", { variant: "warning" }); return; }
 
     if (isSignedIn) {
@@ -696,6 +748,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       ]);
 
       if (!scriptReady) {
+        resetCheckoutLoadingState();
         throw new Error("Failed to load payment gateway");
       }
 
@@ -711,6 +764,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       }
 
       if (!orderResponse.ok || !orderData.orderId || !orderData.amount || !orderData.currency) {
+        resetCheckoutLoadingState();
         const errorMessage = orderData.staleProductIds?.length
           ? "Some outdated items were removed from your cart. Please review and try again."
           : orderData.error ?? "Unable to create order";
@@ -720,6 +774,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       }
 
       if (!effectiveRazorpayKey) {
+        resetCheckoutLoadingState();
         const errorMessage = "Checkout key is missing on server";
         setCheckoutError(errorMessage);
         pushToast(errorMessage, { variant: "error" });
@@ -754,7 +809,11 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(response),
           });
-          if (!verifyResponse.ok) { pushToast("Payment verification failed", { variant: "error" }); return; }
+          if (!verifyResponse.ok) {
+            resetCheckoutLoadingState();
+            pushToast("Payment verification failed", { variant: "error" });
+            return;
+          }
 
           const verification = (await verifyResponse.json()) as {
             verified?: boolean;
@@ -774,11 +833,13 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
           };
 
           if (verification.status === "pending") {
+            resetCheckoutLoadingState();
             pushToast(verification.message ?? "Payment is still pending. We will confirm it automatically.", { variant: "warning" });
             return;
           }
 
           if (verification.status === "failed" || !verification.verified) {
+            resetCheckoutLoadingState();
             pushToast(verification.message ?? "Payment verification failed", { variant: "error" });
             return;
           }
@@ -813,9 +874,10 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
             });
           }
 
-          clearCart();
+          resetCheckoutLoadingState();
           setAppliedCoupon(null);
           setCouponInput("");
+          clearCart();
           setStep("cart");
           onClose();
           pushToast(
@@ -828,22 +890,19 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       });
 
       razorpay.on("payment.failed", (event: { error?: { description?: string } }) => {
+        resetCheckoutLoadingState();
         setCheckoutError(event.error?.description ?? "Payment failed");
         pushToast(event.error?.description ?? "Payment failed", { variant: "error" });
       });
 
       setCheckoutError(null);
-      resetCheckoutLoadingState();
       razorpay.open();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Checkout failed. Please try again.";
+      resetCheckoutLoadingState();
       setCheckoutError(message);
       console.error("Checkout failed", error);
       pushToast("Couldn't start checkout. Please try again.", { variant: "error" });
-    } finally {
-      if (isMountedRef.current) {
-        resetCheckoutLoadingState();
-      }
     }
   };
 
@@ -851,6 +910,10 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   const STEPS: CheckoutStep[] = ["cart", "shipping", "summary"];
 
   const handleIncreaseQuantity = (productId: string) => {
+    if (isCheckoutLoading) {
+      return;
+    }
+
     const cartItem = cart[productId];
 
     if (!cartItem) {
@@ -880,6 +943,10 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   };
 
   const handleDecreaseQuantity = (productId: string) => {
+    if (isCheckoutLoading) {
+      return;
+    }
+
     const cartItem = cart[productId];
 
     if (!cartItem) {
@@ -907,6 +974,10 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
   };
 
   const handleRemoveItem = (productId: string) => {
+    if (isCheckoutLoading) {
+      return;
+    }
+
     const cartItem = cart[productId];
 
     if (!cartItem) {
@@ -942,7 +1013,11 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
       {mode === "drawer" ? (
         <div
           className={`fixed inset-0 z-[85] bg-black/60 transition-opacity duration-300 ${isOpen ? "visible opacity-100" : "invisible opacity-0"}`}
-          onClick={onClose}
+          onClick={() => {
+            if (!isCheckoutLoading) {
+              onClose();
+            }
+          }}
         />
       ) : null}
 
@@ -961,7 +1036,17 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
             </button>
           ) : null}
           <h3 className="flex-1 text-lg font-semibold">{stepLabels[step]}</h3>
-          <button type="button" onClick={onClose} aria-label="Close cart" className="rounded-full p-1.5 transition hover:bg-[#f1f3f9]">
+          <button
+            type="button"
+            onClick={() => {
+              if (!isCheckoutLoading) {
+                onClose();
+              }
+            }}
+            aria-label="Close cart"
+            className={`rounded-full p-1.5 transition hover:bg-[#f1f3f9] ${isCheckoutLoading ? "cursor-not-allowed opacity-50" : ""}`}
+            disabled={isCheckoutLoading}
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -1015,7 +1100,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                     const lineTotal = lineDisplayTotals[index] ?? item.product.priceAmount * item.quantity;
                     const productHref = getProductDetailHref(item);
                     return (
-                      <article key={item.product.id} className="rounded-2xl border border-[#ff3f6c]/30 bg-white p-3">
+                      <article key={item.product.id} className={`rounded-2xl border border-[#ff3f6c]/30 bg-white p-3 transition ${isCheckoutLoading ? "cursor-not-allowed opacity-60" : ""}`}>
                         <div className="flex gap-4">
                           <Link href={productHref} aria-label={`View ${item.product.name}`} className="shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff3f6c]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white">
                             <SafeImage src={item.product.img} alt={item.product.name} className="h-24 w-24 rounded-xl object-cover" />
@@ -1036,11 +1121,11 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                             </p>
                             <div className="mt-2.5 flex items-center justify-between gap-2">
                               <div className="flex items-center gap-1.5 rounded-full border border-[#ff3f6c]/40 px-1 py-0.5">
-                                <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full p-1 transition hover:bg-[#f1f3f9]" onClick={() => handleDecreaseQuantity(item.product.id)} aria-label={`Decrease ${item.product.name} quantity`}>
+                                <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full p-1 transition hover:bg-[#f1f3f9] disabled:cursor-not-allowed disabled:opacity-50" onClick={() => handleDecreaseQuantity(item.product.id)} aria-label={`Decrease ${item.product.name} quantity`} disabled={isCheckoutLoading}>
                                   <Minus className="h-3 w-3" />
                                 </button>
                                 <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
-                                <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full p-1 transition hover:bg-[#f1f3f9]" onClick={() => handleIncreaseQuantity(item.product.id)} aria-label={`Increase ${item.product.name} quantity`}>
+                                <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full p-1 transition hover:bg-[#f1f3f9] disabled:cursor-not-allowed disabled:opacity-50" onClick={() => handleIncreaseQuantity(item.product.id)} aria-label={`Increase ${item.product.name} quantity`} disabled={isCheckoutLoading}>
                                   <Plus className="h-3 w-3" />
                                 </button>
                               </div>
@@ -1048,7 +1133,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                                 <span className="text-[13px] font-semibold text-[#1f2430] sm:text-sm">
                                   {formatCurrency(convertAmount(lineTotal, "INR", displayCurrency), displayCurrency)}
                                 </span>
-                                <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full p-1.5 text-[#ff3f6c]/70 transition hover:bg-[#f1f3f9] hover:text-red-400" onClick={() => handleRemoveItem(item.product.id)} aria-label={`Remove ${item.product.name}`}>
+                                <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full p-1.5 text-[#ff3f6c]/70 transition hover:bg-[#f1f3f9] hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => handleRemoveItem(item.product.id)} aria-label={`Remove ${item.product.name}`} disabled={isCheckoutLoading}>
                                   <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>

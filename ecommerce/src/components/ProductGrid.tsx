@@ -31,6 +31,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
   const wishlist = useShopStore((state) => state.wishlist);
   const toggleWishlist = useShopStore((state) => state.toggleWishlist);
   const addToCart = useShopStore((state) => state.addToCart);
+  const isCheckoutLoading = useShopStore((state) => state.isCheckoutLoading);
   const openCart = useUiStore((state) => state.openCart);
   const displayCurrency = useUiStore((state) => state.currency);
   const router = useRouter();
@@ -190,6 +191,10 @@ export default function ProductGrid({ products }: ProductGridProps) {
   };
 
   const handleAddToCart = (product: GridProduct) => {
+    if (isCheckoutLoading) {
+      return;
+    }
+
     addToCart(product);
     openCart();
   };
@@ -375,6 +380,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
                     onQuickView={() => handleOpenDetails(p)}
                     onToggleWishlist={() => handleToggleWishlist(p)}
                     onAddToCart={() => handleAddToCart(p)}
+                    disabled={isCheckoutLoading}
                   />
                 );
               })}

@@ -156,6 +156,7 @@ export default function ShopListing({
   const wishlist = useShopStore((state) => state.wishlist);
   const toggleWishlist = useShopStore((state) => state.toggleWishlist);
   const addToCart = useShopStore((state) => state.addToCart);
+  const isCheckoutLoading = useShopStore((state) => state.isCheckoutLoading);
   const openCart = useUiStore((state) => state.openCart);
   const displayCurrency = useUiStore((state) => state.currency);
 
@@ -670,6 +671,10 @@ export default function ShopListing({
   };
 
   const handleAddToCart = (product: GridProduct) => {
+    if (isCheckoutLoading) {
+      return;
+    }
+
     addToCart(product);
     openCart();
   };
@@ -1075,8 +1080,9 @@ export default function ShopListing({
                     <div className="flex gap-2 pt-1">
                       <button
                         type="button"
-                        className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-md bg-[#ff3f6c] px-3 text-xs font-semibold uppercase tracking-[0.07em] text-white transition hover:bg-[#e43460]"
+                        className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-md bg-[#ff3f6c] px-3 text-xs font-semibold uppercase tracking-[0.07em] text-white transition hover:bg-[#e43460] disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={() => handleAddToCart(product)}
+                        disabled={isCheckoutLoading}
                       >
                         <ShoppingBag className="h-3.5 w-3.5" />
                         Add to Cart

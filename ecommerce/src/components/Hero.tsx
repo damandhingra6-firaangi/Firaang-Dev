@@ -54,8 +54,8 @@ const ROCKSTAR_HERO_SLIDE: HeroSlide = {
   subtitle: "",
   primaryCtaLabel: "EXPLORE THE DROP",
   primaryCtaHref: "/shop?section=collections&collection=rockstar",
-  imageClassName: "object-cover object-center bg-black md:object-contain md:bg-black",
-  mobileImageClassName: "object-cover object-center bg-black md:object-contain md:bg-black",
+  imageClassName: "object-cover object-center bg-black",
+  mobileImageClassName: "object-cover object-center bg-black",
 };
 
 const BASE_HERO_SLIDE: HeroSlide = {
@@ -197,7 +197,7 @@ function HeroResponsiveImage({
 
   return (
     <picture className="absolute inset-0 block h-full w-full" style={{ aspectRatio: "16 / 9" }}>
-      <source media="(max-width: 767px)" srcSet={slide.mobileImage || resolvedSource} />
+      <source media="(max-width: 767px)" srcSet={slide.mobileImage || resolvedSource} sizes="100vw" />
       <Image
         src={resolvedSource}
         alt={slide.alt}
@@ -432,7 +432,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
             slide={activeSlide}
             index={safeActiveIndex}
             activeIndex={safeActiveIndex}
-            className={`h-full w-full object-contain object-center ${activeSlide.imageClassName ?? ""}`}
+            className={`h-full w-full ${activeSlide.imageClassName ?? "object-cover object-center"}`}
           />
 
           <div className="absolute inset-x-0 bottom-5 z-10 flex justify-center px-4 sm:bottom-7 md:bottom-9">

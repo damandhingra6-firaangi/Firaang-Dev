@@ -145,8 +145,7 @@ fbq('track', 'PageView');`;
     >
       <head>
         <meta name="color-scheme" content="light" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="preload" as="image" href="/homepage-rockstar-banner-mobile.webp" imageSrcSet="/homepage-rockstar-banner-mobile.webp 402w, /homepage-rockstar-banner.webp 1500w" imageSizes="100vw" />
         <link rel="dns-prefetch" href="https://connect.facebook.net" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
       </head>

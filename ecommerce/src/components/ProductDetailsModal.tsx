@@ -11,6 +11,7 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Minus, Play, Plus
 import { getConfiguredSizeChart } from "@/lib/size-charts";
 import { getSelectedOptionValue, isColorOption, isSizeOption, normalizeOptionName, optionMatchesSelection } from "@/lib/variant-options";
 import SafeImage from "@/components/SafeImage";
+import { useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
 
 type ProductDetailsModalProps = {
@@ -118,6 +119,7 @@ export default function ProductDetailsModal({
   onBuyNow,
 }: ProductDetailsModalProps) {
   const isModalLayout = mode === "modal";
+  const isCheckoutLoading = useShopStore((state) => state.isCheckoutLoading);
   const displayCurrency = useUiStore((state) => state.currency);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
@@ -1013,14 +1015,16 @@ export default function ProductDetailsModal({
             <div className="mt-auto flex flex-col gap-3 border-t border-[var(--gold)]/15 pt-5 sm:flex-row">
               <button
                 type="button"
-                disabled={activeVariant ? !activeVariant.availableForSale : false}
+                disabled={activeVariant ? !activeVariant.availableForSale : false || isCheckoutLoading}
                 className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-full border border-[var(--gold)] px-5 py-3 font-medium text-[var(--popup-input-text)] transition hover:bg-[var(--popup-hover)] disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => {
-                  if (resolvedProduct) {
-                    onAddToCart(resolvedProduct);
-                    if (isModalLayout && onClose) {
-                      onClose();
-                    }
+                  if (isCheckoutLoading || !resolvedProduct) {
+                    return;
+                  }
+
+                  onAddToCart(resolvedProduct);
+                  if (isModalLayout && onClose) {
+                    onClose();
                   }
                 }}
               >
@@ -1029,12 +1033,14 @@ export default function ProductDetailsModal({
               </button>
               <button
                 type="button"
-                disabled={activeVariant ? !activeVariant.availableForSale : false}
+                disabled={activeVariant ? !activeVariant.availableForSale : false || isCheckoutLoading}
                 className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-full bg-[var(--gold)] px-5 py-3 font-medium text-[#3b0810] transition hover:bg-[#f0c654] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[var(--gold)]"
                 onClick={() => {
-                  if (resolvedProduct) {
-                    onBuyNow(resolvedProduct);
+                  if (isCheckoutLoading || !resolvedProduct) {
+                    return;
                   }
+
+                  onBuyNow(resolvedProduct);
                 }}
               >
                 <ShoppingBag className="h-4 w-4" />

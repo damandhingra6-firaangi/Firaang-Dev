@@ -394,6 +394,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   const wishlist = useShopStore((state) => state.wishlist);
   const toggleWishlist = useShopStore((state) => state.toggleWishlist);
   const addToCart = useShopStore((state) => state.addToCart);
+  const isCheckoutLoading = useShopStore((state) => state.isCheckoutLoading);
   const openCart = useUiStore((state) => state.openCart);
   const pushToast = useUiStore((state) => state.pushToast);
   const openAccountModal = useUiStore((state) => state.openAccountModal);
@@ -760,6 +761,10 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   };
 
   const handleAddToBag = () => {
+    if (isCheckoutLoading) {
+      return;
+    }
+
     if (hasSizeOptions && !getSelectedOptionValue(selectedOptions, sizeGroup?.name ?? "", "Size", "size", "Sizes", "sizes")) {
       pushToast("Select a size before adding this product.", { variant: "warning" });
       return;
@@ -1332,7 +1337,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
               <button
                 type="button"
                 onClick={handleAddToBag}
-                disabled={isAdding}
+                disabled={isAdding || isCheckoutLoading}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--secondary)] px-5 py-4 text-sm font-semibold text-white transition hover:bg-[#9f3940] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
