@@ -53,7 +53,7 @@ const NEW_HERO_BANNER_SLIDE: HeroSlide = {
   title: ["Firaang", ""],
   subtitle: "",
   primaryCtaLabel: "SHOP NOW",
-  primaryCtaHref: "/shop",
+  primaryCtaHref: "/shop?section=just-dropped",
   imageClassName: "bg-[#f6f1ed]",
   mobileImageClassName: "bg-[#f6f1ed]",
 };
@@ -211,12 +211,19 @@ function HeroResponsiveImage({
   };
 
   return (
-    <picture className="absolute inset-0 block h-full w-full overflow-hidden" style={{ aspectRatio: "16 / 9", backgroundColor: "#f6f1ed" }}>
-      <source media="(max-width: 767px)" srcSet={slide.mobileImage || resolvedSource} sizes="100vw" />
+    <picture className="block h-full w-full overflow-hidden bg-[#f6f1ed] md:absolute md:inset-0 md:h-full md:w-full">
+      <source
+        media="(max-width: 767px)"
+        srcSet={slide.mobileImage || resolvedSource}
+        sizes="100vw"
+        width={1080}
+        height={1440}
+      />
       <Image
         src={resolvedSource}
         alt={slide.alt}
-        fill
+        width={1600}
+        height={900}
         unoptimized
         priority={isPriorityImage}
         fetchPriority={isPriorityImage ? "high" : "auto"}
@@ -224,7 +231,7 @@ function HeroResponsiveImage({
         sizes="100vw"
         quality={75}
         onError={handleImageError}
-        className={className}
+        className={`${className} block max-md:!static max-md:h-auto max-md:w-full max-md:object-contain md:absolute md:inset-0 md:h-full md:w-full`}
         style={{
           objectFit: "contain",
           objectPosition: "center center",
@@ -263,11 +270,27 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
     () => featuredCollections.filter((collection) => !`${collection.title} ${collection.handle}`.toLowerCase().includes("ganesh")),
     [featuredCollections],
   );
+  const [isMobileView, setIsMobileView] = useState(false);
+
+  useEffect(() => {
+    const updateIsMobileView = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+
+    updateIsMobileView();
+    window.addEventListener("resize", updateIsMobileView);
+
+    return () => {
+      window.removeEventListener("resize", updateIsMobileView);
+    };
+  }, []);
+
   const slides = useMemo(
-    () => [NEW_HERO_BANNER_SLIDE, ROCKSTAR_HERO_SLIDE, BASE_HERO_SLIDE, DEVOTIONAL_HERO_SLIDE, ...filteredFeaturedCollections.map(mapFeaturedCollectionToSlide)].filter(
-      (slide): slide is HeroSlide => Boolean(slide),
-    ),
-    [filteredFeaturedCollections, storySlide],
+    () =>
+      [NEW_HERO_BANNER_SLIDE, ROCKSTAR_HERO_SLIDE, ...filteredFeaturedCollections.map(mapFeaturedCollectionToSlide)]
+        .filter((slide): slide is HeroSlide => Boolean(slide))
+        .filter((slide) => !isMobileView || slide.id !== "rockstar-hero"),
+    [filteredFeaturedCollections, isMobileView, storySlide],
   );
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -342,7 +365,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
 
   return (
     <section
-      className="hero-section relative mt-[92px] min-h-[64vh] w-full overflow-hidden min-[401px]:min-h-[66vh] md:mt-[98px] md:min-h-[82vh] lg:min-h-[86vh]"
+      className="hero-section relative mt-0 h-[clamp(420px,42vw,760px)] w-full overflow-hidden max-md:h-auto max-md:overflow-visible md:h-[clamp(470px,46vw,820px)]"
       tabIndex={0}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -447,15 +470,26 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
         </div>
       ) : activeSlide.imageOnly ? (
         <>
-          <HeroResponsiveImage
-            key={activeSlide.id}
-            slide={activeSlide}
-            index={safeActiveIndex}
-            activeIndex={safeActiveIndex}
-            className={`h-full w-full ${activeSlide.imageClassName ?? "object-cover object-center"}`}
-          />
+          <Link href={activeSlide.primaryCtaHref} className="block w-full md:block" aria-label={activeSlide.alt}>
+            <HeroResponsiveImage
+              key={activeSlide.id}
+              slide={activeSlide}
+              index={safeActiveIndex}
+              activeIndex={safeActiveIndex}
+              className={`h-full w-full ${activeSlide.imageClassName ?? "object-cover object-center"}`}
+            />
+          </Link>
 
-          <div className="absolute inset-x-0 bottom-5 z-10 flex justify-center px-4 sm:bottom-7 md:bottom-9">
+          <div className="mt-3 flex justify-center px-4 pb-4 md:hidden">
+            <Link
+              href={activeSlide.primaryCtaHref}
+              className="inline-flex items-center justify-center rounded-full border border-[#111111]/60 bg-[#111111] px-5 py-3 text-center font-sans text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-[0_18px_36px_rgba(0,0,0,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#1b1b1b] active:translate-y-0 sm:px-6 sm:py-3.5 sm:text-[12px]"
+            >
+              {activeSlide.primaryCtaLabel}
+            </Link>
+          </div>
+
+          <div className="absolute inset-x-0 bottom-5 z-10 hidden justify-center px-4 sm:bottom-7 md:flex md:bottom-9">
             <Link
               href={activeSlide.primaryCtaHref}
               className="inline-flex items-center justify-center rounded-full border border-white/75 bg-[#111111]/55 px-5 py-3 text-center font-sans text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-[0_18px_36px_rgba(0,0,0,0.18)] backdrop-blur-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#111111]/70 hover:shadow-[0_22px_42px_rgba(0,0,0,0.24)] active:translate-y-0 sm:px-6 sm:py-3.5 sm:text-[12px] md:px-7 md:text-[13px]"

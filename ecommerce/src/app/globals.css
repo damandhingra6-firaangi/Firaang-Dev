@@ -109,12 +109,46 @@ body {
 
 .hero-section {
   contain: layout paint;
-  aspect-ratio: 16 / 8.5;
+  width: 100vw;
+  max-width: none;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  min-height: 0;
 }
 
 @media (max-width: 767px) {
   .hero-section {
-    aspect-ratio: 16 / 10.5;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin-left: calc(50% - 50vw) !important;
+    margin-right: calc(50% - 50vw) !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: clamp(360px, 76vw, 560px);
+    overflow: hidden;
+  }
+
+  .hero-section > picture,
+  .hero-section img {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 100vw !important;
+    left: 0 !important;
+    right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .hero-section .home-shell,
+  .hero-section .hero-content {
+    width: 100% !important;
+    max-width: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
   }
 }
 
