@@ -229,7 +229,7 @@ function HeroResponsiveImage({
 
   return (
     <picture
-      className={isMobileView ? "block h-auto w-full overflow-hidden bg-[#f6f1ed]" : "block w-full overflow-hidden bg-[#f6f1ed] md:h-auto md:w-full"}
+      className={isMobileView ? "block h-auto w-full overflow-hidden bg-[#f6f1ed]" : "block w-full overflow-visible bg-[#f6f1ed] md:w-full"}
       style={isMobileView ? undefined : { aspectRatio: desktopAspectRatio }}
     >
       <source
@@ -251,11 +251,9 @@ function HeroResponsiveImage({
         sizes="100vw"
         quality={75}
         onError={handleImageError}
-        className={`${className} block ${isMobileView ? "max-md:!static max-md:h-auto max-md:w-full max-md:object-contain" : "md:h-full md:w-full md:object-cover md:object-center"}`}
+        className={`${className} block w-full h-auto ${isMobileView ? "max-md:!static max-md:h-auto max-md:w-full max-md:object-contain" : "md:object-contain md:object-center"}`}
         style={{
           display: "block",
-          objectFit: isMobileView ? "contain" : "cover",
-          objectPosition: isMobileView ? "center center" : "center top",
           backgroundColor: "#f6f1ed",
         }}
       />
@@ -386,7 +384,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
 
   return (
     <section
-      className="hero-section relative mt-0 h-[clamp(420px,42vw,760px)] w-full overflow-hidden max-md:h-auto max-md:overflow-visible md:h-auto md:aspect-[1500/633]"
+      className="hero-section relative mt-0 w-full max-md:h-[clamp(420px,42vw,760px)] max-md:overflow-hidden md:mt-[38px] md:h-auto md:max-h-none md:overflow-visible"
       tabIndex={0}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -498,7 +496,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
               index={safeActiveIndex}
               activeIndex={safeActiveIndex}
               isMobileView={isMobileView}
-              className={`h-full w-full ${activeSlide.imageClassName ?? "object-cover object-center"}`}
+              className={`w-full h-auto ${activeSlide.imageClassName ?? "object-contain object-center"}`}
             />
           </Link>
 
@@ -528,7 +526,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
             index={safeActiveIndex}
             activeIndex={safeActiveIndex}
             isMobileView={isMobileView}
-            className={`h-full w-full object-cover object-[50%_15%] max-[374px]:object-[50%_12%] min-[375px]:object-[50%_14%] min-[390px]:object-[50%_15%] min-[414px]:object-[50%_18%] md:object-[50%_20%] lg:object-[50%_22%] xl:object-[50%_25%] ${activeSlide.imageClassName ?? ""}`}
+            className={`w-full h-auto object-contain object-center ${activeSlide.imageClassName ?? ""}`}
           />
 
           <div className="hero-overlay-primary absolute inset-0" />
