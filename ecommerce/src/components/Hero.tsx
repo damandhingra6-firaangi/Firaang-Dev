@@ -40,6 +40,9 @@ type HeroSlide = {
   couponCode?: string;
   couponHintText?: string;
   couponClassName?: string;
+  desktopAspectRatio?: string;
+  desktopWidth?: number;
+  desktopHeight?: number;
   storyTiles?: StoryBannerItem[];
 };
 
@@ -56,6 +59,9 @@ const NEW_HERO_BANNER_SLIDE: HeroSlide = {
   primaryCtaHref: "/shop?section=just-dropped",
   imageClassName: "bg-[#f6f1ed]",
   mobileImageClassName: "bg-[#f6f1ed]",
+  desktopAspectRatio: "1920 / 808",
+  desktopWidth: 1920,
+  desktopHeight: 808,
 };
 
 const ROCKSTAR_HERO_SLIDE: HeroSlide = {
@@ -71,6 +77,9 @@ const ROCKSTAR_HERO_SLIDE: HeroSlide = {
   primaryCtaHref: "/shop?section=collections&collection=rockstar",
   imageClassName: "object-cover object-center bg-black",
   mobileImageClassName: "object-cover object-center bg-black",
+  desktopAspectRatio: "1500 / 633",
+  desktopWidth: 1500,
+  desktopHeight: 633,
 };
 
 const BASE_HERO_SLIDE: HeroSlide = {
@@ -85,6 +94,9 @@ const BASE_HERO_SLIDE: HeroSlide = {
   primaryCtaHref: "/shop?audience=girls",
   secondaryCtaLabel: "SHOP MEN",
   secondaryCtaHref: "/shop?audience=boys",
+  desktopAspectRatio: "1500 / 632",
+  desktopWidth: 1500,
+  desktopHeight: 632,
 };
 
 const DEVOTIONAL_HERO_SLIDE: HeroSlide = {
@@ -190,15 +202,20 @@ function HeroResponsiveImage({
   index,
   activeIndex,
   className,
+  isMobileView,
 }: {
   slide: HeroSlide;
   index: number;
   activeIndex: number;
   className?: string;
+  isMobileView: boolean;
 }) {
   const isPriorityImage = index === activeIndex;
   const fallbackSource = slide.mobileImage || slide.image || "/FiraangLogoDesign-black.svg";
   const [resolvedSource, setResolvedSource] = useState(() => slide.image || fallbackSource);
+  const desktopAspectRatio = slide.desktopAspectRatio ?? "1500 / 633";
+  const desktopWidth = slide.desktopWidth ?? 1500;
+  const desktopHeight = slide.desktopHeight ?? 633;
 
   const handleImageError = () => {
     setResolvedSource((currentSource) => {
@@ -211,7 +228,10 @@ function HeroResponsiveImage({
   };
 
   return (
-    <picture className="block h-full w-full overflow-hidden bg-[#f6f1ed] md:absolute md:inset-0 md:h-full md:w-full">
+    <picture
+      className={isMobileView ? "block h-auto w-full overflow-hidden bg-[#f6f1ed]" : "block w-full overflow-hidden bg-[#f6f1ed] md:h-auto md:w-full"}
+      style={isMobileView ? undefined : { aspectRatio: desktopAspectRatio }}
+    >
       <source
         media="(max-width: 767px)"
         srcSet={slide.mobileImage || resolvedSource}
@@ -222,8 +242,8 @@ function HeroResponsiveImage({
       <Image
         src={resolvedSource}
         alt={slide.alt}
-        width={1600}
-        height={900}
+        width={desktopWidth}
+        height={desktopHeight}
         unoptimized
         priority={isPriorityImage}
         fetchPriority={isPriorityImage ? "high" : "auto"}
@@ -231,10 +251,11 @@ function HeroResponsiveImage({
         sizes="100vw"
         quality={75}
         onError={handleImageError}
-        className={`${className} block max-md:!static max-md:h-auto max-md:w-full max-md:object-contain md:absolute md:inset-0 md:h-full md:w-full`}
+        className={`${className} block ${isMobileView ? "max-md:!static max-md:h-auto max-md:w-full max-md:object-contain" : "md:h-full md:w-full md:object-cover md:object-center"}`}
         style={{
-          objectFit: "contain",
-          objectPosition: "center center",
+          display: "block",
+          objectFit: isMobileView ? "contain" : "cover",
+          objectPosition: isMobileView ? "center center" : "center top",
           backgroundColor: "#f6f1ed",
         }}
       />
@@ -365,7 +386,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
 
   return (
     <section
-      className="hero-section relative mt-0 h-[clamp(420px,42vw,760px)] w-full overflow-hidden max-md:h-auto max-md:overflow-visible md:h-[clamp(470px,46vw,820px)]"
+      className="hero-section relative mt-0 h-[clamp(420px,42vw,760px)] w-full overflow-hidden max-md:h-auto max-md:overflow-visible md:h-auto md:aspect-[1500/633]"
       tabIndex={0}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -476,6 +497,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
               slide={activeSlide}
               index={safeActiveIndex}
               activeIndex={safeActiveIndex}
+              isMobileView={isMobileView}
               className={`h-full w-full ${activeSlide.imageClassName ?? "object-cover object-center"}`}
             />
           </Link>
@@ -505,6 +527,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
             slide={activeSlide}
             index={safeActiveIndex}
             activeIndex={safeActiveIndex}
+            isMobileView={isMobileView}
             className={`h-full w-full object-cover object-[50%_15%] max-[374px]:object-[50%_12%] min-[375px]:object-[50%_14%] min-[390px]:object-[50%_15%] min-[414px]:object-[50%_18%] md:object-[50%_20%] lg:object-[50%_22%] xl:object-[50%_25%] ${activeSlide.imageClassName ?? ""}`}
           />
 

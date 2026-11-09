@@ -38,15 +38,15 @@ export default function Category({ categories }: CategoryProps) {
       <div className="home-shell">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between md:mb-10">
           <div>
-            <p className="font-sans text-[11px] font-medium uppercase tracking-[0.06em] text-[#2b2b2b] sm:text-[13px]">THE CORE SERIES</p>
-            <h2 className="mt-1 max-w-[12ch] font-sans text-[clamp(1.9rem,6.2vw,2.7rem)] font-semibold leading-[1.02] tracking-[-0.02em] text-[#000000] sm:max-w-none md:text-[clamp(2.5rem,4vw,3.25rem)]">
+            <p className="font-sans text-[10px] font-medium uppercase tracking-[0.12em] text-[#2b2b2b] sm:text-[13px]">THE CORE SERIES</p>
+            <h2 className="mt-1 max-w-none whitespace-nowrap font-sans text-[1.5rem] font-medium leading-[1.08] tracking-[-0.04em] text-[#000000] sm:max-w-none md:max-w-none md:text-[clamp(2.5rem,4vw,3.25rem)] md:font-semibold md:leading-[1.02] md:tracking-[-0.02em]">
               Shop By Category
             </h2>
           </div>
 
           <Link
             href="/shop"
-            className="inline-flex min-h-[44px] min-w-[132px] items-center justify-center self-start rounded-[5px] border border-[#555555] px-5 font-sans text-[12px] font-medium uppercase tracking-[0.04em] text-[#303030] transition hover:bg-white sm:min-w-[154px] sm:self-auto sm:px-7 sm:text-[14px] sm:tracking-[0.01em]"
+            className="inline-flex min-h-[40px] min-w-[118px] items-center justify-center self-start rounded-[5px] border border-[#555555] px-4 font-sans text-[11px] font-medium uppercase tracking-[0.08em] text-[#303030] transition hover:bg-white sm:min-w-[154px] sm:self-auto sm:px-7 sm:text-[14px] sm:tracking-[0.01em]"
           >
             VIEW ALL
           </Link>
@@ -86,8 +86,8 @@ export default function Category({ categories }: CategoryProps) {
 
                 <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-5 text-white md:p-6">
                   <div className="min-w-0">
-                    <p className="max-w-[8ch] font-sans text-[clamp(1.85rem,5vw,2.5rem)] font-semibold leading-[0.95] tracking-[-0.02em] text-white sm:max-w-none md:text-[clamp(2.1rem,3vw,2.6rem)]">{category.name}</p>
-                    <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.04em] text-white/80 sm:text-[11px]">
+                    <p className="max-w-[8ch] font-sans text-[1.6rem] font-semibold leading-[0.96] tracking-[-0.03em] text-white sm:max-w-none md:text-[clamp(2.1rem,3vw,2.6rem)] md:leading-[0.95] md:tracking-[-0.02em]">{category.name}</p>
+                    <p className="mt-1 text-[9px] font-medium uppercase tracking-[0.06em] text-white/80 sm:text-[11px]">
                       {category.count} {category.count === 1 ? "Product" : "Products"}
                     </p>
                   </div>
