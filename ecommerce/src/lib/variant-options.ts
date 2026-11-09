@@ -8,6 +8,11 @@ type VariantLike = {
   options: VariantOption[];
 };
 
+export type ProductSelectionCandidate = {
+  optionGroups?: Array<{ name: string; values: string[] }>;
+  variants?: VariantLike[];
+};
+
 export function normalizeOptionName(optionName: string) {
   return optionName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
@@ -101,4 +106,43 @@ export function isOptionAvailableForSelection({
       selectedOptions: nextOptions,
     });
   });
+}
+
+export function isProductSelectionComplete(
+  product: ProductSelectionCandidate | null | undefined,
+  selectedOptions: Record<string, string>,
+) {
+  const optionGroups = product?.optionGroups && product.optionGroups.length > 0
+    ? product.optionGroups
+    : product?.variants?.flatMap((variant) => {
+        const groups = new Map<string, Set<string>>();
+
+        for (const option of variant.options) {
+          const current = groups.get(option.name) ?? new Set<string>();
+          current.add(option.value);
+          groups.set(option.name, current);
+        }
+
+        return Array.from(groups.entries()).map(([name, values]) => ({
+          name,
+          values: Array.from(values),
+        }));
+      }) ?? [];
+
+  if (optionGroups.length === 0) {
+    return true;
+  }
+
+  for (const group of optionGroups) {
+    if (!isSizeOption(group.name) || group.values.length === 0) {
+      continue;
+    }
+
+    const value = getSelectedOptionValue(selectedOptions, group.name, "Size", "sizes", "Size / Fit");
+    if (!value || group.values.every((candidate) => normalizeOptionName(candidate) !== normalizeOptionName(value))) {
+      return false;
+    }
+  }
+
+  return true;
 }

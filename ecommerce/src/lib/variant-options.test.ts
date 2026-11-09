@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getSelectedOptionValue,
   isOptionAvailableForSelection,
+  isProductSelectionComplete,
   isSizeOption,
   optionMatchesSelection,
 } from "./variant-options";
@@ -88,5 +89,14 @@ describe("isOptionAvailableForSelection", () => {
       optionName: "sizes",
       optionValue: "L",
     })).toBe(true);
+  });
+
+  it("requires a selected size before a product can be added from a quick-add drawer", () => {
+    const product = {
+      optionGroups: [{ name: "Size", values: ["S", "M", "L"] }],
+    };
+
+    expect(isProductSelectionComplete(product, {})).toBe(false);
+    expect(isProductSelectionComplete(product, { Size: "M" })).toBe(true);
   });
 });

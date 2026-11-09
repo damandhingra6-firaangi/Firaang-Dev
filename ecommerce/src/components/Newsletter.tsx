@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
+import RedRibbon from "@/components/RedRibbon";
 import type { InstagramShowcaseItem } from "@/lib/instagram-showcase";
 import {
   BRAND_LOGO_LIGHT,
@@ -186,6 +187,8 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
           </div>
         </div>
       </section>
+
+      <RedRibbon />
 
       <footer className="relative overflow-hidden border-t border-white/10 bg-[var(--footer-bg)] pb-0 pt-14">
         <div className="pointer-events-none absolute inset-x-0 top-6 bottom-[78px] hidden items-center justify-center lg:flex">

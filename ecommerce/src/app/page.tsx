@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import Category from "@/components/Category";
-import RedRibbon from "@/components/RedRibbon";
 import ProductGrid from "@/components/ProductGrid";
 import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
@@ -80,7 +79,7 @@ function buildHomeCategories(products: GridProduct[]): HomeCategoryCard[] {
 
 export default async function Home() {
   const [storefrontProducts, collectionsContent] = await Promise.all([
-    getStorefrontProducts(HOME_PRODUCT_FETCH_LIMIT, { detailLevel: "summary" }),
+    getStorefrontProducts(HOME_PRODUCT_FETCH_LIMIT, { detailLevel: "full" }),
     getShopifyCollectionsContent(),
   ]);
 
@@ -112,7 +111,6 @@ export default async function Home() {
       <Navbar />
       <Hero featuredCollections={featuredCollections} storyBannerItems={storyBannerItems} />
       <Category categories={homeCategories} />
-      <RedRibbon />
       <ProductGrid products={products} />
       <Newsletter instagramShowcaseItems={instagramShowcaseItems} />
       <FeedbackPill />

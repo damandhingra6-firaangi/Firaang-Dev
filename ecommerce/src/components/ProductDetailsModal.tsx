@@ -22,7 +22,6 @@ type ProductDetailsModalProps = {
   onClose?: () => void;
   onToggleWishlist: (product: GridProduct) => void;
   onAddToCart: (product: GridProduct) => void;
-  onBuyNow: (product: GridProduct) => void;
 };
 
 type PreviewMediaItem = {
@@ -116,7 +115,6 @@ export default function ProductDetailsModal({
   onClose,
   onToggleWishlist,
   onAddToCart,
-  onBuyNow,
 }: ProductDetailsModalProps) {
   const isModalLayout = mode === "modal";
   const isCheckoutLoading = useShopStore((state) => state.isCheckoutLoading);
@@ -1030,21 +1028,6 @@ export default function ProductDetailsModal({
               >
                 <ShoppingBag className="h-4 w-4" />
                 Add to Cart
-              </button>
-              <button
-                type="button"
-                disabled={activeVariant ? !activeVariant.availableForSale : false || isCheckoutLoading}
-                className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-full bg-[var(--gold)] px-5 py-3 font-medium text-[#3b0810] transition hover:bg-[#f0c654] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[var(--gold)]"
-                onClick={() => {
-                  if (isCheckoutLoading || !resolvedProduct) {
-                    return;
-                  }
-
-                  onBuyNow(resolvedProduct);
-                }}
-              >
-                <ShoppingBag className="h-4 w-4" />
-                Buy Now
               </button>
               <button
                 type="button"

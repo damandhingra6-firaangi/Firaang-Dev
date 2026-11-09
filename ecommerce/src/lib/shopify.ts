@@ -9,8 +9,14 @@ const SHOPIFY_PRODUCTS_REVALIDATE_SECONDS = Math.max(
   60,
   Number.parseInt(process.env.SHOPIFY_PRODUCTS_REVALIDATE_SECONDS ?? "1800", 10) || 1800,
 );
-// Maximum time to wait for a single Shopify API page request before aborting.
-const SHOPIFY_FETCH_TIMEOUT_MS = 10_000;
+const SHOPIFY_FETCH_TIMEOUT_MS = Math.max(
+  2_000,
+  Number.parseInt(process.env.SHOPIFY_FETCH_TIMEOUT_MS ?? "10000", 10) || 10_000,
+);
+const SHOPIFY_FETCH_RETRIES = Math.max(
+  0,
+  Number.parseInt(process.env.SHOPIFY_FETCH_RETRIES ?? "2", 10) || 2,
+);
 
 type MoneyV2 = {
   amount: string;
@@ -448,56 +454,93 @@ export async function fetchShopifyGraphQL<T>({
   tag?: string;
   logErrors?: boolean;
 }): Promise<T> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SHOPIFY_FETCH_TIMEOUT_MS);
+  let lastError: unknown;
 
-  try {
-    const requestInit: RequestInit = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
-      },
-      body: JSON.stringify({ query, variables }),
-      signal: controller.signal,
-      cache: cacheMode,
-    };
+  for (let attempt = 0; attempt <= SHOPIFY_FETCH_RETRIES; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SHOPIFY_FETCH_TIMEOUT_MS);
 
-    if (cacheMode !== "no-store" && cacheMode !== "reload" && typeof revalidateSeconds === "number" && revalidateSeconds > 0) {
-      (requestInit as RequestInit & { next?: { revalidate: number } }).next = { revalidate: revalidateSeconds };
-    }
+    try {
+      const requestInit: RequestInit = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
+        },
+        body: JSON.stringify({ query, variables }),
+        signal: controller.signal,
+        cache: cacheMode,
+      };
 
-    const response = await fetch(endpoint, requestInit);
-
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => "");
-      const suffix = errorBody ? `: ${errorBody.slice(0, 500).replace(/\s+/g, " ")}` : "";
-      throw new Error(`Shopify GraphQL request failed with ${response.status}${suffix}`);
-    }
-
-    return (await response.json()) as T;
-  } catch (error) {
-    if (logErrors) {
-      const message = error instanceof Error ? error.message : String(error);
-      const isTimeout = controller.signal.aborted || /timed out|ETIMEDOUT|fetch failed|aborted/i.test(message);
-
-      if (isTimeout) {
-        console.error("[shopify] GraphQL request timed out", {
-          tag: tag ?? "shopify-graphql",
-          timeoutMs: SHOPIFY_FETCH_TIMEOUT_MS,
-        });
-      } else {
-        console.error("[shopify] GraphQL request failed", {
-          tag: tag ?? "shopify-graphql",
-          message,
-        });
+      if (cacheMode !== "no-store" && cacheMode !== "reload" && typeof revalidateSeconds === "number" && revalidateSeconds > 0) {
+        (requestInit as RequestInit & { next?: { revalidate: number } }).next = { revalidate: revalidateSeconds };
       }
-    }
 
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
+      const response = await fetch(endpoint, requestInit);
+
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => "");
+        const suffix = errorBody ? `: ${errorBody.slice(0, 500).replace(/\s+/g, " ")}` : "";
+        const retryable = response.status === 429 || response.status === 408 || response.status >= 500;
+
+        if (retryable && attempt < SHOPIFY_FETCH_RETRIES) {
+          lastError = new Error(`Shopify GraphQL request failed with ${response.status}${suffix}`);
+          await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+          continue;
+        }
+
+        throw new Error(`Shopify GraphQL request failed with ${response.status}${suffix}`);
+      }
+
+      const payload = (await response.json()) as T & { errors?: Array<{ message?: string }> };
+      const graphqlErrors = Array.isArray(payload?.errors) ? payload.errors : [];
+
+      if (graphqlErrors.length > 0) {
+        const message = graphqlErrors[0]?.message ?? "Shopify GraphQL request returned errors";
+        if (attempt < SHOPIFY_FETCH_RETRIES) {
+          lastError = new Error(message);
+          await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+          continue;
+        }
+
+        throw new Error(message);
+      }
+
+      return payload;
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      const isTimeout = /timed out|ETIMEDOUT|fetch failed|aborted/i.test(message);
+      const shouldRetry = attempt < SHOPIFY_FETCH_RETRIES && (isTimeout || /429|5\d\d/i.test(message));
+
+      if (shouldRetry) {
+        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+        continue;
+      }
+
+      if (logErrors) {
+        if (isTimeout) {
+          console.error("[shopify] GraphQL request timed out", {
+            tag: tag ?? "shopify-graphql",
+            timeoutMs: SHOPIFY_FETCH_TIMEOUT_MS,
+            attempt: attempt + 1,
+          });
+        } else {
+          console.error("[shopify] GraphQL request failed", {
+            tag: tag ?? "shopify-graphql",
+            message,
+            attempt: attempt + 1,
+          });
+        }
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
+
+  throw lastError instanceof Error ? lastError : new Error("Shopify GraphQL request failed");
 }
 
 export function normalizeCollectionLookupKey(value: string): string {
@@ -992,6 +1035,131 @@ const productsSummaryQuery = `#graphql
   }
 `;
 
+export const productByHandleQuery = `#graphql
+  query GetProductByHandle($handle: String!) {
+    product(handle: $handle) {
+      id
+      handle
+      title
+      productType
+      tags
+      publishedAt
+      fitCustom: metafield(namespace: "custom", key: "fit") {
+        value
+      }
+      fitTypeCustom: metafield(namespace: "custom", key: "fit_type") {
+        value
+      }
+      styleFitCustom: metafield(namespace: "custom", key: "style_fit") {
+        value
+      }
+      fitDetails: metafield(namespace: "details", key: "fit") {
+        value
+      }
+      description
+      featuredImage {
+        url
+        altText
+      }
+      images(first: 20) {
+        nodes {
+          url
+          altText
+        }
+      }
+      media(first: 20) {
+        nodes {
+          __typename
+          ... on MediaImage {
+            image {
+              url
+              altText
+            }
+          }
+          ... on Video {
+            previewImage {
+              url
+              altText
+            }
+            sources {
+              url
+              mimeType
+            }
+          }
+        }
+      }
+      priceRange {
+        minVariantPrice {
+          amount
+          currencyCode
+        }
+      }
+      compareAtPriceRange {
+        minVariantPrice {
+          amount
+          currencyCode
+        }
+      }
+      options {
+        name
+        values
+      }
+      sizeChartJson: metafield(namespace: "custom", key: "size_chart_json") {
+        value
+      }
+      sizeChart: metafield(namespace: "custom", key: "size_chart") {
+        value
+      }
+      variants(first: 250) {
+        edges {
+          node {
+            id
+            title
+            availableForSale
+            image {
+              url
+              altText
+            }
+            price {
+              amount
+              currencyCode
+            }
+            compareAtPrice {
+              amount
+              currencyCode
+            }
+            selectedOptions {
+              name
+              value
+            }
+          }
+        }
+      }
+      selectedOrFirstAvailableVariant {
+        id
+        title
+        availableForSale
+        image {
+          url
+          altText
+        }
+        price {
+          amount
+          currencyCode
+        }
+        compareAtPrice {
+          amount
+          currencyCode
+        }
+        selectedOptions {
+          name
+          value
+        }
+      }
+    }
+  }
+`;
+
 export const collectionProductsSummaryQuery = `#graphql
   query GetCollectionProductsSummary($handle: String!, $first: Int!, $after: String) {
     collection(handle: $handle) {
@@ -1032,6 +1200,46 @@ export const collectionProductsSummaryQuery = `#graphql
     }
   }
 `;
+
+export async function getProductByHandle(
+  handle: string,
+  options: StorefrontFetchOptions = {},
+  logErrors = true,
+): Promise<GridProduct | null> {
+  const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
+  const storefrontAccessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
+  const normalizedHandle = (handle ?? "").trim();
+
+  if (!storeDomain || !storefrontAccessToken || !normalizedHandle) {
+    return null;
+  }
+
+  const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
+
+  try {
+    const json = await fetchShopifyGraphQL<{ data?: { product?: ShopifyProductNode | null } }>({
+      endpoint,
+      storefrontAccessToken,
+      tag: "shopify-product-by-handle",
+      cacheMode: options.cacheMode ?? "force-cache",
+      revalidateSeconds: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
+      query: productByHandleQuery,
+      variables: { handle: normalizedHandle },
+      logErrors,
+    });
+
+    const productNode = json.data?.product ?? null;
+    return productNode ? mapStorefrontProductNode(productNode) : null;
+  } catch (error) {
+    if (logErrors) {
+      console.error("Shopify single-product fetch failed", {
+        handle: normalizedHandle,
+        error,
+      });
+    }
+    return null;
+  }
+}
 
 export async function getStorefrontProducts(
   limit = 10,

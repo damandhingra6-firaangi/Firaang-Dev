@@ -57,7 +57,7 @@ export default async function CategoryPage({
     );
   }
 
-  const storefrontProducts = await getStorefrontProducts(250, { detailLevel: "summary" });
+  const storefrontProducts = await getStorefrontProducts(250, { detailLevel: "full" });
   const products = storefrontProducts;
 
   // Build category tree to validate the requested category exists

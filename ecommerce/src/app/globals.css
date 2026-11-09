@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 :root {
+  --font-poppins: "Poppins", "Segoe UI", Arial, sans-serif;
+  --font-playfair: "Georgia", "Times New Roman", serif;
   --primary: #b34a48;
   --secondary: #8f3438;
   --surface: #f3e6df;

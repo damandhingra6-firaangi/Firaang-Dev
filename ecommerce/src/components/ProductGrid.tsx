@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
+import QuickAddDrawer from "@/components/QuickAddDrawer";
 import { mapProductToAnalyticsItem, trackVendorItemListView, trackVendorSelectItem } from "@/lib/analytics-vendors";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
@@ -26,6 +27,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
   const [rowCount, setRowCount] = useState(3);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [isAutoplayPaused, setIsAutoplayPaused] = useState(false);
+  const [quickAddProduct, setQuickAddProduct] = useState<GridProduct | null>(null);
   const resumeAutoplayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const wishlist = useShopStore((state) => state.wishlist);
@@ -191,6 +193,14 @@ export default function ProductGrid({ products }: ProductGridProps) {
   };
 
   const handleAddToCart = (product: GridProduct) => {
+    if (isCheckoutLoading) {
+      return;
+    }
+
+    setQuickAddProduct(product);
+  };
+
+  const handleAddToCartFromDrawer = (product: GridProduct) => {
     if (isCheckoutLoading) {
       return;
     }
@@ -453,6 +463,14 @@ export default function ProductGrid({ products }: ProductGridProps) {
         ) : null}
         </div>
       </div>
+
+      <QuickAddDrawer
+        key={quickAddProduct?.id ?? "quick-add-empty"}
+        product={quickAddProduct}
+        isOpen={Boolean(quickAddProduct)}
+        onClose={() => setQuickAddProduct(null)}
+        onAddToCart={handleAddToCartFromDrawer}
+      />
     </section>
   );
 }

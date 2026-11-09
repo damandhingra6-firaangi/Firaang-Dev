@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
 import Navbar from "@/components/Navbar";
 import Newsletter from "@/components/Newsletter";
 import ProductDetailsPage, { type ProductCardLite } from "@/components/ProductDetailsPage";
 import type { GridProduct } from "@/lib/catalog";
-import { getCatalogProducts } from "@/lib/products";
 import { getProductDescriptionSummary } from "@/lib/product-description";
+import { getProductByHandle, getStorefrontProducts } from "@/lib/shopify";
 import { SITE_NAME, getSiteUrl } from "@/lib/site";
 import { buildBreadcrumbSchema, buildProductSchema } from "@/lib/structured-data";
 
@@ -34,23 +35,27 @@ function toProductCardLite(product: GridProduct): ProductCardLite {
   };
 }
 
-async function resolveProduct(handle: string) {
-  const products = await getCatalogProducts(250, { cacheMode: "no-store", detailLevel: "full" });
+const resolveProduct = cache(async (handle: string) => {
   const decodedHandle = decodeURIComponent(handle);
-
-  const product = products.find((item) => item.handle?.toLowerCase() === decodedHandle.toLowerCase() || item.id === decodedHandle) ?? null;
+  const product = await getProductByHandle(decodedHandle, { cacheMode: "force-cache" }, true);
 
   if (product) {
-    return { product, products, redirectedHandle: null as string | null };
+    const relatedProducts = await getStorefrontProducts(12, { cacheMode: "force-cache", detailLevel: "summary" }, false);
+    return { product, products: relatedProducts, redirectedHandle: null as string | null };
   }
 
   const correctedHandle = decodedHandle.replace(/overssized/gi, "oversized");
-  const correctedProduct = correctedHandle !== decodedHandle
-    ? products.find((item) => item.handle?.toLowerCase() === correctedHandle.toLowerCase() || item.id === correctedHandle) ?? null
-    : null;
+  if (correctedHandle !== decodedHandle) {
+    const correctedProduct = await getProductByHandle(correctedHandle, { cacheMode: "force-cache" }, true);
+    if (correctedProduct) {
+      const relatedProducts = await getStorefrontProducts(12, { cacheMode: "force-cache", detailLevel: "summary" }, false);
+      return { product: correctedProduct, products: relatedProducts, redirectedHandle: correctedHandle };
+    }
+  }
 
-  return { product: correctedProduct, products, redirectedHandle: correctedProduct ? correctedHandle : null };
-}
+  const fallbackProducts = await getStorefrontProducts(12, { cacheMode: "force-cache", detailLevel: "summary" }, false);
+  return { product: null, products: fallbackProducts, redirectedHandle: null as string | null };
+});
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { handle } = await params;

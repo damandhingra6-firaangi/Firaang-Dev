@@ -6,6 +6,7 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Heart, ShoppingBag, SlidersHorizontal, Star, X } from "lucide-react";
 import CollectionHeroBanner from "@/components/CollectionHeroBanner";
+import QuickAddDrawer from "@/components/QuickAddDrawer";
 import { mapProductToAnalyticsItem, trackVendorItemListView, trackVendorSelectItem } from "@/lib/analytics-vendors";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
@@ -147,6 +148,7 @@ export default function ShopListing({
   const [minRating, setMinRating] = useState(0);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 0 });
+  const [quickAddProduct, setQuickAddProduct] = useState<GridProduct | null>(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -675,6 +677,14 @@ export default function ShopListing({
       return;
     }
 
+    setQuickAddProduct(product);
+  };
+
+  const handleAddToCartFromDrawer = (product: GridProduct) => {
+    if (isCheckoutLoading) {
+      return;
+    }
+
     addToCart(product);
     openCart();
   };
@@ -1103,6 +1113,13 @@ export default function ShopListing({
           )}
         </div>
       </div>
+
+      <QuickAddDrawer
+        product={quickAddProduct}
+        isOpen={Boolean(quickAddProduct)}
+        onClose={() => setQuickAddProduct(null)}
+        onAddToCart={handleAddToCartFromDrawer}
+      />
 
       {isMobileFiltersOpen ? (
         <div className="fixed inset-0 z-[130] bg-black/50 p-3 lg:hidden" onClick={() => setIsMobileFiltersOpen(false)}>

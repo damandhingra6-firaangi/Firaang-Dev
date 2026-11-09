@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   collectionProductsSummaryQuery,
   fetchShopifyGraphQL,
+  getProductByHandle,
   getStorefrontProductsForMetadata,
   normalizeCollectionLookupKey,
   resolveCollectionHandleFromList,
@@ -42,6 +43,79 @@ describe("collection lookup normalization", () => {
   it("uses a valid Shopify collection sort key for the collection summary query", () => {
     expect(collectionProductsSummaryQuery).toContain("sortKey: CREATED");
     expect(collectionProductsSummaryQuery).not.toContain("sortKey: CREATED_AT");
+  });
+
+  it("fetches one product by handle instead of a catalog-wide query", async () => {
+    process.env.SHOPIFY_STORE_DOMAIN = "example-store.myshopify.com";
+    process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
+
+    const fetchMock = vi.fn(async (...args: Parameters<typeof fetch>) => {
+      void args;
+      return {
+        ok: true,
+        json: async () => ({
+          data: {
+            product: {
+              id: "gid://shopify/Product/123",
+              handle: "classic-tee",
+              title: "Classic Tee",
+              productType: "Apparel",
+              tags: ["new"],
+              publishedAt: "2025-01-01T00:00:00Z",
+              description: "A simple tee.",
+              featuredImage: { url: "https://cdn.example.com/1.jpg", altText: "Classic Tee" },
+              images: { nodes: [{ url: "https://cdn.example.com/1.jpg", altText: "Classic Tee" }] },
+              media: { nodes: [] },
+              priceRange: { minVariantPrice: { amount: "1000", currencyCode: "INR" } },
+              compareAtPriceRange: { minVariantPrice: { amount: "1500", currencyCode: "INR" } },
+              options: [{ name: "Size", values: ["S", "M"] }],
+              sizeChartJson: null,
+              sizeChart: null,
+              variants: {
+                edges: [
+                  {
+                    node: {
+                      id: "gid://shopify/ProductVariant/1",
+                      title: "S",
+                      availableForSale: true,
+                      image: { url: "https://cdn.example.com/1.jpg", altText: "Classic Tee" },
+                      price: { amount: "1000", currencyCode: "INR" },
+                      compareAtPrice: { amount: "1500", currencyCode: "INR" },
+                      selectedOptions: [{ name: "Size", value: "S" }],
+                    },
+                  },
+                ],
+              },
+              selectedOrFirstAvailableVariant: {
+                id: "gid://shopify/ProductVariant/1",
+                title: "S",
+                availableForSale: true,
+                image: { url: "https://cdn.example.com/1.jpg", altText: "Classic Tee" },
+                price: { amount: "1000", currencyCode: "INR" },
+                compareAtPrice: { amount: "1500", currencyCode: "INR" },
+                selectedOptions: [{ name: "Size", value: "S" }],
+              },
+            },
+          },
+        }),
+      };
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const product = await getProductByHandle("classic-tee");
+
+    expect(product?.handle).toBe("classic-tee");
+    expect(product?.name).toBe("Classic Tee");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      headers: expect.objectContaining({
+        "Content-Type": "application/json",
+      }),
+    });
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.query).toContain("product(handle: $handle)");
   });
 
   it("surfaces Shopify GraphQL timeout failures without masking the underlying error", async () => {
