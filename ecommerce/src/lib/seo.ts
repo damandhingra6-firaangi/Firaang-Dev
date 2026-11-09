@@ -18,6 +18,16 @@ type PageMetadataInput = {
   noIndex?: boolean;
 };
 
+export function normalizeCanonicalPath(path = "/") {
+  const nextPath = (path ?? "/").trim() || "/";
+
+  if (!nextPath.startsWith("/")) {
+    return `/${nextPath}`;
+  }
+
+  return nextPath === "/" ? "/" : nextPath.replace(/\/+$/, "");
+}
+
 export function createPageMetadata({
   title,
   description = SITE_DESCRIPTION,
@@ -27,7 +37,7 @@ export function createPageMetadata({
   type = "website",
   noIndex = false,
 }: PageMetadataInput): Metadata {
-  const canonical = path === "/" ? "/" : path.replace(/\/$/, "") || "/";
+  const canonical = normalizeCanonicalPath(path);
   const absoluteImage = toAbsoluteUrl(image);
 
   return {
