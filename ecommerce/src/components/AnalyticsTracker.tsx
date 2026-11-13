@@ -6,7 +6,7 @@ import { ensureSessionStartTracked, trackClientEvent } from "@/lib/analytics-cli
 
 function inferPageType(pathname: string) {
   if (pathname === "/") return "home";
-  if (pathname.startsWith("/product/")) return "product";
+  if (pathname.startsWith("/products/")) return "product";
   if (pathname.startsWith("/shop")) return "collection";
   if (pathname.startsWith("/checkout")) return "checkout";
   if (pathname.startsWith("/account")) return "account";

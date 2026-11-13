@@ -171,7 +171,6 @@ export async function buildProductSchema(product: GridProduct, productUrl: strin
       itemCondition: "https://schema.org/NewCondition",
       shippingDetails: {
         "@type": "OfferShippingDetails",
-        applicableRegion: "IN",
         shippingDestination: {
           "@type": "DefinedRegion",
           addressCountry: "IN",
@@ -200,15 +199,8 @@ export async function buildProductSchema(product: GridProduct, productUrl: strin
       hasMerchantReturnPolicy: {
         "@type": "MerchantReturnPolicy",
         applicableCountry: "IN",
-        returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
-        merchantReturnDays: 5,
-        returnMethod: "https://schema.org/ReturnByMail",
-        returnFees: "https://schema.org/ReturnShippingFees",
-        returnShippingFeesAmount: {
-          "@type": "MonetaryAmount",
-          value: 0,
-          currency: product.currencyCode || "INR",
-        },
+        returnPolicyCategory: "https://schema.org/MerchantReturnNotPermitted",
+        merchantReturnLink: toAbsoluteUrl("/pod-policy"),
         description: "Made-to-order items are eligible for a replacement or refund only when damaged, defective, or incorrect. Please raise your request within 5 days of delivery.",
       },
     },

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import AccountModal from "@/components/AccountModal";
+import AccountPageLayout from "@/components/AccountPageLayout";
 import Link from "next/link";
 import { BookMarked, CreditCard, Heart, MapPin, Package, User } from "lucide-react";
 import { createPageMetadata } from "@/lib/seo";
@@ -48,7 +49,8 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
           <p className="mt-2 text-sm text-[#6b7280]">View personal details, orders, addresses, wishlist, and more.</p>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <AccountPageLayout
+          sidebar={
           <aside className="space-y-3">
             <div className="rounded-2xl border border-[#e6e8f0] bg-white p-4 shadow-sm">
               <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[#9ca3af]">Account Menu</p>
@@ -98,15 +100,14 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
               </Link>
             </div>
           </aside>
-
-          <div>
-            <AccountModal
-              isOpen={true}
-              initialView={toInitialView(params?.tab)}
-              mode="page"
-            />
-          </div>
-        </div>
+          }
+        >
+          <AccountModal
+            isOpen={true}
+            initialView={toInitialView(params?.tab)}
+            mode="page"
+          />
+        </AccountPageLayout>
       </section>
     </main>
   );

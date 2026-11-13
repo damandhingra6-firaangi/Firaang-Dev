@@ -98,7 +98,7 @@ export default async function Home() {
             .slice(0, 200)
             .map((product) => (
               <li key={`seo-product-${product.id}`}>
-                <a href={`/product/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
+                <a href={`/products/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
               </li>
             ))}
           {homeCategories.slice(0, 30).map((category) => (

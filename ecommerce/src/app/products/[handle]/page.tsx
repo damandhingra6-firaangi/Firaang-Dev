@@ -73,8 +73,8 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
   const canonicalHandle = product.handle?.trim();
   const canonicalPath = canonicalHandle
-    ? `/product/${encodeURIComponent(canonicalHandle)}`
-    : `/product/${encodeURIComponent(handle)}`;
+    ? `/products/${encodeURIComponent(canonicalHandle)}`
+    : `/products/${encodeURIComponent(handle)}`;
 
   const normalizedDescription = getProductDescriptionSummary(product.description ?? "") || `Shop ${product.name} from ${SITE_NAME}.`;
   const description = normalizedDescription.slice(0, 160);
@@ -122,13 +122,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
   }
 
   if (redirectedHandle && redirectedHandle.toLowerCase() !== decodeURIComponent(handle).toLowerCase()) {
-    const canonicalPath = `/product/${encodeURIComponent(redirectedHandle)}`;
+    const canonicalPath = `/products/${encodeURIComponent(redirectedHandle)}`;
     redirect(canonicalPath);
   }
 
   const siteUrl = getSiteUrl();
   const canonicalHandle = product.handle?.trim() || handle;
-  const productPath = `/product/${encodeURIComponent(canonicalHandle)}`;
+  const productPath = `/products/${encodeURIComponent(canonicalHandle)}`;
   const productUrl = `${siteUrl}${productPath}`;
   const categoryPath = product.categorySlug ? `/shop/${encodeURIComponent(product.categorySlug)}` : "/shop";
   const subCategoryPath =

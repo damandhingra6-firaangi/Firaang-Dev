@@ -225,7 +225,7 @@ function derivePageType(pagePath: string) {
   const pathOnly = pagePath.split("?")[0] ?? "/";
 
   if (pathOnly === "/") return "home";
-  if (pathOnly.startsWith("/product/")) return "product";
+  if (pathOnly.startsWith("/products/")) return "product";
   if (pathOnly.startsWith("/shop")) return "collection";
   if (pathOnly.startsWith("/checkout")) return "checkout";
   if (pathOnly.startsWith("/account")) return "account";

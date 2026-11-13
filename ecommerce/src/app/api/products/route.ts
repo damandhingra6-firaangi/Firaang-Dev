@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { applyProductFilters, buildCategoryTree } from "@/lib/product-taxonomy";
 import { getStorefrontProducts } from "@/lib/shopify";
+import { upstreamErrorResponse } from "@/lib/upstream-fetch";
 
 function parseCookieValue(cookieHeader: string, name: string) {
   return cookieHeader
@@ -18,7 +19,12 @@ export async function GET(request: Request) {
   const audience = searchParams.get("audience") ?? undefined;
   const q = searchParams.get("q") ?? undefined;
 
-  const storefrontProducts = await getStorefrontProducts(40);
+  let storefrontProducts;
+  try {
+    storefrontProducts = await getStorefrontProducts(40, { throwOnError: true });
+  } catch (error) {
+    return upstreamErrorResponse(error);
+  }
   const products = storefrontProducts;
   const filteredProducts = applyProductFilters(products, { category, subCategory, audience, q });
   const categories = buildCategoryTree(products);

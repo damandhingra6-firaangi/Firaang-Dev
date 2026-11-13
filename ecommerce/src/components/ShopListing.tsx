@@ -263,7 +263,7 @@ export default function ShopListing({
     }
 
     urlSyncTimeoutRef.current = setTimeout(() => {
-      if (!initialCollection && selectedCategory) {
+      if (pathname !== "/products" && !initialCollection && selectedCategory) {
         const categorySlug = slugify(selectedCategory);
         const subCategorySlug = selectedSubCategory ? slugify(selectedSubCategory) : "";
 
@@ -283,7 +283,7 @@ export default function ShopListing({
         return;
       }
 
-      if (!initialCollection && pathname !== "/shop") {
+      if (!initialCollection && pathname !== "/shop" && pathname !== "/products") {
         const params = new URLSearchParams();
         if (query.trim()) {
           params.set("q", query.trim());
@@ -297,7 +297,7 @@ export default function ShopListing({
         return;
       }
 
-      if (pathname === "/shop") {
+      if (pathname === "/shop" || pathname === "/products") {
         const params = new URLSearchParams();
 
         // Always preserve the section so dedicated sections (just-dropped, bestsellers,
@@ -602,9 +602,9 @@ export default function ShopListing({
   const heroTitle = initialCollectionTitle || initialSubCategory || initialCategory || heroSectionTitle;
   // Banner CTAs must open the exact featured product, never a generic listing URL.
   const heroProductHref = heroProduct?.handle?.trim()
-    ? `/product/${encodeURIComponent(heroProduct.handle.trim())}`
+    ? `/products/${encodeURIComponent(heroProduct.handle.trim())}`
     : heroProduct?.id
-      ? `/product/${encodeURIComponent(heroProduct.id)}`
+      ? `/products/${encodeURIComponent(heroProduct.id)}`
       : undefined;
   const heroCtaHref = heroProductHref;
   const heroCtaLabel = "SHOP";
@@ -665,7 +665,7 @@ export default function ShopListing({
     });
 
     const routeKey = product.handle?.trim() || product.id;
-    router.push(`/product/${encodeURIComponent(routeKey)}`);
+    router.push(`/products/${encodeURIComponent(routeKey)}`);
   };
 
   const handleToggleWishlist = (product: GridProduct) => {

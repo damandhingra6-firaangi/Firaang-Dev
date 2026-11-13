@@ -4,6 +4,7 @@ import path from "node:path";
 import { designInquirySchema } from "@/lib/design-inquiry";
 import { saveDesignInquiry } from "@/lib/design-inquiry-store";
 import { COMPANY_SUPPORT_EMAIL, COMPANY_SUPPORT_PHONE } from "@/lib/company";
+import { fetchUpstream } from "@/lib/upstream-fetch";
 
 export const runtime = "nodejs";
 
@@ -49,7 +50,7 @@ async function sendEmail(payload: {
     return { sent: false as const, reason: "resend_not_configured" };
   }
 
-  const response = await fetch("https://api.resend.com/emails", {
+  const response = await fetchUpstream("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

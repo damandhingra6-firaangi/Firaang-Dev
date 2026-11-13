@@ -46,47 +46,43 @@ function unslugify(slug: string): string {
   return result.join(" ");
 }
 
-/**
- * Score an image for face/model visibility using its alt text and URL.
- * Higher = more likely to show a model's face.
- */
-function scoreFaceVisibility(src: string, alt: string): number {
-  const haystack = (alt + " " + src).toLowerCase();
+const INFO_GRAPHIC_IMAGE_PATTERN =
+  /size[-_\s]*(chart|guide)|chart|measurement|dimension|spec[-_\s]*sheet|care[-_\s]*label/i;
 
-  // Strong positive: explicit face/portrait/lifestyle signals
-  if (/\b(lifestyle|portrait|face|look book|lookbook|editorial|front.?view|facing|full.?body)\b/.test(haystack)) return 12;
-  // Good positive: model or person wearing the product
-  if (/\b(model|wearing|styled|outfit|on model|street|person|girl|boy|woman|man|people)\b/.test(haystack)) return 8;
-  // Negative: no person expected
-  if (/\b(flat.?lay|flatlay|back.?view|rear|detail|close.?up|closeup|graphic|print|logo|texture|white.?bg|product.?only|mannequin)\b/.test(haystack)) return -8;
-
-  return 0; // neutral
+function normalizeImageSrc(src: string): string {
+  return src.split("?")[0].toLowerCase();
 }
 
 /**
- * From all available product images, pick the one most likely to show a clearly
- * visible model face. Falls back to the featured image if no better option is found.
+ * Pick the main product image for the banner, skipping size charts and
+ * informational graphics. Prefers the featured image, then gallery order.
  */
 function pickBestBannerImage(product: GridProduct | null): string {
   if (!product) return "/cat1.jpg";
 
-  const featured = product.img || "/cat1.jpg";
-
   const mediaImages = (product.productMedia ?? [])
     .filter((m) => m.type === "image" && Boolean(m.src))
-    .map((m, idx) => ({
-      src: m.src,
-      score: scoreFaceVisibility(m.src, m.alt ?? "") - idx * 0.4, // small ordering penalty
-    }));
+    .map((m) => ({ src: m.src, alt: m.alt ?? "" }));
+  const images = mediaImages.length > 0
+    ? mediaImages
+    : (product.galleryImages ?? []).filter(Boolean).map((src) => ({ src, alt: "" }));
 
-  if (mediaImages.length === 0) return featured;
+  // Size charts are uploaded as the last gallery image (same convention as the product page size-chart modal).
+  const trailingSrc = images.length > 1 ? normalizeImageSrc(images[images.length - 1].src) : null;
 
-  // Sort by score descending
-  mediaImages.sort((a, b) => b.score - a.score);
+  const isUsable = (src: string, alt: string) =>
+    Boolean(src) &&
+    normalizeImageSrc(src) !== trailingSrc &&
+    !INFO_GRAPHIC_IMAGE_PATTERN.test(`${alt} ${src}`);
 
-  const best = mediaImages[0];
-  // Only use gallery pick if it beats a "negative" threshold
-  return best.score > -8 ? best.src : featured;
+  const featured = product.img;
+  if (featured) {
+    const featuredAlt = images.find((image) => normalizeImageSrc(image.src) === normalizeImageSrc(featured))?.alt ?? "";
+    if (isUsable(featured, featuredAlt)) return featured;
+  }
+
+  const fallback = images.find((image) => isUsable(image.src, image.alt));
+  return fallback?.src ?? featured ?? "/cat1.jpg";
 }
 
 type BannerStyleKey = "drop" | "bestseller" | "devotional" | "festival" | "sale" | "editorial" | "default";
@@ -265,9 +261,9 @@ export default function CollectionHeroBanner({ title, product, subtitle, ctaHref
   // Use the display-friendly headline so subtitle never contains raw slugs
   const displaySubtitle = subtitle || getContextSubtitle(styleKey, headline, product?.name);
   const featuredProductHref = product?.handle?.trim()
-    ? `/product/${encodeURIComponent(product.handle.trim())}`
+    ? `/products/${encodeURIComponent(product.handle.trim())}`
     : product?.id
-      ? `/product/${encodeURIComponent(product.id)}`
+      ? `/products/${encodeURIComponent(product.id)}`
       : undefined;
   const resolvedCtaHref = featuredProductHref ?? ctaHref;
 

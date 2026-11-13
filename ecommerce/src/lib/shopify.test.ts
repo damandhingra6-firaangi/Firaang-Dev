@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { isShopifyCdnImage, shopifyImageLoader } from "./shopify-image-loader";
 import {
   collectionProductsSummaryQuery,
   fetchShopifyGraphQL,
@@ -9,6 +10,15 @@ import {
 } from "./shopify";
 
 describe("collection lookup normalization", () => {
+  it("resizes Shopify images at the CDN without using the server optimizer", () => {
+    const src = "https://cdn.shopify.com/s/files/example.jpg?v=123";
+    const resized = new URL(shopifyImageLoader({ src, width: 640 }));
+    expect(resized.hostname).toBe("cdn.shopify.com");
+    expect(resized.searchParams.get("v")).toBe("123");
+    expect(resized.searchParams.get("width")).toBe("640");
+    expect(isShopifyCdnImage("https://cdn.shopify.com.attacker.test/image.jpg")).toBe(false);
+    expect(shopifyImageLoader({ src: "/local.jpg", width: 640 })).toBe("/local.jpg");
+  });
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -45,15 +55,26 @@ describe("collection lookup normalization", () => {
     expect(collectionProductsSummaryQuery).not.toContain("sortKey: CREATED_AT");
   });
 
+  it("coalesces and caches repeated public collection metadata requests", async () => {
+    process.env.SHOPIFY_STORE_DOMAIN = "collections-test.myshopify.com";
+    process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
+    const fetchMock = vi.fn().mockImplementation(async () => Response.json({
+      data: { collections: { edges: [], pageInfo: { hasNextPage: false, endCursor: null } } },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getShopifyCollectionsContent } = await import("./shopify-collections");
+    await Promise.all([getShopifyCollectionsContent(), getShopifyCollectionsContent()]);
+    await getShopifyCollectionsContent();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("fetches one product by handle instead of a catalog-wide query", async () => {
     process.env.SHOPIFY_STORE_DOMAIN = "example-store.myshopify.com";
     process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
 
     const fetchMock = vi.fn(async (...args: Parameters<typeof fetch>) => {
       void args;
-      return {
-        ok: true,
-        json: async () => ({
+      return Response.json({
           data: {
             product: {
               id: "gid://shopify/Product/123",
@@ -97,8 +118,7 @@ describe("collection lookup normalization", () => {
               },
             },
           },
-        }),
-      };
+      });
     });
 
     vi.stubGlobal("fetch", fetchMock);
@@ -122,7 +142,7 @@ describe("collection lookup normalization", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
-        throw new Error("fetch failed [cause]: AggregateError: ETIMEDOUT");
+        throw new TypeError("fetch failed", { cause: Object.assign(new Error(), { code: "ETIMEDOUT" }) });
       }),
     );
 
@@ -140,7 +160,7 @@ describe("collection lookup normalization", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
-        throw new Error("fetch failed [cause]: AggregateError: ETIMEDOUT");
+        throw new TypeError("fetch failed", { cause: Object.assign(new Error(), { code: "ETIMEDOUT" }) });
       }),
     );
 

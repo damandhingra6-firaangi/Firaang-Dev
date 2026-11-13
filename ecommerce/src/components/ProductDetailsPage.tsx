@@ -364,7 +364,7 @@ function RelatedRail({
           {items.map((item) => (
             <Link
               key={item.id}
-              href={`/product/${encodeURIComponent(item.handle ?? item.id)}`}
+              href={`/products/${encodeURIComponent(item.handle ?? item.id)}`}
               className="group min-w-[176px] flex-1 snap-start overflow-hidden rounded-[22px] border border-[#eaded3] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
             >
               <SafeImage src={item.img} alt={item.name} className={compact ? "h-40 w-full object-cover" : "h-52 w-full object-cover"} loading="lazy" />

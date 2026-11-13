@@ -204,8 +204,7 @@ echo "Permissions normalized for .next, public, server.js, and app.js"
 Set-Content -Path $permissionsScriptPath -Value $permissionsScript -Encoding utf8
 
 $nodeModulesDirs = @(
-  (Join-Path $packageRoot "node_modules"),
-  (Join-Path $packageRoot ".next\node_modules")
+  (Join-Path $packageRoot "node_modules")
 )
 
 foreach ($nodeModulesDir in $nodeModulesDirs) {

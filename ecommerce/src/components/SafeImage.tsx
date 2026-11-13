@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { ImgHTMLAttributes, SyntheticEvent } from "react";
+import { isShopifyCdnImage, shopifyImageLoader } from "@/lib/shopify-image-loader";
 
 type SafeImageProps = ImgHTMLAttributes<HTMLImageElement> & {
   fallbackSrc?: string;
@@ -15,7 +16,7 @@ function isOptimizableSource(source: string) {
     return false;
   }
 
-  return source.startsWith("/") || source.startsWith("https://cdn.shopify.com") || source.startsWith("https://www.shopify.com");
+  return source.startsWith("/") || isShopifyCdnImage(source);
 }
 
 export default function SafeImage({
@@ -69,6 +70,7 @@ export default function SafeImage({
     <Image
       {...commonProps}
       src={resolvedSrc}
+      loader={isShopifyCdnImage(resolvedSrc) ? shopifyImageLoader : undefined}
       sizes={sizes ?? "(max-width: 768px) 100vw, 50vw"}
     />
   );

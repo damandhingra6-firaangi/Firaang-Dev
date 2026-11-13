@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { resolveShopifyProductUrl } from "@/lib/product-url";
 
 const PREFERRED_HOSTNAME = "www.firaang.com";
 
@@ -11,7 +12,30 @@ export function middleware(request: NextRequest) {
   const hostname = host.split(":")[0] ?? "";
   const proto = forwardedProto.split(",")[0]?.trim().toLowerCase() ?? "http";
 
-  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
+  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+
+  if (request.nextUrl.pathname === "/product" || request.nextUrl.pathname === "/product/") {
+    const listingRedirect = new URL(request.url);
+    listingRedirect.pathname = "/products";
+    if (!isLocalHost) {
+      listingRedirect.protocol = "https:";
+      listingRedirect.hostname = PREFERRED_HOSTNAME;
+      listingRedirect.port = "";
+    }
+    return NextResponse.redirect(listingRedirect, 301);
+  }
+
+  const productRedirect = resolveShopifyProductUrl(request.nextUrl);
+  if (productRedirect) {
+    if (!isLocalHost) {
+      productRedirect.protocol = "https:";
+      productRedirect.hostname = PREFERRED_HOSTNAME;
+      productRedirect.port = "";
+    }
+    return NextResponse.redirect(productRedirect, 301);
+  }
+
+  if (isLocalHost) {
     return NextResponse.next();
   }
 

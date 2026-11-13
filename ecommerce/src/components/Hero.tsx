@@ -384,7 +384,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
 
   return (
     <section
-      className="hero-section relative mt-0 w-full max-md:h-[clamp(420px,42vw,760px)] max-md:overflow-hidden md:mt-[38px] md:h-auto md:max-h-none md:overflow-visible"
+      className="hero-section relative mt-0 w-full max-md:h-[clamp(420px,42vw,760px)] max-md:overflow-hidden md:mt-[90px] md:h-auto md:max-h-none md:overflow-visible"
       tabIndex={0}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}

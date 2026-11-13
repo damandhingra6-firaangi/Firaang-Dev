@@ -120,11 +120,11 @@ Optional for verification and paid media tracking:
 
 Use `.env.example` as the source template for values.
 
-## 6. Install dependencies only if your host requires it
+## 6. Install production dependencies
 
-Many cPanel setups automatically run `npm install`, but the standalone build usually does not need a full install in production because traced dependencies are already included.
+The deployment ZIP intentionally excludes top-level `node_modules` so dependencies are installed for the hosting server's operating system. Run cPanel's **Run NPM Install**, or run `npm install --omit=dev` in the application root, before restarting.
 
-If your host insists on installing dependencies from `package.json`, upload the project `package.json` too.
+Keep the packaged `.next/node_modules` directory. It contains Turbopack's traced dependency aliases, such as `mongodb-...`, which a normal npm install does not recreate. Removing these aliases causes missing-module errors and HTTP 500 responses.
 
 ## 7. Restart and test
 

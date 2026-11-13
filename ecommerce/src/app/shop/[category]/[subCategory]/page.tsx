@@ -70,7 +70,7 @@ export default async function CategorySubCategoryPage({
             .slice(0, 300)
             .map((product) => (
               <li key={`seo-subcategory-product-${product.id}`}>
-                <a href={`/product/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
+                <a href={`/products/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
               </li>
             ))}
         </ul>

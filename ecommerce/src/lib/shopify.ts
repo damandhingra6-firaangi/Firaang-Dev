@@ -3,6 +3,7 @@ import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/curren
 import { deriveProductFit } from "@/lib/product-fit";
 import { deriveProductTaxonomy } from "@/lib/product-taxonomy";
 import { getProtectedLaunchCompareAtAmount, getProtectedLaunchPriceAmount, isTShirtTaxonomy } from "@/lib/retail-pricing";
+import { fetchUpstream } from "@/lib/upstream-fetch";
 
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
 const SHOPIFY_PRODUCTS_REVALIDATE_SECONDS = Math.max(
@@ -443,7 +444,6 @@ export async function fetchShopifyGraphQL<T>({
   cacheMode = "force-cache",
   revalidateSeconds,
   tag,
-  logErrors = false,
 }: {
   endpoint: string;
   storefrontAccessToken: string;
@@ -454,93 +454,34 @@ export async function fetchShopifyGraphQL<T>({
   tag?: string;
   logErrors?: boolean;
 }): Promise<T> {
-  let lastError: unknown;
+  const requestInit: RequestInit = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
+    },
+    body: JSON.stringify({ query, variables }),
+    cache: cacheMode,
+  };
 
-  for (let attempt = 0; attempt <= SHOPIFY_FETCH_RETRIES; attempt += 1) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), SHOPIFY_FETCH_TIMEOUT_MS);
-
-    try {
-      const requestInit: RequestInit = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
-        },
-        body: JSON.stringify({ query, variables }),
-        signal: controller.signal,
-        cache: cacheMode,
-      };
-
-      if (cacheMode !== "no-store" && cacheMode !== "reload" && typeof revalidateSeconds === "number" && revalidateSeconds > 0) {
-        (requestInit as RequestInit & { next?: { revalidate: number } }).next = { revalidate: revalidateSeconds };
-      }
-
-      const response = await fetch(endpoint, requestInit);
-
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => "");
-        const suffix = errorBody ? `: ${errorBody.slice(0, 500).replace(/\s+/g, " ")}` : "";
-        const retryable = response.status === 429 || response.status === 408 || response.status >= 500;
-
-        if (retryable && attempt < SHOPIFY_FETCH_RETRIES) {
-          lastError = new Error(`Shopify GraphQL request failed with ${response.status}${suffix}`);
-          await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
-          continue;
-        }
-
-        throw new Error(`Shopify GraphQL request failed with ${response.status}${suffix}`);
-      }
-
-      const payload = (await response.json()) as T & { errors?: Array<{ message?: string }> };
-      const graphqlErrors = Array.isArray(payload?.errors) ? payload.errors : [];
-
-      if (graphqlErrors.length > 0) {
-        const message = graphqlErrors[0]?.message ?? "Shopify GraphQL request returned errors";
-        if (attempt < SHOPIFY_FETCH_RETRIES) {
-          lastError = new Error(message);
-          await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
-          continue;
-        }
-
-        throw new Error(message);
-      }
-
-      return payload;
-    } catch (error) {
-      lastError = error;
-      const message = error instanceof Error ? error.message : String(error);
-      const isTimeout = /timed out|ETIMEDOUT|fetch failed|aborted/i.test(message);
-      const shouldRetry = attempt < SHOPIFY_FETCH_RETRIES && (isTimeout || /429|5\d\d/i.test(message));
-
-      if (shouldRetry) {
-        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
-        continue;
-      }
-
-      if (logErrors) {
-        if (isTimeout) {
-          console.error("[shopify] GraphQL request timed out", {
-            tag: tag ?? "shopify-graphql",
-            timeoutMs: SHOPIFY_FETCH_TIMEOUT_MS,
-            attempt: attempt + 1,
-          });
-        } else {
-          console.error("[shopify] GraphQL request failed", {
-            tag: tag ?? "shopify-graphql",
-            message,
-            attempt: attempt + 1,
-          });
-        }
-      }
-
-      throw error;
-    } finally {
-      clearTimeout(timeoutId);
-    }
+  if (cacheMode !== "no-store" && cacheMode !== "reload" && typeof revalidateSeconds === "number" && revalidateSeconds > 0) {
+    (requestInit as RequestInit & { next?: { revalidate: number } }).next = { revalidate: revalidateSeconds };
   }
 
-  throw lastError instanceof Error ? lastError : new Error("Shopify GraphQL request failed");
+  const response = await fetchUpstream(endpoint, requestInit, {
+    timeoutMs: SHOPIFY_FETCH_TIMEOUT_MS,
+    maxAttempts: SHOPIFY_FETCH_RETRIES + 1,
+    retrySafe: query.trimStart().startsWith("query"),
+    operation: tag ?? "shopify-storefront",
+  });
+
+  if (!response.ok) throw new Error(`Shopify GraphQL request failed with ${response.status}`);
+  const payload = (await response.json()) as T & { errors?: Array<{ message?: string }> };
+  const graphqlErrors = Array.isArray(payload?.errors) ? payload.errors : [];
+  if (graphqlErrors.length > 0) {
+    throw new Error(graphqlErrors[0]?.message ?? "Shopify GraphQL request returned errors");
+  }
+  return payload;
 }
 
 export function normalizeCollectionLookupKey(value: string): string {
@@ -992,6 +933,7 @@ function parseSizeChart(value: string | null | undefined) {
 }
 
 type StorefrontFetchOptions = {
+  throwOnError?: boolean;
   cacheMode?: RequestCache;
   detailLevel?: "summary" | "full";
 };
@@ -1292,7 +1234,8 @@ export async function getStorefrontProducts(
     }
 
     return productEdges.slice(0, safeLimit).map(({ node }) => mapStorefrontProductNode(node));
-  } catch {
+  } catch (error) {
+    if (options.throwOnError) throw error;
     return [];
   }
 }

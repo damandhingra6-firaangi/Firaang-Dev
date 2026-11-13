@@ -4,7 +4,7 @@ import { buildCategoryTree } from "@/lib/product-taxonomy";
 import { isJewellerySlug } from "@/lib/jewellery";
 import { getSiteUrl } from "@/lib/site";
 
-const STATIC_ROUTES = ["/", "/about", "/contact", "/shop", "/privacy-policy", "/shipping-policy", "/terms-and-conditions", "/pod-policy", "/size-guide"];
+const STATIC_ROUTES = ["/", "/about", "/contact", "/shop", "/products", "/privacy-policy", "/shipping-policy", "/terms-and-conditions", "/pod-policy", "/size-guide"];
 type SitemapEntry = MetadataRoute.Sitemap[number];
 
 function isIndexableCategorySlug(slug?: string | null) {
@@ -81,7 +81,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return true;
     })
     .map((product) => ({
-      url: `${siteUrl}/product/${encodeURIComponent(product.handle!.trim())}`,
+      url: `${siteUrl}/products/${encodeURIComponent(product.handle!.trim())}`,
       lastModified: product.publishedAt ? new Date(product.publishedAt) : now,
       changeFrequency: "weekly" as const,
       priority: 0.64,

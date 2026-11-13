@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
+import type { AccountOrder } from "@/lib/account-data";
 import { findOrderWithCustomerByOrderId, markOrderPaidByOrderId, markOrderPaidForSessionToken, syncCustomerAndShippingDetailsByOrderId } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
@@ -213,8 +214,8 @@ function logPaymentFlow(label: string, details: Record<string, unknown> = {}) {
 async function runPostPaymentBackgroundTasks(input: {
   orderId: string;
   siteUrl: string;
-  savedOrder: any;
-  hydratedOrder: any;
+  savedOrder: AccountOrder | null;
+  hydratedOrder: AccountOrder | null;
   request: Request;
 }) {
   const { orderId, siteUrl, savedOrder, hydratedOrder, request } = input;
@@ -307,7 +308,7 @@ async function runPostPaymentBackgroundTasks(input: {
               state: hydratedOrder.shippingState,
               pinCode: hydratedOrder.shippingPinCode,
             },
-            items: hydratedOrder.items.map((item: any) => ({
+            items: hydratedOrder.items.map((item) => ({
               name: item.name,
               quantity: item.quantity,
               unitPrice: item.unitPrice,

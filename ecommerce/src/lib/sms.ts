@@ -1,3 +1,5 @@
+import { fetchUpstream } from "@/lib/upstream-fetch";
+
 type SendOtpSmsInput = {
   phone: string;
   code: string;
@@ -57,7 +59,7 @@ async function postTwilioForm(accountSid: string, authToken: string, path: strin
   const endpoint = buildTwilioEndpoint(accountSid, path);
 
   try {
-    return await fetch(endpoint, {
+    return await fetchUpstream(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -77,7 +79,7 @@ async function postTwilioVerifyForm(accountSid: string, authToken: string, path:
   const endpoint = buildTwilioVerifyEndpoint(path);
 
   try {
-    return await fetch(endpoint, {
+    return await fetchUpstream(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",

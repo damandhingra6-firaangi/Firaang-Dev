@@ -185,7 +185,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
     });
 
     const routeKey = product.handle?.trim() || product.id;
-    router.push(`/product/${encodeURIComponent(routeKey)}`);
+    router.push(`/products/${encodeURIComponent(routeKey)}`);
   };
 
   const handleToggleWishlist = (product: GridProduct) => {

@@ -1,3 +1,4 @@
+import { fetchUpstream } from "@/lib/upstream-fetch";
 import { cache } from "react";
 import { humanizeHandle, toTitleCase } from "@/lib/text";
 
@@ -407,7 +408,17 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
   };
 }
 
-async function fetchCollections(): Promise<ShopifyCollectionLaunch[]> {
+let collectionsCache: { key: string; expiresAt: number; pending: Promise<ShopifyCollectionLaunch[]> } | null = null;
+
+function fetchCollections(): Promise<ShopifyCollectionLaunch[]> {
+  const key = `${process.env.SHOPIFY_STORE_DOMAIN}:${process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN}`;
+  if (collectionsCache?.key === key && collectionsCache.expiresAt > Date.now()) return collectionsCache.pending;
+  const pending = fetchCollectionsUncached();
+  collectionsCache = { key, expiresAt: Date.now() + 30_000, pending };
+  return pending;
+}
+
+async function fetchCollectionsUncached(): Promise<ShopifyCollectionLaunch[]> {
   const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
   const storefrontAccessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
 
@@ -429,7 +440,7 @@ async function fetchCollections(): Promise<ShopifyCollectionLaunch[]> {
 
   try {
     while (hasNextPage && launches.length < 500) {
-      const response = await fetch(endpoint, {
+      const response = await fetchUpstream(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -443,7 +454,7 @@ async function fetchCollections(): Promise<ShopifyCollectionLaunch[]> {
         next: {
           revalidate: revalidateSeconds,
         },
-      });
+      }, { retrySafe: true, operation: "shopify-collections" });
 
       if (!response.ok) {
         return launches;
