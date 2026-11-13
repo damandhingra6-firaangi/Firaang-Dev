@@ -9,7 +9,7 @@ import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
 import { GridProduct } from "@/lib/catalog";
 import { buildInstagramShowcaseItems, buildStoryBannerItems } from "@/lib/instagram-showcase";
-import { slugify } from "@/lib/product-taxonomy";
+import { isCanonicalProductCategory, slugify } from "@/lib/product-taxonomy";
 import { createPageMetadata } from "@/lib/seo";
 import { SITE_TITLE_DEFAULT } from "@/lib/site";
 import { getStorefrontProducts } from "@/lib/shopify";
@@ -85,6 +85,9 @@ export default async function Home() {
 
   const products = storefrontProducts;
   const homeCategories = buildHomeCategories(products);
+  const merchandisingCategories = homeCategories.filter((category) =>
+    isCanonicalProductCategory(category.name),
+  );
   const instagramShowcaseItems = buildInstagramShowcaseItems(products, 5);
   const storyBannerItems = buildStoryBannerItems(products, 4);
   const featuredCollections = collectionsContent.featuredCollections;
@@ -110,7 +113,7 @@ export default async function Home() {
       </nav>
       <Navbar />
       <Hero featuredCollections={featuredCollections} storyBannerItems={storyBannerItems} />
-      <Category categories={homeCategories} />
+      <Category categories={merchandisingCategories} />
       <ProductGrid products={products} />
       <Newsletter instagramShowcaseItems={instagramShowcaseItems} />
       <FeedbackPill />

@@ -4,6 +4,8 @@ import { deriveProductFit } from "@/lib/product-fit";
 import { deriveProductTaxonomy } from "@/lib/product-taxonomy";
 import { getProtectedLaunchCompareAtAmount, getProtectedLaunchPriceAmount, isTShirtTaxonomy } from "@/lib/retail-pricing";
 import { fetchUpstream } from "@/lib/upstream-fetch";
+import { sanitizeProductDescriptionHtml } from "@/lib/product-description-html";
+import { normalizeProductDescriptionText } from "@/lib/product-description";
 
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
 const SHOPIFY_PRODUCTS_REVALIDATE_SECONDS = Math.max(
@@ -54,6 +56,7 @@ type ShopifyProductsResponse = {
             value: string;
           } | null;
           description: string;
+          descriptionHtml?: string;
           featuredImage: { url: string; altText: string | null } | null;
           images?: {
             nodes?: Array<{
@@ -192,6 +195,7 @@ const productsQuery = `#graphql
             value
           }
           description
+          descriptionHtml
           featuredImage {
             url
             altText
@@ -326,6 +330,7 @@ const collectionProductsQuery = `#graphql
               value
             }
             description
+            descriptionHtml
             featuredImage {
               url
               altText
@@ -471,7 +476,7 @@ export async function fetchShopifyGraphQL<T>({
   const response = await fetchUpstream(endpoint, requestInit, {
     timeoutMs: SHOPIFY_FETCH_TIMEOUT_MS,
     maxAttempts: SHOPIFY_FETCH_RETRIES + 1,
-    retrySafe: query.trimStart().startsWith("query"),
+    retrySafe: /^\s*(?:#[^\n]*\n\s*)*query\b/.test(query),
     operation: tag ?? "shopify-storefront",
   });
 
@@ -934,6 +939,7 @@ function parseSizeChart(value: string | null | undefined) {
 
 type StorefrontFetchOptions = {
   throwOnError?: boolean;
+  allProducts?: boolean;
   cacheMode?: RequestCache;
   detailLevel?: "summary" | "full";
 };
@@ -955,6 +961,11 @@ const productsSummaryQuery = `#graphql
           tags
           publishedAt
           description
+          descriptionHtml
+          options {
+            name
+            values
+          }
           featuredImage {
             url
             altText
@@ -999,6 +1010,7 @@ export const productByHandleQuery = `#graphql
         value
       }
       description
+      descriptionHtml
       featuredImage {
         url
         altText
@@ -1120,6 +1132,7 @@ export const collectionProductsSummaryQuery = `#graphql
             tags
             publishedAt
             description
+            descriptionHtml
             featuredImage {
               url
               altText
@@ -1183,7 +1196,35 @@ export async function getProductByHandle(
   }
 }
 
+let searchCatalogCache: { key: string; expiresAt: number; pending: Promise<GridProduct[]> } | null = null;
+
 export async function getStorefrontProducts(
+  limit = 10,
+  options: StorefrontFetchOptions = {},
+  logErrors = true,
+): Promise<GridProduct[]> {
+  if (!options.allProducts || options.cacheMode === "no-store" || options.cacheMode === "reload") {
+    return fetchStorefrontProducts(limit, options, logErrors);
+  }
+  const key = JSON.stringify([process.env.SHOPIFY_STORE_DOMAIN, process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN, options.detailLevel]);
+  if (!searchCatalogCache || searchCatalogCache.key !== key || searchCatalogCache.expiresAt <= Date.now()) {
+    const pending = fetchStorefrontProducts(limit, { ...options, throwOnError: true }, logErrors);
+    const entry = { key, expiresAt: Infinity, pending };
+    searchCatalogCache = entry;
+    void pending.then(
+      () => { entry.expiresAt = Date.now() + 60_000; },
+      () => { if (searchCatalogCache === entry) searchCatalogCache = null; },
+    );
+  }
+  try {
+    return await searchCatalogCache.pending;
+  } catch (error) {
+    if (options.throwOnError) throw error;
+    return [];
+  }
+}
+
+async function fetchStorefrontProducts(
   limit = 10,
   options: StorefrontFetchOptions = {},
   logErrors = true,
@@ -1192,11 +1233,12 @@ export async function getStorefrontProducts(
   const storefrontAccessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
 
   if (!storeDomain || !storefrontAccessToken) {
+    if (options.throwOnError) throw new Error("Shopify storefront is not configured");
     return [];
   }
 
   const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
-  const safeLimit = Math.max(1, Math.min(limit, 1000));
+  const safeLimit = options.allProducts ? Infinity : Math.max(1, Math.min(limit, 1000));
   const pageSize = Math.min(60, safeLimit);
   const detailLevel = options.detailLevel ?? "summary";
   const query = detailLevel === "summary" ? productsSummaryQuery : productsQuery;
@@ -1205,6 +1247,7 @@ export async function getStorefrontProducts(
     const productEdges: ShopifyProductEdge[] = [];
     let cursor: string | null = null;
     let hasNextPage = true;
+    const seenCursors = new Set<string>();
 
     while (hasNextPage && productEdges.length < safeLimit) {
       const json: ShopifyProductsResponse = await fetchShopifyGraphQL<ShopifyProductsResponse>({
@@ -1212,7 +1255,7 @@ export async function getStorefrontProducts(
         storefrontAccessToken,
         tag: "shopify-products",
         cacheMode: options.cacheMode ?? "force-cache",
-        revalidateSeconds: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
+        revalidateSeconds: options.allProducts ? 60 : SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
         query,
         variables: { first: Math.min(pageSize, safeLimit - productEdges.length), after: cursor },
         logErrors,
@@ -1228,6 +1271,10 @@ export async function getStorefrontProducts(
       hasNextPage = Boolean(pageInfo?.hasNextPage);
       cursor = pageInfo?.endCursor ?? null;
 
+      if (hasNextPage && (!cursor || seenCursors.has(cursor))) {
+        throw new Error("Shopify product pagination did not advance");
+      }
+      if (cursor) seenCursors.add(cursor);
       if (!cursor) {
         break;
       }
@@ -1255,6 +1302,8 @@ export async function getStorefrontProductsForMetadata(limit = 40, options: Stor
 
 function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
   const imageUrl = node.featuredImage?.url ?? "/cat1.jpg";
+  const descriptionHtml = sanitizeProductDescriptionHtml(node.descriptionHtml ?? node.description ?? "");
+  const descriptionText = normalizeProductDescriptionText(descriptionHtml || node.description || "");
   const productMedia = (node.media?.nodes ?? []).reduce<ProductMedia[]>((acc, mediaNode) => {
     if (mediaNode.__typename === "Video") {
       const sources = mediaNode.sources ?? [];
@@ -1358,8 +1407,9 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
     galleryImages: allProductImages,
     productMedia,
     description:
-      node.description?.trim() ||
+      descriptionText ||
       "Discover premium craftsmanship and modern elegance in this signature piece.",
+    descriptionHtml: descriptionHtml || undefined,
     optionGroups: (node.options ?? []).map((option) => ({
       name: option.name,
       values: option.values,

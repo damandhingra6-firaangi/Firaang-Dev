@@ -27,7 +27,7 @@ const DESCRIPTION_SECTION_LABELS = [
 
 const DESCRIPTION_SECTION_SET = new Set(DESCRIPTION_SECTION_LABELS.map((label) => label.toLowerCase()));
 
-function decodeHtmlEntities(value: string) {
+export function decodeHtmlEntities(value: string) {
   if (!value) {
     return value;
   }
@@ -52,7 +52,7 @@ function decodeHtmlEntities(value: string) {
       const isHex = rawValue.startsWith("x") || rawValue.startsWith("X");
       const numericValue = Number.parseInt(isHex ? rawValue.slice(1) : rawValue, isHex ? 16 : 10);
 
-      if (!Number.isFinite(numericValue)) {
+      if (!Number.isFinite(numericValue) || numericValue < 0 || numericValue > 0x10ffff) {
         return match;
       }
 
@@ -71,6 +71,13 @@ function decodeHtmlEntities(value: string) {
   return current;
 }
 
+const CSS_SELECTOR_PART = String.raw`(?:[.#][\w-]+|\*|(?:html|body|a|p|div|span|section|article|table|thead|tbody|tfoot|tr|th|td|ul|ol|li|h[1-6])\b)(?:[.#:][\w-]+|\[[^\]{}\n]*\])*`;
+const DESCRIPTION_CSS_RULE = new RegExp(`${CSS_SELECTOR_PART}(?:\\s*(?:[,>+~]\\s*)?${CSS_SELECTOR_PART})*\\s*\\{\\s*[\\w-]+\\s*:[^{}]*\\}`, "gi");
+
+export function stripProductDescriptionCss(value: string): string {
+  return value.replace(DESCRIPTION_CSS_RULE, " ");
+}
+
 export function normalizeProductDescriptionText(description: string) {
   let normalized = description.replace(/\r\n/g, "\n").trim();
 
@@ -83,11 +90,14 @@ export function normalizeProductDescriptionText(description: string) {
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ");
 
+  normalized = stripProductDescriptionCss(normalized);
+
   const looksLikeHtml = /<[^>]+>/.test(normalized);
 
   if (looksLikeHtml) {
     normalized = normalized
       .replace(/<\s*br\s*\/?>/gi, "\n")
+      .replace(/<\/(td|th)>/gi, " ")
       .replace(/<(\/)?(p|div|section|article|header|footer|aside|main|table|thead|tbody|tfoot|tr|blockquote|h[1-6])\b[^>]*>/gi, (match, closing: string | undefined) => (closing ? "\n\n" : ""))
       .replace(/<(\/)?(ul|ol)\b[^>]*>/gi, (match, closing: string | undefined) => (closing ? "\n\n" : ""))
       .replace(/<li\b[^>]*>/gi, "\n- ")
@@ -191,7 +201,7 @@ export function getProductDescriptionSummary(description: string, maxLength = 12
 
   const firstParagraph = normalized
     .split(/\n{2,}/)
-    .map((block) => block.replace(/\n+/g, " ").replace(/\s+/g, " ").trim())
+    .map((block) => block.replace(/\n+/g, " ").replace(/\s+/g, " ").trim().replace(/^[-*\u2022]\s+/, ""))
     .find(Boolean);
 
   if (!firstParagraph) {

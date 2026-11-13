@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
-import { normalizeProductDescriptionText } from "@/lib/product-description";
+import { getProductPath } from "@/lib/product-url";
 import { useUiStore } from "@/store/useUiStore";
 
 type HeaderSearchPanelProps = {
@@ -18,6 +18,8 @@ export default function HeaderSearchPanel({ isOpen, onClose }: HeaderSearchPanel
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState<GridProduct[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resultQuery, setResultQuery] = useState<string | null>(null);
   const displayCurrency = useUiStore((state) => state.currency);
 
   useEffect(() => {
@@ -25,50 +27,50 @@ export default function HeaderSearchPanel({ isOpen, onClose }: HeaderSearchPanel
       return;
     }
 
-    let isMounted = true;
+    const controller = new AbortController();
+    const searchTerm = query.trim();
 
     const loadProducts = async () => {
       setIsLoading(true);
+      setError(null);
       try {
-        const response = await fetch("/api/products", { cache: "no-store" });
+        const params = new URLSearchParams({ search: "1", q: searchTerm, limit: "8" });
+        const response = await fetch(`/api/products?${params}`, {
+          cache: "no-store",
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(35_000)]),
+        });
         if (!response.ok) {
-          return;
+          throw new Error("Product search is unavailable");
         }
 
         const data = (await response.json()) as { products?: GridProduct[] };
-        if (isMounted && Array.isArray(data.products)) {
+        if (!Array.isArray(data.products)) throw new Error("Invalid search response");
+        if (!controller.signal.aborted) {
           setProducts(data.products);
         }
+      } catch {
+        if (!controller.signal.aborted) {
+          setProducts([]);
+          setError("Unable to load search results. Please try again.");
+        }
       } finally {
-        if (isMounted) {
+        if (!controller.signal.aborted) {
+          setResultQuery(searchTerm);
           setIsLoading(false);
         }
       }
     };
 
-    loadProducts();
+    const debounce = setTimeout(() => { void loadProducts(); }, searchTerm ? 200 : 0);
 
     return () => {
-      isMounted = false;
+      clearTimeout(debounce);
+      controller.abort();
     };
-  }, [isOpen]);
+  }, [isOpen, query]);
 
-  const filteredProducts = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-
-    if (!normalized) {
-      return products.slice(0, 8);
-    }
-
-    return products
-      .filter((product) => {
-        return (
-          product.name.toLowerCase().includes(normalized) ||
-          normalizeProductDescriptionText(product.description).toLowerCase().includes(normalized)
-        );
-      })
-      .slice(0, 8);
-  }, [products, query]);
+  const isPending = isLoading || resultQuery !== query.trim();
+  const filteredProducts = !isPending && !error ? products.filter((product) => product.handle?.trim()).slice(0, 8) : [];
 
   if (!isOpen) {
     return null;
@@ -94,16 +96,18 @@ export default function HeaderSearchPanel({ isOpen, onClose }: HeaderSearchPanel
           </button>
         </div>
 
-        {isLoading ? <p className="text-sm text-[#696e79]">Loading products...</p> : null}
+        {isPending ? <p role="status" className="text-sm text-[#696e79]">Loading products...</p> : null}
 
-        {!isLoading && filteredProducts.length === 0 ? (
-          <p className="text-sm text-[#696e79]">No products matched your search.</p>
+        {!isPending && error ? <p role="alert" className="text-sm text-[#696e79]">{error}</p> : null}
+
+        {!isPending && !error && filteredProducts.length === 0 ? (
+          <p className="text-sm text-[#696e79]">No products found.</p>
         ) : null}
 
         <div className="space-y-2">
           {filteredProducts.map((product) => (
             <Link
-              href={`/shop?q=${encodeURIComponent(product.name)}`}
+              href={getProductPath(product.handle!)}
               key={product.id}
               onClick={onClose}
               className="flex items-center gap-3 rounded-xl border border-transparent px-3 py-2 transition hover:border-[#eceef4] hover:bg-[#f7f8fb]"

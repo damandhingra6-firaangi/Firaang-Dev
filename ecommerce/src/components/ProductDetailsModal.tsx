@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
 import { getDisplayPricing } from "@/lib/pricing-display";
-import { formatProductDescriptionBlocks, normalizeProductDescriptionText } from "@/lib/product-description";
+import ProductDescription from "@/components/ProductDescription";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Heart, Minus, Play, Plus, ShoppingBag, Sparkles, X } from "lucide-react";
 import { getConfiguredSizeChart } from "@/lib/size-charts";
 import { getSelectedOptionValue, isColorOption, isSizeOption, normalizeOptionName, optionMatchesSelection } from "@/lib/variant-options";
@@ -79,10 +79,6 @@ function getSwatchColor(value: string) {
   };
 
   return preset[normalized] ?? "#8c8c8c";
-}
-
-function formatDescriptionBlocks(description: string) {
-  return formatProductDescriptionBlocks(description);
 }
 
 function getTouchDistance(
@@ -199,9 +195,6 @@ export default function ProductDetailsModal({
     .map(([name, value]) => `${toTitleCase(name)}: ${value}`)
     .join(" • ");
 
-  const descriptionBlocks = useMemo(() => {
-    return formatDescriptionBlocks(product?.description ?? "");
-  }, [product?.description]);
 
   const canZoomOut = zoomLevel > 1;
   const canZoomIn = zoomLevel < 2.6;
@@ -854,27 +847,12 @@ export default function ProductDetailsModal({
                 </div>
 
                 <div className="space-y-3 text-[14px] leading-6 text-[var(--popup-subtext)] sm:text-[15px] sm:leading-7">
-                  {descriptionBlocks.length > 0 ? (
-                    descriptionBlocks.map((block, index) =>
-                      block.type === "label" ? (
-                        <p key={`${block.label}-${index}`} className="text-pretty">
-                          <span className="font-semibold text-[var(--popup-footer-text)]">{block.label}: </span>
-                          {block.text}
-                        </p>
-                      ) : block.type === "bullet" ? (
-                        <p key={`bullet-${index}`} className="flex gap-2 text-pretty">
-                          <span aria-hidden="true" className="mt-0.5 text-[var(--gold)]">•</span>
-                          <span>{block.text}</span>
-                        </p>
-                      ) : (
-                        <p key={`text-${index}`} className="text-pretty">
-                          {block.text}
-                        </p>
-                      ),
-                    )
-                  ) : (
-                    <p className="text-pretty">{normalizeProductDescriptionText(product?.description ?? "")}</p>
-                  )}
+                  <ProductDescription
+                    description={product?.description ?? ""}
+                    sanitizedHtml={product?.descriptionHtml}
+                    labelClassName="text-[var(--popup-footer-text)]"
+                    bulletClassName="text-[var(--gold)]"
+                  />
                 </div>
               </div>
 

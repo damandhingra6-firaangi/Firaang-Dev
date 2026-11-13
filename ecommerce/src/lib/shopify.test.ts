@@ -4,6 +4,7 @@ import {
   collectionProductsSummaryQuery,
   fetchShopifyGraphQL,
   getProductByHandle,
+  getStorefrontProducts,
   getStorefrontProductsForMetadata,
   normalizeCollectionLookupKey,
   resolveCollectionHandleFromList,
@@ -68,6 +69,37 @@ describe("collection lookup normalization", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("fetches every search catalog page and coalesces subsequent requests", async () => {
+    process.env.SHOPIFY_STORE_DOMAIN = "search-catalog-test.myshopify.com";
+    process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
+    const productNode = (index: number) => ({
+      id: `gid://shopify/Product/${index}`, handle: index === 60 ? "ganpati-black-oversized-t-shirt" : `tee-${index}`,
+      title: index === 60 ? "Ganpati Black Oversized T-shirt" : `Tee ${index}`, productType: "Apparel", tags: [],
+      publishedAt: "2026-01-01T00:00:00Z", description: "Cotton", featuredImage: null,
+      priceRange: { minVariantPrice: { amount: "1099", currencyCode: "INR" } },
+      compareAtPriceRange: { minVariantPrice: { amount: "1210", currencyCode: "INR" } },
+      options: [{ name: "Size", values: ["S", "XL"] }],
+    });
+    const fetchMock = vi.fn().mockImplementation(async (_input, init) => {
+      const { variables } = JSON.parse(init.body);
+      const nextPage = variables.after === "page-1";
+      return Response.json({ data: { products: {
+        edges: nextPage ? [{ node: productNode(60) }] : Array.from({ length: 60 }, (_, index) => ({ node: productNode(index) })),
+        pageInfo: { hasNextPage: !nextPage, endCursor: nextPage ? "page-2" : "page-1" },
+      } } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const options = { allProducts: true, throwOnError: true };
+    const [products, concurrentProducts] = await Promise.all([getStorefrontProducts(40, options), getStorefrontProducts(40, options)]);
+    expect(products).toHaveLength(61);
+    expect(products[60].handle).toBe("ganpati-black-oversized-t-shirt");
+    expect(products[60].optionGroups).toEqual([{ name: "Size", values: ["S", "XL"] }]);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).query).toMatch(/options\s*\{\s*name\s*values/);
+    expect(concurrentProducts).toEqual(products);
+    await getStorefrontProducts(40, options);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("fetches one product by handle instead of a catalog-wide query", async () => {
     process.env.SHOPIFY_STORE_DOMAIN = "example-store.myshopify.com";
     process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
@@ -84,6 +116,7 @@ describe("collection lookup normalization", () => {
               tags: ["new"],
               publishedAt: "2025-01-01T00:00:00Z",
               description: "A simple tee.",
+              descriptionHtml: "<style>a { color: red; }</style><p>A <strong>simple</strong> tee.</p>",
               featuredImage: { url: "https://cdn.example.com/1.jpg", altText: "Classic Tee" },
               images: { nodes: [{ url: "https://cdn.example.com/1.jpg", altText: "Classic Tee" }] },
               media: { nodes: [] },
@@ -127,6 +160,8 @@ describe("collection lookup normalization", () => {
 
     expect(product?.handle).toBe("classic-tee");
     expect(product?.name).toBe("Classic Tee");
+    expect(product?.description).toBe("A simple tee.");
+    expect(product?.descriptionHtml).toBe("<p>A <strong>simple</strong> tee.</p>");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
       method: "POST",
@@ -154,6 +189,20 @@ describe("collection lookup normalization", () => {
         variables: {},
       }),
     ).rejects.toThrow(/ETIMEDOUT|fetch failed|timed out/i);
+  });
+
+  it("retries safe catalog queries with a leading GraphQL comment", async () => {
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new TypeError("fetch failed", { cause: Object.assign(new Error(), { code: "ETIMEDOUT" }) }))
+      .mockResolvedValueOnce(Response.json({ data: { shop: { name: "Firaang" } } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await fetchShopifyGraphQL({
+      endpoint: "https://comment-query.myshopify.com/api/2026-04/graphql.json",
+      storefrontAccessToken: "token",
+      query: "#graphql\n  query { shop { name } }",
+    });
+    expect(result).toEqual({ data: { shop: { name: "Firaang" } } });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("falls back to local catalog data when metadata Shopify requests time out", async () => {

@@ -18,10 +18,15 @@ export async function GET(request: Request) {
   const subCategory = searchParams.get("subCategory") ?? undefined;
   const audience = searchParams.get("audience") ?? undefined;
   const q = searchParams.get("q") ?? undefined;
+  const isDropdownSearch = searchParams.get("search") === "1";
+  const searchLimit = Math.max(1, Math.min(40, Number.parseInt(searchParams.get("limit") ?? "8", 10) || 8));
 
   let storefrontProducts;
   try {
-    storefrontProducts = await getStorefrontProducts(40, { throwOnError: true });
+    storefrontProducts = await getStorefrontProducts(40, {
+      throwOnError: true,
+      allProducts: isDropdownSearch || Boolean(q?.trim()),
+    });
   } catch (error) {
     return upstreamErrorResponse(error);
   }
@@ -35,7 +40,7 @@ export async function GET(request: Request) {
         )
       : null;
 
-  if (q && q.trim().length > 0) {
+  if (q && q.trim().length > 0 && !isDropdownSearch) {
     const geo = parseGeoFromRequestHeaders(request.headers);
     const cookieHeader = request.headers.get("cookie") ?? "";
     const visitorId = parseCookieValue(cookieHeader, "Firaang_analytics_vid") ?? "server-anonymous";
@@ -72,7 +77,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    products: filteredProducts,
+    products: isDropdownSearch ? filteredProducts.slice(0, searchLimit) : filteredProducts,
     filters: {
       category: category ?? null,
       subCategory: subCategory ?? null,
