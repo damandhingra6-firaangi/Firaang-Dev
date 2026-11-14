@@ -1,3 +1,4 @@
+import { fetchUpstream } from "@/lib/upstream-fetch";
 import {
   findOrderWithCustomerByOrderId,
   normalizePhoneNumber,
@@ -168,7 +169,7 @@ async function findExistingShopifyCustomer(input: { phone?: string; email?: stri
 
   for (const query of queryCandidates) {
     try {
-      const response = await fetch(
+      const response = await fetchUpstream(
         `https://${normalizeStoreDomain(adminConfig.storeDomain)}/admin/api/${adminConfig.apiVersion}/customers/search.json?query=${encodeURIComponent(query)}`,
         {
           headers: {
@@ -212,7 +213,7 @@ async function findExistingShopifyCustomerAcrossAllCustomers(input: { phone?: st
   const adminConfig = await getShopifyAdminConfig();
 
   try {
-    const response = await fetch(
+    const response = await fetchUpstream(
       `https://${normalizeStoreDomain(adminConfig.storeDomain)}/admin/api/${adminConfig.apiVersion}/customers.json?limit=250`,
       {
         headers: {
@@ -267,7 +268,7 @@ async function ensureShopifyCustomerForOrder(input: { phone?: string; email?: st
 
   const adminConfig = await getShopifyAdminConfig();
 
-  const response = await fetch(
+  const response = await fetchUpstream(
     `https://${normalizeStoreDomain(adminConfig.storeDomain)}/admin/api/${adminConfig.apiVersion}/customers.json`,
     {
       method: "POST",
@@ -405,7 +406,7 @@ function splitCustomerName(value: string) {
 async function runShopifyAdminMutation<T>(query: string, variables: Record<string, unknown>): Promise<T> {
   const { storeDomain, accessToken, apiVersion } = await getShopifyAdminConfig();
 
-  const response = await fetch(`https://${normalizeStoreDomain(storeDomain)}/admin/api/${apiVersion}/graphql.json`, {
+  const response = await fetchUpstream(`https://${normalizeStoreDomain(storeDomain)}/admin/api/${apiVersion}/graphql.json`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -466,7 +467,7 @@ async function fetchShopifyAdminTokenFromClientCredentials(
     return cachedShopifyAdminToken.token;
   }
 
-  const tokenResponse = await fetch(`https://${normalizeStoreDomain(storeDomain)}/admin/oauth/access_token`, {
+  const tokenResponse = await fetchUpstream(`https://${normalizeStoreDomain(storeDomain)}/admin/oauth/access_token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -737,7 +738,7 @@ async function createPaidOrderViaRest(input: {
   });
 
   const createOrderRequest = async (customerOverride?: { id?: number } | { first_name: string; last_name: string; email?: string; phone?: string }) => {
-    const response = await fetch(
+    const response = await fetchUpstream(
       `https://${normalizeStoreDomain(adminConfig.storeDomain)}/admin/api/${adminConfig.apiVersion}/orders.json`,
       {
         method: "POST",
@@ -828,7 +829,7 @@ async function completeDraftOrderViaRest(draftOrderId: string, paymentPending: b
     };
   }
 
-  const response = await fetch(
+  const response = await fetchUpstream(
     `https://${normalizeStoreDomain(adminConfig.storeDomain)}/admin/api/${adminConfig.apiVersion}/draft_orders/${numericDraftId}/complete.json?payment_pending=${paymentPending ? "true" : "false"}`,
     {
       method: "PUT",

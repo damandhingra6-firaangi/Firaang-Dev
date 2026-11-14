@@ -395,7 +395,7 @@ export default function NavbarClient({
     "text-[var(--nav-active)] after:scale-x-100";
 
   const isAboutRoute = pathname.startsWith("/about");
-  const isShopRoute = pathname.startsWith("/shop") || pathname.startsWith("/product");
+  const isShopRoute = pathname.startsWith("/shop") || pathname === "/products" || pathname.startsWith("/products/");
   const isShopActive = activeSection === "shop" || (!activeSection && isShopRoute);
   const isJustDroppedActive = activeSection === "just-dropped";
   const isCollectionsActive = activeSection === "collections";

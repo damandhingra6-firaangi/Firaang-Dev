@@ -57,7 +57,7 @@ export default async function CategoryPage({
     );
   }
 
-  const storefrontProducts = await getStorefrontProducts(250, { detailLevel: "summary" });
+  const storefrontProducts = await getStorefrontProducts(250, { detailLevel: "full" });
   const products = storefrontProducts;
 
   // Build category tree to validate the requested category exists
@@ -82,7 +82,7 @@ export default async function CategoryPage({
             .slice(0, 300)
             .map((product) => (
               <li key={`seo-category-product-${product.id}`}>
-                <a href={`/product/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
+                <a href={`/products/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
               </li>
             ))}
         </ul>

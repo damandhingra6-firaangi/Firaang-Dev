@@ -29,7 +29,7 @@ describe("product structured data", () => {
       ],
     };
 
-    const schema = await buildProductSchema(product, "https://firaang.com/product/rose-gold-rimmed-sculpted-glass-tote");
+    const schema = await buildProductSchema(product, "https://firaang.com/products/rose-gold-rimmed-sculpted-glass-tote");
 
     expect(schema).not.toHaveProperty("sku");
     expect(schema.aggregateRating).toMatchObject({
@@ -46,7 +46,6 @@ describe("product structured data", () => {
     });
     expect(schema.offers.shippingDetails).toMatchObject({
       "@type": "OfferShippingDetails",
-      applicableRegion: "IN",
       shippingDestination: {
         "@type": "DefinedRegion",
         addressCountry: "IN",
@@ -66,14 +65,62 @@ describe("product structured data", () => {
     expect(schema.offers.hasMerchantReturnPolicy).toMatchObject({
       "@type": "MerchantReturnPolicy",
       applicableCountry: "IN",
-      merchantReturnDays: 5,
-      returnMethod: "https://schema.org/ReturnByMail",
-      returnFees: "https://schema.org/ReturnShippingFees",
-      returnShippingFeesAmount: {
-        "@type": "MonetaryAmount",
-        value: 0,
-        currency: "INR",
-      },
+      returnPolicyCategory: "https://schema.org/MerchantReturnNotPermitted",
+      merchantReturnLink: expect.stringMatching(/^https?:\/\/[^/]+\/pod-policy$/),
+      description: expect.stringContaining("within 5 days of delivery"),
     });
+    expect(schema.offers.hasMerchantReturnPolicy).not.toHaveProperty("returnShippingFeesAmount");
+    expect(schema.offers.hasMerchantReturnPolicy).not.toHaveProperty("returnFees");
+    expect(schema.offers.hasMerchantReturnPolicy).not.toHaveProperty("returnMethod");
+    expect(schema.offers.hasMerchantReturnPolicy).not.toHaveProperty("merchantReturnDays");
+    expect(schema.offers.shippingDetails).not.toHaveProperty("applicableRegion");
+  });
+
+  it.each([
+    { handle: "printed-t-shirt", priceAmount: 799, currencyCode: "INR", availableForSale: true },
+    { handle: "printed-hoodie", priceAmount: 2499, currencyCode: "INR", availableForSale: false },
+    { handle: "printed-tote", priceAmount: 1299, currencyCode: "INR", availableForSale: true },
+    { handle: "alternate-currency", priceAmount: 29, currencyCode: "USD", availableForSale: true },
+  ])("serializes the same policy without invented fees for $handle", async ({ handle, priceAmount, currencyCode, availableForSale }) => {
+    const product: GridProduct = {
+      id: handle,
+      handle,
+      name: handle,
+      description: "Made-to-order printed product.",
+      oldPrice: String(priceAmount),
+      price: String(priceAmount),
+      priceAmount,
+      currencyCode,
+      img: "/images/test-product.jpg",
+      variants: [{
+        id: `${handle}-variant`,
+        name: "Default",
+        availableForSale,
+        price: String(priceAmount),
+        priceAmount,
+        currencyCode,
+        oldPrice: String(priceAmount),
+        img: "/images/test-product.jpg",
+        options: [],
+      }],
+    };
+    const productUrl = `https://firaang.com/products/${handle}`;
+    const schema = JSON.parse(JSON.stringify(await buildProductSchema(product, productUrl)));
+
+    expect(schema.offers.hasMerchantReturnPolicy).toEqual({
+      "@type": "MerchantReturnPolicy",
+      applicableCountry: "IN",
+      returnPolicyCategory: "https://schema.org/MerchantReturnNotPermitted",
+      merchantReturnLink: expect.stringMatching(/^https?:\/\/[^/]+\/pod-policy$/),
+      description: "Made-to-order items are eligible for a replacement or refund only when damaged, defective, or incorrect. Please raise your request within 5 days of delivery.",
+    });
+    expect(schema.offers).toMatchObject({
+      "@type": "Offer",
+      price: priceAmount,
+      priceCurrency: currencyCode,
+      url: productUrl,
+      availability: `https://schema.org/${availableForSale ? "InStock" : "OutOfStock"}`,
+    });
+    expect(schema.offers.shippingDetails.shippingRate.currency).toBe("INR");
   });
 });

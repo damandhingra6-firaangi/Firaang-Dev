@@ -334,6 +334,18 @@ export function trackVendorPurchase(input: VendorPurchaseEventInput) {
     items: input.items,
   });
 
+  const googleAdsConversionId = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID?.trim();
+  const googleAdsConversionLabel = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL?.trim();
+
+  if (googleAdsConversionId && googleAdsConversionLabel) {
+    emitGtag("conversion", {
+      send_to: `${googleAdsConversionId}/${googleAdsConversionLabel}`,
+      transaction_id: input.transactionId,
+      currency: input.currencyCode,
+      value: input.value,
+    });
+  }
+
   emitFbq(
     "Purchase",
     {

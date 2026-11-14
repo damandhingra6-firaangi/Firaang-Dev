@@ -1,4 +1,5 @@
 import { GridProduct } from "@/lib/catalog";
+import { normalizeProductDescriptionText } from "@/lib/product-description";
 
 type TaxonomyResult = {
   category: string;
@@ -194,6 +195,14 @@ export function slugify(value: string) {
     .replace(/-+/g, "-");
 }
 
+const CANONICAL_CATEGORY_SLUGS = new Set(
+  [...CATEGORY_RULES, ...CATEGORY_TAG_OVERRIDES].map((rule) => slugify(rule.category)),
+);
+
+export function isCanonicalProductCategory(value: string): boolean {
+  return CANONICAL_CATEGORY_SLUGS.has(slugify(value));
+}
+
 export function deriveProductTaxonomy(input: {
   title: string;
   productType?: string | null;
@@ -286,9 +295,11 @@ export function applyProductFilters(
   const normalizedSubCategory = (filters.subCategory ?? "").trim().toLowerCase();
   const normalizedSubCategorySlug = slugify(filters.subCategory ?? "");
   const normalizedAudience = (filters.audience ?? "").trim().toLowerCase();
-  const normalizedQuery = (filters.q ?? "").trim().toLowerCase();
+  const normalizeSearchText = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const normalizedQuery = normalizeSearchText(filters.q ?? "");
+  const searchTerms = normalizedQuery.split(/\s+/).filter(Boolean);
 
-  return products.filter((product) => {
+  const filtered = products.filter((product) => {
     const categoryMatch =
       !normalizedCategory ||
       product.categorySlug?.toLowerCase() === normalizedCategory ||
@@ -302,13 +313,30 @@ export function applyProductFilters(
     const audienceMatch =
       matchesAudienceFilter(product.audienceSlug ?? product.audience, normalizedAudience);
 
-    const queryMatch =
-      !normalizedQuery ||
-      product.name.toLowerCase().includes(normalizedQuery) ||
-      product.description.toLowerCase().includes(normalizedQuery);
+    const searchableText = normalizeSearchText([
+      product.name,
+      product.handle ?? "",
+      normalizeProductDescriptionText(product.description ?? ""),
+      ...(product.tags ?? []),
+      product.category ?? "",
+      product.subCategory ?? "",
+      product.fit ?? "",
+      ...(product.optionGroups ?? []).flatMap((group) => group.values),
+      ...(product.variants ?? []).flatMap((variant) => [variant.name, ...variant.options.map((option) => option.value)]),
+    ].join(" "));
+    const queryMatch = searchTerms.every((term) => searchableText.includes(term));
 
     return categoryMatch && subCategoryMatch && audienceMatch && queryMatch;
   });
+
+  if (searchTerms.length === 0) return filtered;
+  const titleScore = (product: GridProduct) => {
+    const title = normalizeSearchText(product.name);
+    if (title === normalizedQuery) return 100;
+    if (title.includes(normalizedQuery)) return 50;
+    return searchTerms.every((term) => title.includes(term)) ? 20 : 0;
+  };
+  return filtered.sort((left, right) => titleScore(right) - titleScore(left));
 }
 
 export function buildCategoryTree(products: GridProduct[]) {

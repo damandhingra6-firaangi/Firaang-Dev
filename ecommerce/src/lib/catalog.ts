@@ -77,6 +77,7 @@ export type GridProduct = {
   galleryImages?: string[];
   productMedia?: ProductMedia[];
   description: string;
+  descriptionHtml?: string;
   optionGroups?: ProductOptionGroup[];
   sizeChart?: ProductSizeChart;
   variants?: ProductVariant[];

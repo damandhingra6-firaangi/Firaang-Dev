@@ -1,3 +1,4 @@
+import { fetchUpstream } from "@/lib/upstream-fetch";
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { redeemCampaignCouponByOrder, releaseCampaignCouponReservationByOrderId } from "@/lib/campaigns";
@@ -277,7 +278,7 @@ export async function POST(request: Request) {
       }
 
       const pendingOrder = await findOrderWithCustomerByOrderId(orderId);
-      const gatewayOrder = await fetch(`https://api.razorpay.com/v1/orders/${orderId}`, {
+      const gatewayOrder = await fetchUpstream(`https://api.razorpay.com/v1/orders/${orderId}`, {
         headers: {
           Authorization: `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID ?? ""}:${process.env.RAZORPAY_KEY_SECRET ?? ""}`).toString("base64")}`,
         },

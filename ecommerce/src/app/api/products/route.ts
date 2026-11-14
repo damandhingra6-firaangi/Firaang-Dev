@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { applyProductFilters, buildCategoryTree } from "@/lib/product-taxonomy";
 import { getStorefrontProducts } from "@/lib/shopify";
+import { upstreamErrorResponse } from "@/lib/upstream-fetch";
 
 function parseCookieValue(cookieHeader: string, name: string) {
   return cookieHeader
@@ -17,8 +18,18 @@ export async function GET(request: Request) {
   const subCategory = searchParams.get("subCategory") ?? undefined;
   const audience = searchParams.get("audience") ?? undefined;
   const q = searchParams.get("q") ?? undefined;
+  const isDropdownSearch = searchParams.get("search") === "1";
+  const searchLimit = Math.max(1, Math.min(40, Number.parseInt(searchParams.get("limit") ?? "8", 10) || 8));
 
-  const storefrontProducts = await getStorefrontProducts(40);
+  let storefrontProducts;
+  try {
+    storefrontProducts = await getStorefrontProducts(40, {
+      throwOnError: true,
+      allProducts: isDropdownSearch || Boolean(q?.trim()),
+    });
+  } catch (error) {
+    return upstreamErrorResponse(error);
+  }
   const products = storefrontProducts;
   const filteredProducts = applyProductFilters(products, { category, subCategory, audience, q });
   const categories = buildCategoryTree(products);
@@ -29,7 +40,7 @@ export async function GET(request: Request) {
         )
       : null;
 
-  if (q && q.trim().length > 0) {
+  if (q && q.trim().length > 0 && !isDropdownSearch) {
     const geo = parseGeoFromRequestHeaders(request.headers);
     const cookieHeader = request.headers.get("cookie") ?? "";
     const visitorId = parseCookieValue(cookieHeader, "Firaang_analytics_vid") ?? "server-anonymous";
@@ -66,7 +77,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    products: filteredProducts,
+    products: isDropdownSearch ? filteredProducts.slice(0, searchLimit) : filteredProducts,
     filters: {
       category: category ?? null,
       subCategory: subCategory ?? null,

@@ -3,7 +3,7 @@ import Navbar from "@/components/Navbar";
 import JewelleryComingSoonGate from "@/components/JewelleryComingSoonGate";
 import ShopListing from "@/components/ShopListing";
 import { isJewellerySlug } from "@/lib/jewellery";
-import { getStorefrontProducts, getStorefrontProductsForMetadata } from "@/lib/shopify";
+import { getStorefrontProducts } from "@/lib/shopify";
 import { buildCategoryTree, slugify } from "@/lib/product-taxonomy";
 
 type CategoryPageProps = {
@@ -35,7 +35,7 @@ export default async function CategorySubCategoryPage({
     );
   }
 
-  const storefrontProducts = await getStorefrontProducts(250, { detailLevel: "summary" });
+  const storefrontProducts = await getStorefrontProducts(250, { detailLevel: "full" });
   const products = storefrontProducts;
 
   // Build category tree to validate the requested category and sub-category exist
@@ -70,7 +70,7 @@ export default async function CategorySubCategoryPage({
             .slice(0, 300)
             .map((product) => (
               <li key={`seo-subcategory-product-${product.id}`}>
-                <a href={`/product/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
+                <a href={`/products/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
               </li>
             ))}
         </ul>

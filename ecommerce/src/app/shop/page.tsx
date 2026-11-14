@@ -137,8 +137,8 @@ function ShopProductsSkeleton() {
 async function ShopProducts({ collection, query, category, subCategory, audience, section }: ShopProductsProps) {
   const storefrontProducts = await (
     collection
-      ? getStorefrontProductsByCollection(collection, 250, { detailLevel: "summary" })
-      : getStorefrontProducts(250, { detailLevel: "summary" })
+      ? getStorefrontProductsByCollection(collection, 250, { detailLevel: "full" })
+      : getStorefrontProducts(250, { detailLevel: "full" })
   );
 
   const collectionTitle = collection
@@ -156,7 +156,7 @@ async function ShopProducts({ collection, query, category, subCategory, audience
             .slice(0, 300)
             .map((product) => (
               <li key={`seo-shop-product-${product.id}`}>
-                <a href={`/product/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
+                <a href={`/products/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
               </li>
             ))}
         </ul>

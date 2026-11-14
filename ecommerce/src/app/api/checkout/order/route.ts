@@ -275,7 +275,7 @@ export async function POST(request: Request) {
         height: "0",
       },
       image_url: item.product.img || "",
-      product_url: item.product.handle ? `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com"}/product/${item.product.handle}` : "https://example.com",
+      product_url: item.product.handle ? `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com"}/products/${item.product.handle}` : "https://example.com",
       notes: {
         productId: item.product.id,
         selectedSize: item.selectedSize ?? item.product.selectedSize ?? "",

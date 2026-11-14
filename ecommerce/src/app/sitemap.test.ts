@@ -53,11 +53,14 @@ describe("site sitemap", () => {
     const entries = await sitemap();
     const urls = entries.map((entry) => entry.url);
 
+    expect(urls).toContain("https://www.firaang.com/products");
+    expect(urls).not.toContain("https://www.firaang.com/product");
     expect(urls).not.toContain("https://www.firaang.com/shop/jewellery");
     expect(urls).not.toContain("https://www.firaang.com/shop/jewellery/rings");
     expect(urls).toContain("https://www.firaang.com/shop/menswear");
     expect(urls).toContain("https://www.firaang.com/shop/menswear/tees");
-    expect(urls).toContain("https://www.firaang.com/product/signature-tee");
-    expect(urls).not.toContain("https://www.firaang.com/product/jewellery-ring");
+    expect(urls).toContain("https://www.firaang.com/products/signature-tee");
+    expect(urls).not.toContain("https://www.firaang.com/products/jewellery-ring");
+    expect(urls.some((url) => new URL(url).pathname.startsWith("/product/"))).toBe(false);
   });
 });

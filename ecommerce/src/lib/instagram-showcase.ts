@@ -196,7 +196,7 @@ function imageQualityBoost(imageText: string) {
 
 function toProductHref(product: GridProduct) {
   const routeKey = product.handle || product.parentId || product.id;
-  return `/product/${encodeURIComponent(routeKey)}`;
+  return `/products/${encodeURIComponent(routeKey)}`;
 }
 
 function scoreStoryProduct(product: GridProduct, index: number, total: number) {

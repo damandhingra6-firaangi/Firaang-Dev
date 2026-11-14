@@ -3,14 +3,23 @@ import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/curren
 import { deriveProductFit } from "@/lib/product-fit";
 import { deriveProductTaxonomy } from "@/lib/product-taxonomy";
 import { getProtectedLaunchCompareAtAmount, getProtectedLaunchPriceAmount, isTShirtTaxonomy } from "@/lib/retail-pricing";
+import { fetchUpstream } from "@/lib/upstream-fetch";
+import { sanitizeProductDescriptionHtml } from "@/lib/product-description-html";
+import { normalizeProductDescriptionText } from "@/lib/product-description";
 
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
 const SHOPIFY_PRODUCTS_REVALIDATE_SECONDS = Math.max(
   60,
   Number.parseInt(process.env.SHOPIFY_PRODUCTS_REVALIDATE_SECONDS ?? "1800", 10) || 1800,
 );
-// Maximum time to wait for a single Shopify API page request before aborting.
-const SHOPIFY_FETCH_TIMEOUT_MS = 10_000;
+const SHOPIFY_FETCH_TIMEOUT_MS = Math.max(
+  2_000,
+  Number.parseInt(process.env.SHOPIFY_FETCH_TIMEOUT_MS ?? "10000", 10) || 10_000,
+);
+const SHOPIFY_FETCH_RETRIES = Math.max(
+  0,
+  Number.parseInt(process.env.SHOPIFY_FETCH_RETRIES ?? "2", 10) || 2,
+);
 
 type MoneyV2 = {
   amount: string;
@@ -47,6 +56,7 @@ type ShopifyProductsResponse = {
             value: string;
           } | null;
           description: string;
+          descriptionHtml?: string;
           featuredImage: { url: string; altText: string | null } | null;
           images?: {
             nodes?: Array<{
@@ -185,6 +195,7 @@ const productsQuery = `#graphql
             value
           }
           description
+          descriptionHtml
           featuredImage {
             url
             altText
@@ -319,6 +330,7 @@ const collectionProductsQuery = `#graphql
               value
             }
             description
+            descriptionHtml
             featuredImage {
               url
               altText
@@ -437,7 +449,6 @@ export async function fetchShopifyGraphQL<T>({
   cacheMode = "force-cache",
   revalidateSeconds,
   tag,
-  logErrors = false,
 }: {
   endpoint: string;
   storefrontAccessToken: string;
@@ -448,56 +459,34 @@ export async function fetchShopifyGraphQL<T>({
   tag?: string;
   logErrors?: boolean;
 }): Promise<T> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SHOPIFY_FETCH_TIMEOUT_MS);
+  const requestInit: RequestInit = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
+    },
+    body: JSON.stringify({ query, variables }),
+    cache: cacheMode,
+  };
 
-  try {
-    const requestInit: RequestInit = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": storefrontAccessToken,
-      },
-      body: JSON.stringify({ query, variables }),
-      signal: controller.signal,
-      cache: cacheMode,
-    };
-
-    if (cacheMode !== "no-store" && cacheMode !== "reload" && typeof revalidateSeconds === "number" && revalidateSeconds > 0) {
-      (requestInit as RequestInit & { next?: { revalidate: number } }).next = { revalidate: revalidateSeconds };
-    }
-
-    const response = await fetch(endpoint, requestInit);
-
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => "");
-      const suffix = errorBody ? `: ${errorBody.slice(0, 500).replace(/\s+/g, " ")}` : "";
-      throw new Error(`Shopify GraphQL request failed with ${response.status}${suffix}`);
-    }
-
-    return (await response.json()) as T;
-  } catch (error) {
-    if (logErrors) {
-      const message = error instanceof Error ? error.message : String(error);
-      const isTimeout = controller.signal.aborted || /timed out|ETIMEDOUT|fetch failed|aborted/i.test(message);
-
-      if (isTimeout) {
-        console.error("[shopify] GraphQL request timed out", {
-          tag: tag ?? "shopify-graphql",
-          timeoutMs: SHOPIFY_FETCH_TIMEOUT_MS,
-        });
-      } else {
-        console.error("[shopify] GraphQL request failed", {
-          tag: tag ?? "shopify-graphql",
-          message,
-        });
-      }
-    }
-
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
+  if (cacheMode !== "no-store" && cacheMode !== "reload" && typeof revalidateSeconds === "number" && revalidateSeconds > 0) {
+    (requestInit as RequestInit & { next?: { revalidate: number } }).next = { revalidate: revalidateSeconds };
   }
+
+  const response = await fetchUpstream(endpoint, requestInit, {
+    timeoutMs: SHOPIFY_FETCH_TIMEOUT_MS,
+    maxAttempts: SHOPIFY_FETCH_RETRIES + 1,
+    retrySafe: /^\s*(?:#[^\n]*\n\s*)*query\b/.test(query),
+    operation: tag ?? "shopify-storefront",
+  });
+
+  if (!response.ok) throw new Error(`Shopify GraphQL request failed with ${response.status}`);
+  const payload = (await response.json()) as T & { errors?: Array<{ message?: string }> };
+  const graphqlErrors = Array.isArray(payload?.errors) ? payload.errors : [];
+  if (graphqlErrors.length > 0) {
+    throw new Error(graphqlErrors[0]?.message ?? "Shopify GraphQL request returned errors");
+  }
+  return payload;
 }
 
 export function normalizeCollectionLookupKey(value: string): string {
@@ -949,6 +938,8 @@ function parseSizeChart(value: string | null | undefined) {
 }
 
 type StorefrontFetchOptions = {
+  throwOnError?: boolean;
+  allProducts?: boolean;
   cacheMode?: RequestCache;
   detailLevel?: "summary" | "full";
 };
@@ -970,6 +961,11 @@ const productsSummaryQuery = `#graphql
           tags
           publishedAt
           description
+          descriptionHtml
+          options {
+            name
+            values
+          }
           featuredImage {
             url
             altText
@@ -986,6 +982,132 @@ const productsSummaryQuery = `#graphql
               currencyCode
             }
           }
+        }
+      }
+    }
+  }
+`;
+
+export const productByHandleQuery = `#graphql
+  query GetProductByHandle($handle: String!) {
+    product(handle: $handle) {
+      id
+      handle
+      title
+      productType
+      tags
+      publishedAt
+      fitCustom: metafield(namespace: "custom", key: "fit") {
+        value
+      }
+      fitTypeCustom: metafield(namespace: "custom", key: "fit_type") {
+        value
+      }
+      styleFitCustom: metafield(namespace: "custom", key: "style_fit") {
+        value
+      }
+      fitDetails: metafield(namespace: "details", key: "fit") {
+        value
+      }
+      description
+      descriptionHtml
+      featuredImage {
+        url
+        altText
+      }
+      images(first: 20) {
+        nodes {
+          url
+          altText
+        }
+      }
+      media(first: 20) {
+        nodes {
+          __typename
+          ... on MediaImage {
+            image {
+              url
+              altText
+            }
+          }
+          ... on Video {
+            previewImage {
+              url
+              altText
+            }
+            sources {
+              url
+              mimeType
+            }
+          }
+        }
+      }
+      priceRange {
+        minVariantPrice {
+          amount
+          currencyCode
+        }
+      }
+      compareAtPriceRange {
+        minVariantPrice {
+          amount
+          currencyCode
+        }
+      }
+      options {
+        name
+        values
+      }
+      sizeChartJson: metafield(namespace: "custom", key: "size_chart_json") {
+        value
+      }
+      sizeChart: metafield(namespace: "custom", key: "size_chart") {
+        value
+      }
+      variants(first: 250) {
+        edges {
+          node {
+            id
+            title
+            availableForSale
+            image {
+              url
+              altText
+            }
+            price {
+              amount
+              currencyCode
+            }
+            compareAtPrice {
+              amount
+              currencyCode
+            }
+            selectedOptions {
+              name
+              value
+            }
+          }
+        }
+      }
+      selectedOrFirstAvailableVariant {
+        id
+        title
+        availableForSale
+        image {
+          url
+          altText
+        }
+        price {
+          amount
+          currencyCode
+        }
+        compareAtPrice {
+          amount
+          currencyCode
+        }
+        selectedOptions {
+          name
+          value
         }
       }
     }
@@ -1010,6 +1132,7 @@ export const collectionProductsSummaryQuery = `#graphql
             tags
             publishedAt
             description
+            descriptionHtml
             featuredImage {
               url
               altText
@@ -1033,7 +1156,75 @@ export const collectionProductsSummaryQuery = `#graphql
   }
 `;
 
+export async function getProductByHandle(
+  handle: string,
+  options: StorefrontFetchOptions = {},
+  logErrors = true,
+): Promise<GridProduct | null> {
+  const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
+  const storefrontAccessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
+  const normalizedHandle = (handle ?? "").trim();
+
+  if (!storeDomain || !storefrontAccessToken || !normalizedHandle) {
+    return null;
+  }
+
+  const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
+
+  try {
+    const json = await fetchShopifyGraphQL<{ data?: { product?: ShopifyProductNode | null } }>({
+      endpoint,
+      storefrontAccessToken,
+      tag: "shopify-product-by-handle",
+      cacheMode: options.cacheMode ?? "force-cache",
+      revalidateSeconds: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
+      query: productByHandleQuery,
+      variables: { handle: normalizedHandle },
+      logErrors,
+    });
+
+    const productNode = json.data?.product ?? null;
+    return productNode ? mapStorefrontProductNode(productNode) : null;
+  } catch (error) {
+    if (logErrors) {
+      console.error("Shopify single-product fetch failed", {
+        handle: normalizedHandle,
+        error,
+      });
+    }
+    return null;
+  }
+}
+
+let searchCatalogCache: { key: string; expiresAt: number; pending: Promise<GridProduct[]> } | null = null;
+
 export async function getStorefrontProducts(
+  limit = 10,
+  options: StorefrontFetchOptions = {},
+  logErrors = true,
+): Promise<GridProduct[]> {
+  if (!options.allProducts || options.cacheMode === "no-store" || options.cacheMode === "reload") {
+    return fetchStorefrontProducts(limit, options, logErrors);
+  }
+  const key = JSON.stringify([process.env.SHOPIFY_STORE_DOMAIN, process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN, options.detailLevel]);
+  if (!searchCatalogCache || searchCatalogCache.key !== key || searchCatalogCache.expiresAt <= Date.now()) {
+    const pending = fetchStorefrontProducts(limit, { ...options, throwOnError: true }, logErrors);
+    const entry = { key, expiresAt: Infinity, pending };
+    searchCatalogCache = entry;
+    void pending.then(
+      () => { entry.expiresAt = Date.now() + 60_000; },
+      () => { if (searchCatalogCache === entry) searchCatalogCache = null; },
+    );
+  }
+  try {
+    return await searchCatalogCache.pending;
+  } catch (error) {
+    if (options.throwOnError) throw error;
+    return [];
+  }
+}
+
+async function fetchStorefrontProducts(
   limit = 10,
   options: StorefrontFetchOptions = {},
   logErrors = true,
@@ -1042,11 +1233,12 @@ export async function getStorefrontProducts(
   const storefrontAccessToken = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
 
   if (!storeDomain || !storefrontAccessToken) {
+    if (options.throwOnError) throw new Error("Shopify storefront is not configured");
     return [];
   }
 
   const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
-  const safeLimit = Math.max(1, Math.min(limit, 1000));
+  const safeLimit = options.allProducts ? Infinity : Math.max(1, Math.min(limit, 1000));
   const pageSize = Math.min(60, safeLimit);
   const detailLevel = options.detailLevel ?? "summary";
   const query = detailLevel === "summary" ? productsSummaryQuery : productsQuery;
@@ -1055,6 +1247,7 @@ export async function getStorefrontProducts(
     const productEdges: ShopifyProductEdge[] = [];
     let cursor: string | null = null;
     let hasNextPage = true;
+    const seenCursors = new Set<string>();
 
     while (hasNextPage && productEdges.length < safeLimit) {
       const json: ShopifyProductsResponse = await fetchShopifyGraphQL<ShopifyProductsResponse>({
@@ -1062,7 +1255,7 @@ export async function getStorefrontProducts(
         storefrontAccessToken,
         tag: "shopify-products",
         cacheMode: options.cacheMode ?? "force-cache",
-        revalidateSeconds: SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
+        revalidateSeconds: options.allProducts ? 60 : SHOPIFY_PRODUCTS_REVALIDATE_SECONDS,
         query,
         variables: { first: Math.min(pageSize, safeLimit - productEdges.length), after: cursor },
         logErrors,
@@ -1078,13 +1271,18 @@ export async function getStorefrontProducts(
       hasNextPage = Boolean(pageInfo?.hasNextPage);
       cursor = pageInfo?.endCursor ?? null;
 
+      if (hasNextPage && (!cursor || seenCursors.has(cursor))) {
+        throw new Error("Shopify product pagination did not advance");
+      }
+      if (cursor) seenCursors.add(cursor);
       if (!cursor) {
         break;
       }
     }
 
     return productEdges.slice(0, safeLimit).map(({ node }) => mapStorefrontProductNode(node));
-  } catch {
+  } catch (error) {
+    if (options.throwOnError) throw error;
     return [];
   }
 }
@@ -1104,6 +1302,8 @@ export async function getStorefrontProductsForMetadata(limit = 40, options: Stor
 
 function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
   const imageUrl = node.featuredImage?.url ?? "/cat1.jpg";
+  const descriptionHtml = sanitizeProductDescriptionHtml(node.descriptionHtml ?? node.description ?? "");
+  const descriptionText = normalizeProductDescriptionText(descriptionHtml || node.description || "");
   const productMedia = (node.media?.nodes ?? []).reduce<ProductMedia[]>((acc, mediaNode) => {
     if (mediaNode.__typename === "Video") {
       const sources = mediaNode.sources ?? [];
@@ -1207,8 +1407,9 @@ function mapStorefrontProductNode(node: ShopifyProductNode): GridProduct {
     galleryImages: allProductImages,
     productMedia,
     description:
-      node.description?.trim() ||
+      descriptionText ||
       "Discover premium craftsmanship and modern elegance in this signature piece.",
+    descriptionHtml: descriptionHtml || undefined,
     optionGroups: (node.options ?? []).map((option) => ({
       name: option.name,
       values: option.values,

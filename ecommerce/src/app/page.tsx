@@ -4,13 +4,12 @@ import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import Category from "@/components/Category";
-import RedRibbon from "@/components/RedRibbon";
 import ProductGrid from "@/components/ProductGrid";
 import Newsletter from "@/components/Newsletter";
 import FeedbackPill from "@/components/FeedbackPill";
 import { GridProduct } from "@/lib/catalog";
 import { buildInstagramShowcaseItems, buildStoryBannerItems } from "@/lib/instagram-showcase";
-import { slugify } from "@/lib/product-taxonomy";
+import { isCanonicalProductCategory, slugify } from "@/lib/product-taxonomy";
 import { createPageMetadata } from "@/lib/seo";
 import { SITE_TITLE_DEFAULT } from "@/lib/site";
 import { getStorefrontProducts } from "@/lib/shopify";
@@ -80,12 +79,15 @@ function buildHomeCategories(products: GridProduct[]): HomeCategoryCard[] {
 
 export default async function Home() {
   const [storefrontProducts, collectionsContent] = await Promise.all([
-    getStorefrontProducts(HOME_PRODUCT_FETCH_LIMIT, { detailLevel: "summary" }),
+    getStorefrontProducts(HOME_PRODUCT_FETCH_LIMIT, { detailLevel: "full" }),
     getShopifyCollectionsContent(),
   ]);
 
   const products = storefrontProducts;
   const homeCategories = buildHomeCategories(products);
+  const merchandisingCategories = homeCategories.filter((category) =>
+    isCanonicalProductCategory(category.name),
+  );
   const instagramShowcaseItems = buildInstagramShowcaseItems(products, 5);
   const storyBannerItems = buildStoryBannerItems(products, 4);
   const featuredCollections = collectionsContent.featuredCollections;
@@ -99,7 +101,7 @@ export default async function Home() {
             .slice(0, 200)
             .map((product) => (
               <li key={`seo-product-${product.id}`}>
-                <a href={`/product/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
+                <a href={`/products/${encodeURIComponent(product.handle!.trim())}`}>{product.name}</a>
               </li>
             ))}
           {homeCategories.slice(0, 30).map((category) => (
@@ -111,8 +113,7 @@ export default async function Home() {
       </nav>
       <Navbar />
       <Hero featuredCollections={featuredCollections} storyBannerItems={storyBannerItems} />
-      <Category categories={homeCategories} />
-      <RedRibbon />
+      <Category categories={merchandisingCategories} />
       <ProductGrid products={products} />
       <Newsletter instagramShowcaseItems={instagramShowcaseItems} />
       <FeedbackPill />

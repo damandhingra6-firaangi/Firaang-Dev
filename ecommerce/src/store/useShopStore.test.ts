@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
+import type { GridProduct } from "@/lib/catalog";
 import { useShopStore } from "./useShopStore";
+
+const product: GridProduct = {
+  id: "p-1",
+  name: "Test Tee",
+  handle: "test-tee",
+  price: "1200",
+  priceAmount: 1200,
+  oldPrice: "1500",
+  currencyCode: "INR",
+  img: "/test.jpg",
+  category: "tops",
+  subCategory: "tees",
+  selectedSize: "M",
+  selectedVariantId: "p-1",
+  description: "Test description",
+};
 
 describe("shop checkout lock", () => {
   it("blocks cart mutations while checkout is loading", () => {
@@ -7,32 +24,6 @@ describe("shop checkout lock", () => {
       cart: {},
       isCheckoutLoading: true,
     });
-
-    const product = {
-      id: "p-1",
-      name: "Test Tee",
-      handle: "test-tee",
-      priceAmount: 1200,
-      oldPrice: 1500,
-      currencyCode: "INR",
-      img: "/test.jpg",
-      category: "tops",
-      subCategory: "tees",
-      parentId: null,
-      collection: "test",
-      rating: 4.5,
-      popularity: 10,
-      tags: [],
-      available: true,
-      selectedSize: "M",
-      selectedVariantId: "p-1",
-      description: "Test description",
-      brand: "Firaang",
-      availableForSale: true,
-      discountPercent: 20,
-      displayPriceAmount: 1200,
-      displayOldPriceAmount: 1500,
-    } as any;
 
     useShopStore.getState().addToCart(product);
     useShopStore.getState().updateCartQuantity("p-1", 2);
@@ -55,31 +46,7 @@ describe("shop checkout lock", () => {
     useShopStore.setState({
       cart: {
         "p-1": {
-          product: {
-            id: "p-1",
-            name: "Test Tee",
-            handle: "test-tee",
-            priceAmount: 1200,
-            oldPrice: 1500,
-            currencyCode: "INR",
-            img: "/test.jpg",
-            category: "tops",
-            subCategory: "tees",
-            parentId: null,
-            collection: "test",
-            rating: 4.5,
-            popularity: 10,
-            tags: [],
-            available: true,
-            selectedSize: "M",
-            selectedVariantId: "p-1",
-            description: "Test description",
-            brand: "Firaang",
-            availableForSale: true,
-            discountPercent: 20,
-            displayPriceAmount: 1200,
-            displayOldPriceAmount: 1500,
-          } as any,
+          product,
           quantity: 1,
         },
       },

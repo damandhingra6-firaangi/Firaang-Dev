@@ -36,7 +36,8 @@ import { CUSTOM_DESIGN_SURCHARGE_INR, GridProduct } from "@/lib/catalog";
 import { isSignatureProduct } from "@/lib/design-inquiry";
 import { convertAmount, formatCurrency } from "@/lib/currency";
 import { buildProductDetailSpecs } from "@/lib/product-details";
-import { formatProductDescriptionBlocks, getProductDescriptionSummary, normalizeProductDescriptionText } from "@/lib/product-description";
+import { getProductDescriptionSummary } from "@/lib/product-description";
+import ProductDescription from "@/components/ProductDescription";
 import { getDisplayPricing } from "@/lib/pricing-display";
 import { getConfiguredSizeChart, getDefaultTShirtSizeValues } from "@/lib/size-charts";
 import { getSelectedOptionValue, isColorOption, isOptionAvailableForSelection, isSizeOption, optionMatchesSelection } from "@/lib/variant-options";
@@ -364,7 +365,7 @@ function RelatedRail({
           {items.map((item) => (
             <Link
               key={item.id}
-              href={`/product/${encodeURIComponent(item.handle ?? item.id)}`}
+              href={`/products/${encodeURIComponent(item.handle ?? item.id)}`}
               className="group min-w-[176px] flex-1 snap-start overflow-hidden rounded-[22px] border border-[#eaded3] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
             >
               <SafeImage src={item.img} alt={item.name} className={compact ? "h-40 w-full object-cover" : "h-52 w-full object-cover"} loading="lazy" />
@@ -463,7 +464,6 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
   const displayOldPrice = displayPricing.compareAtAmount
     ? formatCurrency(convertAmount(displayPricing.compareAtAmount, "INR", displayCurrency), displayCurrency)
     : null;
-  const descriptionBlocks = useMemo(() => formatProductDescriptionBlocks(product.description ?? ""), [product.description]);
 
   useEffect(() => {
     const initialVariant = variants.find((variant) => variant.availableForSale) ?? variants[0] ?? null;
@@ -1098,25 +1098,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
           <div className="hidden lg:block space-y-6">
             <SectionShell title="Product Description" subtitle="A richer look at the fit, finish, and styling context.">
               <div className="space-y-3 text-sm leading-7 text-[#4f4641] break-words">
-                {descriptionBlocks.length > 0 ? (
-                  descriptionBlocks.map((block, index) =>
-                    block.type === "label" ? (
-                      <p key={`${block.label}-${index}`}>
-                        <span className="font-semibold text-[var(--page-fg)]">{block.label}: </span>
-                        {block.text}
-                      </p>
-                    ) : block.type === "bullet" ? (
-                      <p key={`bullet-${index}`} className="flex gap-2">
-                        <span aria-hidden="true" className="mt-0.5 text-[var(--secondary)]">•</span>
-                        <span>{block.text}</span>
-                      </p>
-                    ) : (
-                      <p key={`text-${index}`}>{block.text}</p>
-                    ),
-                  )
-                ) : (
-                  <p>{normalizeProductDescriptionText(product.description)}</p>
-                )}
+                <ProductDescription description={product.description} sanitizedHtml={product.descriptionHtml} />
               </div>
             </SectionShell>
 
@@ -1439,25 +1421,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
 
           <SectionShell title="Product Description" subtitle="A richer look at the fit, finish, and styling context.">
             <div className="space-y-3 text-sm leading-7 text-[#4f4641] break-words">
-              {descriptionBlocks.length > 0 ? (
-                descriptionBlocks.map((block, index) =>
-                  block.type === "label" ? (
-                    <p key={`${block.label}-${index}`}>
-                      <span className="font-semibold text-[var(--page-fg)]">{block.label}: </span>
-                      {block.text}
-                    </p>
-                  ) : block.type === "bullet" ? (
-                    <p key={`bullet-${index}`} className="flex gap-2">
-                      <span aria-hidden="true" className="mt-0.5 text-[var(--secondary)]">•</span>
-                      <span>{block.text}</span>
-                    </p>
-                  ) : (
-                    <p key={`text-${index}`}>{block.text}</p>
-                  ),
-                )
-              ) : (
-                <p>{normalizeProductDescriptionText(product.description)}</p>
-              )}
+              <ProductDescription description={product.description} sanitizedHtml={product.descriptionHtml} />
             </div>
           </SectionShell>
 

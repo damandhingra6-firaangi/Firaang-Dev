@@ -300,7 +300,7 @@ export default function ShopPromoBanner({ section, products }: ShopPromoBannerPr
             {saleHighlights.map((product) => (
               <Link
                 key={product.id}
-                href={`/product/${encodeURIComponent(getRouteKey(product))}`}
+                href={`/products/${encodeURIComponent(getRouteKey(product))}`}
                 className="group overflow-hidden rounded-xl border border-[#ececf2] bg-white transition hover:border-[#ed467a]/35 hover:shadow-[0_10px_22px_rgba(40,44,63,0.1)]"
               >
                 <SafeImage src={product.img} alt={product.name} className="h-36 w-full object-cover sm:h-40" />

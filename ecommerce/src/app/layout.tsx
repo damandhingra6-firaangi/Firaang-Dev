@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Suspense } from "react";
 import "./globals.css";
-import { Playfair_Display, Poppins } from "next/font/google";
+import { Poppins } from "next/font/google";
 import AccountSessionBootstrap from "@/components/AccountSessionBootstrap";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import AnalyticsVendorScripts from "@/components/AnalyticsVendorScripts";
@@ -25,14 +25,6 @@ const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-poppins",
-  style: "normal",
-  display: "swap",
-});
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-playfair",
   style: "normal",
   display: "swap",
 });
@@ -141,7 +133,7 @@ fbq('track', 'PageView');`;
   return (
     <html
       lang={SITE_LANGUAGE}
-      className={`${poppins.variable} ${playfair.variable} h-full antialiased`}
+      className={`${poppins.variable} h-full antialiased`}
     >
       <head>
         <meta name="color-scheme" content="light" />

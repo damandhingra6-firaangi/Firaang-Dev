@@ -446,7 +446,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
     }
 
     const query = params.toString();
-    return `/product/${encodeURIComponent(routeKey)}${query ? `?${query}` : ""}`;
+    return `/products/${encodeURIComponent(routeKey)}${query ? `?${query}` : ""}`;
   };
 
   const loadRazorpayScript = async () => {

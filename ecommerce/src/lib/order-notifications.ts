@@ -1,4 +1,5 @@
-﻿import { BRAND_LOGO_LIGHT, COMPANY_SOCIAL_LINKS, COMPANY_SUPPORT_EMAIL, COMPANY_SUPPORT_PHONE } from "@/lib/company";
+﻿import { fetchUpstream } from "@/lib/upstream-fetch";
+import { BRAND_LOGO_LIGHT, COMPANY_SOCIAL_LINKS, COMPANY_SUPPORT_EMAIL, COMPANY_SUPPORT_PHONE } from "@/lib/company";
 import { getSiteUrl } from "@/lib/site";
 
 type EmailPayload = {
@@ -112,7 +113,7 @@ async function sendEmailViaResend(payload: EmailPayload) {
     return { sent: false as const, reason: "resend_not_configured" };
   }
 
-  const response = await fetch("https://api.resend.com/emails", {
+  const response = await fetchUpstream("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

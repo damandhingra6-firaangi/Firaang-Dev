@@ -43,6 +43,8 @@ type HeroSlide = {
   desktopAspectRatio?: string;
   desktopWidth?: number;
   desktopHeight?: number;
+  mobileWidth?: number;
+  mobileHeight?: number;
   storyTiles?: StoryBannerItem[];
 };
 
@@ -62,6 +64,8 @@ const NEW_HERO_BANNER_SLIDE: HeroSlide = {
   desktopAspectRatio: "1920 / 808",
   desktopWidth: 1920,
   desktopHeight: 808,
+  mobileWidth: 402,
+  mobileHeight: 860,
 };
 
 const ROCKSTAR_HERO_SLIDE: HeroSlide = {
@@ -211,19 +215,18 @@ function HeroResponsiveImage({
   isMobileView: boolean;
 }) {
   const isPriorityImage = index === activeIndex;
-  const fallbackSource = slide.mobileImage || slide.image || "/FiraangLogoDesign-black.svg";
-  const [resolvedSource, setResolvedSource] = useState(() => slide.image || fallbackSource);
+  const [imageFailures, setImageFailures] = useState({ desktop: false, mobile: false });
+  const desktopSource = imageFailures.desktop ? BASE_HERO_SLIDE.image : slide.image || BASE_HERO_SLIDE.image;
+  const mobileSource = imageFailures.mobile ? BASE_HERO_SLIDE.mobileImage : slide.mobileImage || desktopSource;
   const desktopAspectRatio = slide.desktopAspectRatio ?? "1500 / 633";
   const desktopWidth = slide.desktopWidth ?? 1500;
   const desktopHeight = slide.desktopHeight ?? 633;
 
   const handleImageError = () => {
-    setResolvedSource((currentSource) => {
-      if (currentSource === fallbackSource) {
-        return "/FiraangLogoDesign-black.svg";
-      }
-
-      return fallbackSource;
+    const device = window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop";
+    setImageFailures((currentFailures) => {
+      if (currentFailures[device]) return currentFailures;
+      return { ...currentFailures, [device]: true };
     });
   };
 
@@ -234,16 +237,16 @@ function HeroResponsiveImage({
     >
       <source
         media="(max-width: 767px)"
-        srcSet={slide.mobileImage || resolvedSource}
+        srcSet={mobileSource}
         sizes="100vw"
-        width={1080}
-        height={1440}
+        width={slide.mobileWidth ?? 1080}
+        height={slide.mobileHeight ?? 1440}
       />
       <Image
-        src={resolvedSource}
+        src={desktopSource}
         alt={slide.alt}
-        width={desktopWidth}
-        height={desktopHeight}
+        width={isMobileView && slide.mobileWidth ? slide.mobileWidth : desktopWidth}
+        height={isMobileView && slide.mobileHeight ? slide.mobileHeight : desktopHeight}
         unoptimized
         priority={isPriorityImage}
         fetchPriority={isPriorityImage ? "high" : "auto"}
@@ -384,7 +387,7 @@ export default function Hero({ featuredCollections = [], storyBannerItems = [] }
 
   return (
     <section
-      className="hero-section relative mt-0 w-full max-md:h-[clamp(420px,42vw,760px)] max-md:overflow-hidden md:mt-[38px] md:h-auto md:max-h-none md:overflow-visible"
+      className={`hero-section relative mt-0 w-full ${activeSlide.id === NEW_HERO_BANNER_SLIDE.id ? "max-md:h-auto" : "max-md:h-[clamp(420px,42vw,760px)]"} max-md:overflow-hidden md:mt-[90px] md:h-auto md:max-h-none md:overflow-visible`}
       tabIndex={0}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
