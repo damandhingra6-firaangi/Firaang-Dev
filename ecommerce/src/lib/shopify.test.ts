@@ -69,6 +69,47 @@ describe("collection lookup normalization", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("uses the current Shopify title when a collection is renamed without changing its handle", async () => {
+    process.env.SHOPIFY_STORE_DOMAIN = "collection-title-sync-test.myshopify.com";
+    process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
+    const fetchMock = vi.fn().mockImplementation(async () => Response.json({
+      data: {
+        collections: {
+          edges: [
+            {
+              node: {
+                id: "gid://shopify/Collection/1",
+                handle: "independence-day",
+                title: "Made For India",
+                description: "",
+                updatedAt: "2026-11-16T00:00:00Z",
+                image: null,
+                products: { nodes: [] },
+              },
+            },
+            {
+              node: {
+                id: "gid://shopify/Collection/2",
+                handle: "rakhi-special",
+                title: "Sibling Stories 2026",
+                description: "",
+                updatedAt: "2026-11-16T00:00:00Z",
+                image: null,
+                products: { nodes: [] },
+              },
+            },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getShopifyCollectionTitle } = await import("./shopify-collections");
+
+    await expect(getShopifyCollectionTitle("independence-day")).resolves.toBe("Made For India");
+    await expect(getShopifyCollectionTitle("rakhi-special")).resolves.toBe("Sibling Stories 2026");
+  });
+
   it("fetches every search catalog page and coalesces subsequent requests", async () => {
     process.env.SHOPIFY_STORE_DOMAIN = "search-catalog-test.myshopify.com";
     process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";

@@ -8,7 +8,7 @@ import { normalizeShopPromoSection } from "@/lib/shop-promo-banners";
 import { createPageMetadata } from "@/lib/seo";
 import { getStorefrontProducts, getStorefrontProductsByCollection } from "@/lib/shopify";
 import { humanizeHandle } from "@/lib/text";
-import { getCollectionDisplayTitle } from "@/lib/shopify-collections";
+import { getShopifyCollectionTitle } from "@/lib/shopify-collections";
 import { isJewellerySlug } from "@/lib/jewellery";
 
 type ShopSearchParams = {
@@ -33,14 +33,14 @@ type ShopProductsProps = {
   section: ReturnType<typeof normalizeShopPromoSection>;
 };
 
-function buildShopTitle(params: ShopSearchParams) {
+function buildShopTitle(params: ShopSearchParams, collectionTitle: string) {
   const collection = params.collection?.trim();
   const category = params.category?.trim();
   const subCategory = params.subCategory?.trim();
   const section = normalizeShopPromoSection(params.section);
 
   if (collection) {
-    return `${getCollectionDisplayTitle(collection) ?? humanizeHandle(collection)} | Shop`;
+    return `${collectionTitle || humanizeHandle(collection)} | Shop`;
   }
 
   if (category && subCategory) {
@@ -97,10 +97,15 @@ function shouldNoIndexShopPage(params: ShopSearchParams) {
 export async function generateMetadata({ searchParams }: ShopPageProps): Promise<Metadata> {
   const params = searchParams ? await searchParams : undefined;
   const search = params ?? {};
+  const collectionTitle = search.collection?.trim()
+    ? await getShopifyCollectionTitle(search.collection)
+    : "";
 
   return createPageMetadata({
-    title: buildShopTitle(search),
-    description: "Browse Firaang collections, signature pieces, and new seasonal launches.",
+    title: buildShopTitle(search, collectionTitle),
+    description: collectionTitle
+      ? `Explore the ${collectionTitle} collection from Firaang, featuring curated styles and signature designs.`
+      : "Browse Firaang collections, signature pieces, and new seasonal launches.",
     path: buildShopCanonicalPath(search),
     noIndex: shouldNoIndexShopPage(search),
   });
@@ -135,15 +140,12 @@ function ShopProductsSkeleton() {
  * for the Shopify response.
  */
 async function ShopProducts({ collection, query, category, subCategory, audience, section }: ShopProductsProps) {
-  const storefrontProducts = await (
+  const [storefrontProducts, collectionTitle] = await Promise.all([
     collection
       ? getStorefrontProductsByCollection(collection, 250, { detailLevel: "full" })
-      : getStorefrontProducts(250, { detailLevel: "full" })
-  );
-
-  const collectionTitle = collection
-    ? (getCollectionDisplayTitle(collection) ?? humanizeHandle(collection))
-    : "";
+      : getStorefrontProducts(250, { detailLevel: "full" }),
+    collection ? getShopifyCollectionTitle(collection) : Promise.resolve(""),
+  ]);
 
   const products = storefrontProducts;
 

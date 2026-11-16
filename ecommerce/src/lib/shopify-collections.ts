@@ -3,7 +3,7 @@ import { cache } from "react";
 import { humanizeHandle, toTitleCase } from "@/lib/text";
 
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
-const DEFAULT_REVALIDATE_SECONDS = 1800;
+const DEFAULT_REVALIDATE_SECONDS = 300;
 
 const FEATURED_KEYWORDS = [
   "ganesh",
@@ -24,8 +24,7 @@ const PERMANENT_COLLECTION_SLUGS = new Set(["men", "women", "genz", "gen-z"]);
 // They will not appear as featured hero slides even if Shopify metafields still mark them as featured.
 const RETIRED_COLLECTION_HANDLES = new Set(["rakhi-special", "janmashtami"]);
 
-// Evergreen display title overrides keyed by Shopify collection handle.
-// Use this to present a renamed, always-relevant title without a Shopify admin change.
+// Fallback display titles for collections whose Shopify title is unavailable.
 const COLLECTION_TITLE_OVERRIDES: Record<string, string> = {
   "rakhi-special": "Sibling Stories",
   "ganesh": "Ganesh Chaturthi",
@@ -345,8 +344,8 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
   const explicitNewFlag = parseBoolean(node.isNewMetafield?.value);
   const normalizedHandle = node.handle?.trim().toLowerCase() ?? "";
   const normalizedTitle =
-    COLLECTION_TITLE_OVERRIDES[normalizedHandle] ??
-    toTitleCase(node.title?.trim() || "") ??
+    toTitleCase(node.title?.trim() || "") ||
+    COLLECTION_TITLE_OVERRIDES[normalizedHandle] ||
     humanizeHandle(node.handle);
   const isJanmashtamiCollection =
     normalizedHandle.includes("janmashtami") || normalizedTitle.toLowerCase().includes("janmashtami");
@@ -416,6 +415,15 @@ function fetchCollections(): Promise<ShopifyCollectionLaunch[]> {
   const pending = fetchCollectionsUncached();
   collectionsCache = { key, expiresAt: Date.now() + 30_000, pending };
   return pending;
+}
+
+export async function getShopifyCollectionTitle(handle: string): Promise<string> {
+  const normalizedHandle = handle.trim().toLowerCase();
+  const collection = (await fetchCollections()).find(
+    (item) => item.handle.trim().toLowerCase() === normalizedHandle,
+  );
+
+  return collection?.title || getCollectionDisplayTitle(normalizedHandle) || humanizeHandle(handle);
 }
 
 async function fetchCollectionsUncached(): Promise<ShopifyCollectionLaunch[]> {
