@@ -246,7 +246,7 @@ export async function GET() {
                   <div style="font-size:12px;line-height:20px;color:#f3e9df;margin-top:8px;">
                     <a href="${escapeHtml(instagramUrl)}" target="_blank" style="color:#f3e9df;text-decoration:none;margin:0 6px;">Instagram</a>
                     <a href="${escapeHtml(facebookUrl)}" target="_blank" style="color:#f3e9df;text-decoration:none;margin:0 6px;">Facebook</a>
-                    <a href="${escapeHtml(youtubeUrl)}" target="_blank" style="color:#f3e9df;text-decoration:none;margin:0 6px;">YouTube</a>
+                    <a href="${escapeHtml(youtubeUrl)}" target="_blank" rel="noopener noreferrer" style="color:#f3e9df;text-decoration:none;margin:0 6px;">YouTube</a>
                   </div>
                   <div style="font-size:11px;line-height:18px;color:#a89b8d;margin-top:12px;">&copy; 2026 Firaang. All rights reserved.</div>
                 </td></tr>

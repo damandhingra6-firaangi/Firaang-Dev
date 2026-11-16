@@ -61,7 +61,7 @@ function FooterSocialBadge({ label, href }: { label: string; href: string }) {
     <a
       href={href}
       target="_blank"
-      rel="noreferrer"
+      rel={label === "YouTube" ? "noopener noreferrer" : "noreferrer"}
       aria-label={label}
       className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/[0.15] text-white/80 transition hover:border-white/[0.3] hover:bg-white/[0.1] hover:text-white"
     >
