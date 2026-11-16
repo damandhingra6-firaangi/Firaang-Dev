@@ -16,6 +16,9 @@ const parseGeoFromRequestHeadersMock = vi.fn();
 const getSiteUrlMock = vi.fn();
 const getRazorpayClientMock = vi.fn();
 const mapRazorpayPaymentVerificationStateMock = vi.fn();
+const saveOrderMetaMarketingConsentMock = vi.fn();
+const sendMetaPurchaseConversionMock = vi.fn();
+const getMetaCapiRequestContextMock = vi.fn();
 
 vi.mock("@/lib/account-session", () => ({
   getAccountSessionTokenFromCookies: getAccountSessionTokenFromCookiesMock,
@@ -28,6 +31,7 @@ vi.mock("@/lib/account-data", () => ({
   markOrderConfirmationEmailSent: markOrderConfirmationEmailSentMock,
   markOrderPaidByOrderId: markOrderPaidByOrderIdMock,
   releaseOrderConfirmationEmailClaim: releaseOrderConfirmationEmailClaimMock,
+  saveOrderMetaMarketingConsent: saveOrderMetaMarketingConsentMock,
   syncCustomerAndShippingDetailsByOrderId: syncCustomerAndShippingDetailsByOrderIdMock,
 }));
 
@@ -56,6 +60,11 @@ vi.mock("@/lib/shopify-admin", () => ({
 
 vi.mock("@/lib/order-notifications", () => ({
   notifyOrderPaid: notifyOrderPaidMock,
+}));
+
+vi.mock("@/lib/meta-conversions", () => ({
+  getMetaCapiRequestContext: getMetaCapiRequestContextMock,
+  sendMetaPurchaseConversion: sendMetaPurchaseConversionMock,
 }));
 
 describe("checkout verification route", () => {
@@ -119,6 +128,9 @@ describe("checkout verification route", () => {
     claimOrderConfirmationEmailSendMock.mockResolvedValue(true);
     markOrderConfirmationEmailSentMock.mockResolvedValue(undefined);
     notifyOrderPaidMock.mockResolvedValue(undefined);
+    saveOrderMetaMarketingConsentMock.mockResolvedValue(undefined);
+    sendMetaPurchaseConversionMock.mockResolvedValue({ status: "sent" });
+    getMetaCapiRequestContextMock.mockReturnValue({});
   });
 
   it("updates guest orders to paid and enriches customer/shipping details from Razorpay before Shopify sync", async () => {
@@ -170,5 +182,54 @@ describe("checkout verification route", () => {
     );
     expect(syncPaidOrderToShopifyMock).toHaveBeenCalledWith("order_123");
     expect(payload.status).toBe("paid");
+  });
+
+  it("does not send a Purchase for an authorized but not captured payment", async () => {
+    const authorizedPayment = {
+      id: "pay_123",
+      order_id: "order_123",
+      status: "authorized",
+      email: "checkout@example.com",
+    };
+    getRazorpayClientMock.mockReturnValue({
+      orders: { fetch: vi.fn().mockResolvedValue({ id: "order_123", currency: "INR", notes: {} }) },
+      payments: { fetch: vi.fn().mockResolvedValue(authorizedPayment) },
+    });
+    markOrderPaidByOrderIdMock.mockResolvedValue({
+      id: "order_123",
+      status: "paid",
+      paymentStatus: "authorized",
+      totalAmount: 4999,
+      currencyCode: "INR",
+      paymentMethod: "online",
+      items: [],
+    });
+
+    const { POST } = await import("./route");
+    const crypto = await import("node:crypto");
+    const expectedSignature = crypto
+      .createHmac("sha256", "secret")
+      .update("order_123|pay_123")
+      .digest("hex");
+
+    const response = await POST(
+      new Request("http://localhost/api/checkout/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: "Firaang_meta_marketing_consent=granted",
+        },
+        body: JSON.stringify({
+          razorpay_order_id: "order_123",
+          razorpay_payment_id: "pay_123",
+          razorpay_signature: expectedSignature,
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveOrderMetaMarketingConsentMock).toHaveBeenCalledWith("order_123", "granted");
+    expect(sendMetaPurchaseConversionMock).not.toHaveBeenCalled();
   });
 });

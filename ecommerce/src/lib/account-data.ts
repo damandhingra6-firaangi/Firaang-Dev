@@ -127,6 +127,22 @@ export type AccountOrderWithCustomer = {
   } | null;
 };
 
+export type MetaPurchaseConversion = {
+  orderId: string;
+  eventId: string;
+  value: number;
+  currencyCode: string;
+  items: Array<{
+    productId: string;
+    name: string;
+    unitPrice: number;
+    quantity: number;
+  }>;
+  customerEmail?: string;
+  customerPhone?: string;
+  couponCode?: string;
+};
+
 type AccountUserDocument = {
   email?: string;
   fullName: string;
@@ -189,6 +205,11 @@ type AccountSessionDocument = {
 type AccountOrderDocument = {
   userId: ObjectId;
   orderId: string;
+  metaMarketingConsent?: "granted" | "denied";
+  metaCapiPurchaseStatus?: "processing" | "sent" | "failed";
+  metaCapiPurchaseClaimedAt?: Date;
+  metaCapiPurchaseSentAt?: Date;
+  metaPixelPurchaseClaimedAt?: Date;
   paymentId?: string;
   totalAmount: number;
   subtotalAmount?: number;
@@ -1361,6 +1382,7 @@ export async function saveShippingAddressForSessionToken(
 
 export async function createGuestOrder(input: {
   orderId: string;
+  metaMarketingConsent?: "granted" | "denied";
   totalAmount: number;
   subtotalAmount?: number;
   shippingFee?: number;
@@ -1398,6 +1420,7 @@ export async function createGuestOrder(input: {
     {
       $set: {
         userId,
+        ...(input.metaMarketingConsent ? { metaMarketingConsent: input.metaMarketingConsent } : {}),
         totalAmount: input.totalAmount,
         subtotalAmount: input.subtotalAmount,
         shippingFee: input.shippingFee,
@@ -1454,6 +1477,7 @@ export async function createPendingOrderForSessionToken(
   token: string,
   input: {
     orderId: string;
+    metaMarketingConsent?: "granted" | "denied";
     totalAmount: number;
     subtotalAmount?: number;
     shippingFee?: number;
@@ -1497,6 +1521,7 @@ export async function createPendingOrderForSessionToken(
     {
       $set: {
         userId: session.userId,
+        ...(input.metaMarketingConsent ? { metaMarketingConsent: input.metaMarketingConsent } : {}),
         totalAmount: input.totalAmount,
         subtotalAmount: input.subtotalAmount,
         shippingFee: input.shippingFee,
@@ -1648,6 +1673,119 @@ async function updateOrderByOrderId(
   return updated ? mapOrder(updated) : null;
 }
 
+function mapMetaPurchaseConversion(document: AccountOrderDocument): MetaPurchaseConversion | null {
+  if (
+    document.status !== "paid" ||
+    document.paymentStatus !== "captured" ||
+    document.totalAmount <= 0 ||
+    !document.currencyCode ||
+    document.items.length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    orderId: document.orderId,
+    eventId: `purchase:${document.orderId}`,
+    value: document.totalAmount,
+    currencyCode: document.currencyCode,
+    items: document.items.map((item) => ({
+      productId: item.productId,
+      name: item.name,
+      unitPrice: item.unitPrice,
+      quantity: item.quantity,
+    })),
+    customerEmail: document.shippingEmail,
+    customerPhone: document.shippingPhone,
+    couponCode: document.couponCode,
+  };
+}
+
+export async function saveOrderMetaMarketingConsent(orderId: string, consent: "granted" | "denied") {
+  const { orders } = await getCollections();
+
+  await orders.updateOne(
+    { orderId },
+    { $set: { metaMarketingConsent: consent, updatedAt: new Date() } },
+  );
+}
+
+export async function claimMetaPixelPurchaseEvent(orderId: string) {
+  const { orders } = await getCollections();
+  const claimedAt = new Date();
+  const result = await orders.updateOne(
+    {
+      orderId,
+      status: "paid",
+      paymentStatus: "captured",
+      metaMarketingConsent: "granted",
+      metaPixelPurchaseClaimedAt: { $exists: false },
+    },
+    { $set: { metaPixelPurchaseClaimedAt: claimedAt, updatedAt: claimedAt } },
+  );
+
+  if (result.modifiedCount !== 1) {
+    return null;
+  }
+
+  const document = await orders.findOne({ orderId });
+  return document ? mapMetaPurchaseConversion(document) : null;
+}
+
+export async function claimMetaCapiPurchaseEvent(orderId: string) {
+  const { orders } = await getCollections();
+  const now = new Date();
+  const staleClaimBefore = new Date(now.getTime() - 2 * 60 * 1000);
+  const result = await orders.updateOne(
+    {
+      orderId,
+      status: "paid",
+      paymentStatus: "captured",
+      metaMarketingConsent: "granted",
+      totalAmount: { $gt: 0 },
+      $or: [
+        { metaCapiPurchaseStatus: { $exists: false } },
+        { metaCapiPurchaseStatus: "failed" },
+        {
+          metaCapiPurchaseStatus: "processing",
+          metaCapiPurchaseClaimedAt: { $lt: staleClaimBefore },
+        },
+      ],
+    },
+    {
+      $set: {
+        metaCapiPurchaseStatus: "processing",
+        metaCapiPurchaseClaimedAt: now,
+        updatedAt: now,
+      },
+    },
+  );
+
+  if (result.modifiedCount !== 1) {
+    return null;
+  }
+
+  const document = await orders.findOne({ orderId });
+  return document ? mapMetaPurchaseConversion(document) : null;
+}
+
+export async function completeMetaCapiPurchaseEvent(orderId: string, sent: boolean) {
+  const { orders } = await getCollections();
+  const now = new Date();
+
+  await orders.updateOne(
+    { orderId, metaCapiPurchaseStatus: "processing" },
+    {
+      $set: {
+        metaCapiPurchaseStatus: sent ? "sent" : "failed",
+        ...(sent ? { metaCapiPurchaseSentAt: now } : {}),
+        updatedAt: now,
+      },
+      ...(!sent ? { $unset: { metaCapiPurchaseClaimedAt: "" } } : {}),
+    },
+  );
+}
+
 export async function markOrderPaidByOrderId(input: {
   orderId: string;
   paymentId: string;
@@ -1656,7 +1794,11 @@ export async function markOrderPaidByOrderId(input: {
   const { orders } = await getCollections();
   const existingDocument = await orders.findOne({ orderId: input.orderId });
 
-  if (existingDocument?.status === "paid" && existingDocument.paymentId === input.paymentId) {
+  if (
+    existingDocument?.status === "paid" &&
+    existingDocument.paymentId === input.paymentId &&
+    (existingDocument.paymentStatus === "captured" || input.paymentStatus === "authorized")
+  ) {
     return mapOrder(existingDocument);
   }
 
@@ -1902,7 +2044,10 @@ export async function releaseOrderConfirmationEmailClaim(orderId: string) {
   );
 }
 
-export async function markOrderPaidForSessionToken(token: string, input: { orderId: string; paymentId: string }) {
+export async function markOrderPaidForSessionToken(
+  token: string,
+  input: { orderId: string; paymentId: string; paymentStatus?: "authorized" | "captured" },
+) {
   const { sessions, orders } = await getCollections();
   const session = await sessions.findOne({ tokenHash: hashSessionToken(token) });
 
@@ -1912,7 +2057,11 @@ export async function markOrderPaidForSessionToken(token: string, input: { order
 
   const existingOrder = await orders.findOne({ orderId: input.orderId, userId: session.userId });
 
-  if (existingOrder?.status === "paid" && existingOrder.paymentId === input.paymentId) {
+  if (
+    existingOrder?.status === "paid" &&
+    existingOrder.paymentId === input.paymentId &&
+    (existingOrder.paymentStatus === "captured" || input.paymentStatus === "authorized")
+  ) {
     return mapOrder(existingOrder);
   }
 
@@ -1923,7 +2072,7 @@ export async function markOrderPaidForSessionToken(token: string, input: { order
         status: "paid",
         paymentId: input.paymentId,
         paymentGateway: "razorpay",
-        paymentStatus: "captured",
+        paymentStatus: input.paymentStatus ?? "captured",
         fulfillmentStatus: "processing",
         updatedAt: new Date(),
       },

@@ -6,6 +6,11 @@ import { CheckCircle2, CircleAlert, Clock3, PackageCheck, ShoppingBag } from "lu
 import SafeImage from "@/components/SafeImage";
 import { trackVendorPurchase } from "@/lib/analytics-vendors";
 import { formatCurrency } from "@/lib/currency";
+import {
+  hasMetaMarketingConsent,
+  META_MARKETING_CONSENT_EVENT,
+  META_PIXEL_READY_EVENT,
+} from "@/lib/meta-consent";
 
 type OrderItem = {
   productId: string;
@@ -89,6 +94,7 @@ export default function OrderSuccessContent({ orderId }: { orderId: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [metaTrackingRevision, setMetaTrackingRevision] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -140,47 +146,78 @@ export default function OrderSuccessContent({ orderId }: { orderId: string }) {
   }, [orderId]);
 
   useEffect(() => {
-    if (!order || order.status !== "paid") {
+    const refreshTrackingState = () => setMetaTrackingRevision((revision) => revision + 1);
+    window.addEventListener(META_MARKETING_CONSENT_EVENT, refreshTrackingState);
+    window.addEventListener(META_PIXEL_READY_EVENT, refreshTrackingState);
+
+    return () => {
+      window.removeEventListener(META_MARKETING_CONSENT_EVENT, refreshTrackingState);
+      window.removeEventListener(META_PIXEL_READY_EVENT, refreshTrackingState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!order) {
       return;
     }
 
-    const storageKey = `firaang-purchase-${order.id}`;
+    const confirmedOrder = order;
 
-    try {
-      if (window.sessionStorage.getItem(storageKey) === "1") {
+    if (
+      confirmedOrder.status !== "paid" ||
+      confirmedOrder.paymentStatus !== "captured" ||
+      !hasMetaMarketingConsent() ||
+      typeof window.fbq !== "function"
+    ) {
+      return;
+    }
+
+    async function claimAndTrackPurchase() {
+      const response = await fetch(`/api/orders/${encodeURIComponent(confirmedOrder.id)}/meta-purchase`, {
+        method: "POST",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Purchase tracking claim failed (${response.status})`);
+      }
+
+      const result = (await response.json()) as {
+        tracked?: boolean;
+        eventId?: string;
+        transactionId?: string;
+        currencyCode?: string;
+        value?: number;
+        coupon?: string;
+        items?: Array<{
+          item_id: string;
+          item_name: string;
+          price: number;
+          quantity: number;
+        }>;
+      };
+
+      if (!result.tracked || !result.eventId || !result.transactionId) {
         return;
       }
 
-      const analyticsItems = order.items.map((item) => ({
-        item_id: item.productId,
-        item_name: item.name,
-        price: item.unitPrice,
-        quantity: item.quantity,
-        item_variant: item.selectedVariantId ?? item.selectedSize,
-      }));
-
-      console.info("[order-success] firing purchase analytics", {
-        orderId: order.id,
-        value: order.totalAmount,
-        itemCount: analyticsItems.length,
-      });
-
       trackVendorPurchase({
-        transactionId: order.id,
-        currencyCode: order.currencyCode,
-        value: order.totalAmount,
-        coupon: order.couponCode,
-        shipping: order.shippingFee ?? 0,
-        tax: order.taxAmount ?? 0,
-        items: analyticsItems,
-        dedupeKey: `purchase:${order.id}`,
+        eventId: result.eventId,
+        transactionId: result.transactionId,
+        currencyCode: result.currencyCode ?? confirmedOrder.currencyCode,
+        value: result.value ?? confirmedOrder.totalAmount,
+        coupon: result.coupon,
+        shipping: confirmedOrder.shippingFee ?? 0,
+        tax: confirmedOrder.taxAmount ?? 0,
+        items: result.items ?? [],
+        dedupeKey: `purchase:${result.transactionId}`,
       });
-
-      window.sessionStorage.setItem(storageKey, "1");
-    } catch {
-      // Analytics should never block order confirmation UI.
     }
-  }, [order]);
+
+    void claimAndTrackPurchase().catch((error) => {
+      console.error("Unable to track verified Meta purchase", error);
+    });
+  }, [order, metaTrackingRevision]);
 
   if (isLoading) {
     return (

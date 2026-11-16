@@ -19,6 +19,7 @@ import { notifyOrderPaid, notifyRefundProcessed } from "@/lib/order-notification
 import { getSiteUrl } from "@/lib/site";
 import { syncPaidOrderToShopify } from "@/lib/shopify-admin";
 import { syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
+import { sendMetaPurchaseConversion } from "@/lib/meta-conversions";
 
 export const runtime = "nodejs";
 
@@ -310,6 +311,12 @@ export async function POST(request: Request) {
 
       if (!paidOrder) {
         return NextResponse.json({ ok: true, ignored: true, reason: "order_not_found" });
+      }
+
+      if (eventName === "payment.captured" && paidOrder.paymentStatus === "captured") {
+        await sendMetaPurchaseConversion(orderId).catch((error) => {
+          console.error("Meta Conversions API purchase tracking failed", error);
+        });
       }
 
       if (paidOrder.couponCode) {

@@ -24,6 +24,7 @@ type VendorCartEventInput = VendorEventOptions & {
 
 type VendorPurchaseEventInput = VendorEventOptions & {
   transactionId: string;
+  eventId?: string;
   currencyCode: string;
   value: number;
   items: AnalyticsCatalogItem[];
@@ -356,6 +357,6 @@ export function trackVendorPurchase(input: VendorPurchaseEventInput) {
       value: input.value,
       currency: input.currencyCode,
     },
-    { eventID: input.transactionId },
+    { eventID: input.eventId ?? `purchase:${input.transactionId}` },
   );
 }

@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import type { AccountOrder } from "@/lib/account-data";
-import { findOrderWithCustomerByOrderId, markOrderPaidByOrderId, markOrderPaidForSessionToken, syncCustomerAndShippingDetailsByOrderId } from "@/lib/account-data";
+import { findOrderWithCustomerByOrderId, markOrderPaidByOrderId, markOrderPaidForSessionToken, saveOrderMetaMarketingConsent, syncCustomerAndShippingDetailsByOrderId } from "@/lib/account-data";
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { attachShopifySyncResultToOrder } from "@/lib/account-data";
@@ -11,6 +11,8 @@ import { mapRazorpayPaymentVerificationState } from "@/lib/razorpay-payment-stat
 import { syncPaidOrderToShopify, syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
 import { notifyOrderPaid } from "@/lib/order-notifications";
 import { getSiteUrl } from "@/lib/site";
+import { isMetaTrackingOptedOut, readMetaMarketingConsent } from "@/lib/meta-consent";
+import { getMetaCapiRequestContext, sendMetaPurchaseConversion } from "@/lib/meta-conversions";
 
 function parseCookieValue(cookieHeader: string, name: string) {
   return cookieHeader
@@ -224,6 +226,26 @@ async function runPostPaymentBackgroundTasks(input: {
   const geo = parseGeoFromRequestHeaders(request.headers);
 
   const asyncTasks: Promise<unknown>[] = [];
+  const consent = isMetaTrackingOptedOut(request.headers)
+    ? "denied"
+    : readMetaMarketingConsent(cookieHeader);
+
+  if (consent) {
+    asyncTasks.push(
+      (async () => {
+        await saveOrderMetaMarketingConsent(orderId, consent);
+
+        if (consent === "granted" && savedOrder?.paymentStatus === "captured") {
+          const result = await sendMetaPurchaseConversion(orderId, getMetaCapiRequestContext(request));
+          if (result.status === "sent") {
+            logPaymentFlow("Meta CAPI purchase sent", { orderId });
+          }
+        }
+      })().catch((error) => {
+        console.error("Meta Conversions API purchase tracking failed", error);
+      }),
+    );
+  }
 
   if (savedOrder && savedOrder.shopifySyncStatus !== "synced") {
     asyncTasks.push(
@@ -461,6 +483,7 @@ export async function POST(request: Request) {
       ? await markOrderPaidForSessionToken(sessionToken, {
           orderId,
           paymentId,
+          paymentStatus: paidOrderStatus,
         })
       : await markOrderPaidByOrderId({
           orderId,

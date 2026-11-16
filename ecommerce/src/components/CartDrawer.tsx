@@ -11,7 +11,6 @@ import {
   trackVendorAddPaymentInfo,
   trackVendorAddShippingInfo,
   trackVendorBeginCheckout,
-  trackVendorPurchase,
   trackVendorRemoveFromCart,
   trackVendorViewCart,
 } from "@/lib/analytics-vendors";
@@ -883,28 +882,6 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
               state: shippingState.trim(),
               pinCode: shippingPinCode.trim(),
             });
-
-            const purchaseTransactionId = verification.order?.id ?? orderData.orderId;
-            const purchaseCurrencyCode = verification.order?.currencyCode ?? orderData.currency;
-
-            if (purchaseTransactionId && purchaseCurrencyCode) {
-              trackVendorPurchase({
-                transactionId: purchaseTransactionId,
-                currencyCode: purchaseCurrencyCode,
-                value: verification.order?.totalAmount ?? displayTotalPayableAmount,
-                coupon: appliedCoupon?.code,
-                items:
-                  verification.order?.items.map((item) =>
-                    mapProductToAnalyticsItem({
-                      id: item.productId,
-                      name: item.name,
-                      price: item.unitPrice,
-                      quantity: item.quantity,
-                      brand: "Firaang",
-                    }),
-                  ) ?? analyticsItems,
-              });
-            }
 
             clearCart(true);
             setPaymentSuccessOverlayVisible(false);

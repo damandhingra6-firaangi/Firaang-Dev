@@ -4,6 +4,7 @@ import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { calculateCheckoutPricing, computeCouponDiscount, estimateOrderWeightKg, type ShippingMethod } from "@/lib/checkout-config";
 import { CUSTOM_DESIGN_SURCHARGE_INR } from "@/lib/catalog";
+import { isMetaTrackingOptedOut, readMetaMarketingConsent } from "@/lib/meta-consent";
 import { getCampaignCouponValidationErrorDetails, releaseCampaignCouponReservationByOrderId, reserveCampaignCouponForOrder, validateCampaignCouponForCheckout } from "@/lib/campaigns";
 import { getDisplayPricing, isInclusiveDisplayPricingEnabled } from "@/lib/pricing-display";
 import { getRazorpayClient } from "@/lib/razorpay";
@@ -49,6 +50,10 @@ export async function POST(request: Request) {
   try {
     const sessionToken = await getAccountSessionTokenFromCookies();
     const body = (await request.json()) as CreateOrderRequest;
+    const cookieHeader = request.headers.get("cookie") ?? "";
+    const metaMarketingConsent = isMetaTrackingOptedOut(request.headers)
+      ? "denied"
+      : readMetaMarketingConsent(cookieHeader) ?? undefined;
     const rawItems = body.items ?? [];
     const shippingName = body.shippingName?.trim() ?? "";
     const shippingEmail = body.shippingEmail?.trim() ?? "";
@@ -358,6 +363,7 @@ export async function POST(request: Request) {
     if (sessionToken) {
       persistedOrder = await createPendingOrderForSessionToken(sessionToken, {
         orderId: order.id,
+        metaMarketingConsent,
         totalAmount,
         subtotalAmount: pricingSubtotalAmount,
         shippingFee: useInclusiveDisplayPayable ? 0 : pricing.shippingFee,
@@ -394,6 +400,7 @@ export async function POST(request: Request) {
     } else {
       persistedOrder = await createGuestOrder({
         orderId: order.id,
+        metaMarketingConsent,
         totalAmount,
         subtotalAmount: pricingSubtotalAmount,
         shippingFee: useInclusiveDisplayPayable ? 0 : pricing.shippingFee,
@@ -434,7 +441,6 @@ export async function POST(request: Request) {
       });
     }
 
-    const cookieHeader = request.headers.get("cookie") ?? "";
     const attribution = parseAttributionCookie(parseCookieValue(cookieHeader, "Firaang_analytics_attr"));
     const geo = parseGeoFromRequestHeaders(request.headers);
 

@@ -4,6 +4,7 @@ import { createGuestOrder, createPendingOrderForSessionToken } from "@/lib/accou
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { calculateCheckoutPricing, estimateOrderWeightKg } from "@/lib/checkout-config";
+import { isMetaTrackingOptedOut, readMetaMarketingConsent } from "@/lib/meta-consent";
 import { resolveCheckoutItems } from "@/lib/products";
 import { syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
 
@@ -30,6 +31,10 @@ export async function POST(request: Request) {
   try {
     const sessionToken = await getAccountSessionTokenFromCookies();
     const body = (await request.json()) as CreateCodOrderRequest;
+    const cookieHeader = request.headers.get("cookie") ?? "";
+    const metaMarketingConsent = isMetaTrackingOptedOut(request.headers)
+      ? "denied"
+      : readMetaMarketingConsent(cookieHeader) ?? undefined;
     const rawItems = body.items ?? [];
     const shippingState = body.shippingState?.trim() ?? "";
     const shippingMethod = body.shippingMethod ?? "surface";
@@ -78,6 +83,7 @@ export async function POST(request: Request) {
     const savedOrder = sessionToken
       ? await createPendingOrderForSessionToken(sessionToken, {
           orderId,
+          metaMarketingConsent,
           totalAmount,
           subtotalAmount: pricing.subtotalAmount,
           shippingFee: pricing.shippingFee,
@@ -102,6 +108,7 @@ export async function POST(request: Request) {
         })
       : await createGuestOrder({
           orderId,
+          metaMarketingConsent,
           totalAmount,
           subtotalAmount: pricing.subtotalAmount,
           shippingFee: pricing.shippingFee,
@@ -131,7 +138,6 @@ export async function POST(request: Request) {
       });
     }
 
-    const cookieHeader = request.headers.get("cookie") ?? "";
     const attribution = parseAttributionCookie(parseCookieValue(cookieHeader, "Firaang_analytics_attr"));
     const geo = parseGeoFromRequestHeaders(request.headers);
 

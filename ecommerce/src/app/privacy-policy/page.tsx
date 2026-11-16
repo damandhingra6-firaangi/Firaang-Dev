@@ -139,8 +139,9 @@ const sections = [
     body: [
       "Our website and the services integrated with it may use cookies and similar technologies to support essential website functionality, remember preferences, maintain security, and understand website usage.",
       "The types of cookies used depend on the features and third-party services enabled on our website. These may include essential cookies, preference cookies, performance or analytics cookies, and advertising-related cookies if applicable services are enabled.",
-      "You may be able to control cookies through your browser settings or through a consent tool provided on our website, if available. Blocking certain cookies may affect the functionality of some website features.",
-      "Where required by applicable law, we will seek consent before using non-essential cookies or similar technologies.",
+      "If you accept marketing cookies through Privacy settings, Meta Pixel and the Meta Conversions API may receive purchase event details such as order value, currency, and product identifiers, along with hashed email or phone identifiers for advertising measurement. We do not send payment card or bank details.",
+      "Meta marketing tracking is not enabled until you accept it. You can reject optional tracking or change your choice at any time using Privacy settings. We also honor browser Do Not Track and Global Privacy Control signals for Meta tracking.",
+      "Where required by applicable law, we seek consent before using non-essential cookies or similar technologies.",
     ],
   },
   {

@@ -85,3 +85,19 @@ You can still layer free external analytics:
 - PostHog/Plausible for product analytics alternatives.
 
 Custom dashboard remains source-of-truth for internal operational metrics.
+
+## Meta Purchase Tracking
+
+The Meta Pixel and Conversions API use the same order-based event ID (`purchase:<orderId>`). The browser sends the Pixel `Purchase` only from `/order-success/[orderId]` after the order is paid and its payment status is captured. MongoDB claims each browser event once; a page refresh or another tab cannot claim it again. Authorized, pending, failed, and unpaid COD orders do not count as purchases. COD orders can count after an administrator records both `paid` and `captured`.
+
+The marketing-consent banner must be accepted before Meta Pixel loads or a server conversion is sent. The choice is stored in the `Firaang_meta_marketing_consent` cookie. DNT and GPC opt-out signals suppress Meta tracking. The Conversions API hashes normalized email and phone values with SHA-256 and does not send payment details.
+
+Set these deployment variables:
+
+- `NEXT_PUBLIC_META_PIXEL_ID=1144832497900793` for the browser Pixel (defaults to the existing project ID).
+- `META_PIXEL_ID=1144832497900793` for server-side events (defaults to the existing project ID).
+- `META_ACCESS_TOKEN` for the server-only Conversions API token. Never use a `NEXT_PUBLIC_` prefix.
+- `META_GRAPH_API_VERSION` optionally overrides the Graph API version (default `v27.0`).
+- `META_TEST_EVENT_CODE` optionally routes CAPI events to Events Manager Test Events during testing; remove it after testing.
+
+To test, accept marketing tracking, complete a captured Razorpay test payment, and inspect **Events Manager → Data Sources → Test Events**. For CAPI, set `META_TEST_EVENT_CODE` to the code shown there and restart/redeploy. Verify one browser `Purchase` and one server `Purchase` with the same `event_id`, and that Meta deduplicates them. Refreshing or reopening the success URL must not create another browser event. Pending, authorized-only, failed, and unpaid COD orders must not show a Purchase. To test COD, record the order as paid with payment status captured in the admin order workflow first.

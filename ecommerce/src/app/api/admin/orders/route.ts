@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { listOrdersForAdmin, updateOrderForAdmin } from "@/lib/account-data";
+import { sendMetaPurchaseConversion } from "@/lib/meta-conversions";
 
 export const runtime = "nodejs";
 
@@ -97,6 +98,12 @@ export async function PATCH(request: Request) {
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (order.status === "paid" && order.paymentStatus === "captured") {
+      await sendMetaPurchaseConversion(order.id).catch((error) => {
+        console.error("Meta Conversions API purchase tracking failed", error);
+      });
     }
 
     return NextResponse.json({ ok: true, order });
