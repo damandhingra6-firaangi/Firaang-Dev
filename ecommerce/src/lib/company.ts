@@ -7,7 +7,7 @@ export const COMPANY_SUPPORT_PHONE_TEL = "+919878619783";
 export const COMPANY_SOCIAL_LINKS = {
 	instagram: "https://www.instagram.com/fir.aang",
 	facebook: "https://www.facebook.com/profile.php?id=61594253017586",
-	youtube: "https://www.youtube.com/@Firaang-m5r",
+	youtube: "https://www.youtube.com/@Firaangstyle",
 } as const;
 
 export const BRAND_LOGO_DARK = "/FiraangLogoDesign-black.svg";

@@ -3,13 +3,14 @@ import { cache } from "react";
 import { humanizeHandle, toTitleCase } from "@/lib/text";
 
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION ?? "2025-01";
-const DEFAULT_REVALIDATE_SECONDS = 1800;
+const DEFAULT_REVALIDATE_SECONDS = 300;
 
 const FEATURED_KEYWORDS = [
   "ganesh",
   "independence",
   "diwali",
   "holi",
+  "rakhi",
   "christmas",
   "eid",
   "valentine",
@@ -18,14 +19,13 @@ const FEATURED_KEYWORDS = [
   "winter",
 ];
 
-const PERMANENT_COLLECTION_SLUGS = new Set(["men", "women", "genz", "gen-z"]);
+const PERMANENT_COLLECTION_SLUGS = new Set(["men", "women", "gen-z"]);
 
 // Collections permanently retired from seasonal/featured treatment and homepage promotion.
 // They will not appear as featured hero slides even if Shopify metafields still mark them as featured.
-const RETIRED_COLLECTION_HANDLES = new Set(["rakhi-special", "janmashtami"]);
+const RETIRED_COLLECTION_HANDLES = new Set(["janmashtami"]);
 
-// Evergreen display title overrides keyed by Shopify collection handle.
-// Use this to present a renamed, always-relevant title without a Shopify admin change.
+// Fallback display titles for collections whose Shopify title is unavailable.
 const COLLECTION_TITLE_OVERRIDES: Record<string, string> = {
   "rakhi-special": "Sibling Stories",
   "ganesh": "Ganesh Chaturthi",
@@ -109,6 +109,7 @@ export type ShopifyCollectionLaunch = {
   launchSubtitle: string | null;
   isFeatured: boolean;
   isCampaignActive: boolean;
+  isSeasonallyVisible: boolean;
   campaignStartDate: string | null;
   campaignEndDate: string | null;
   priority: number;
@@ -261,6 +262,17 @@ function isCampaignActiveNow(startDateRaw: string | null, endDateRaw: string | n
   return true;
 }
 
+function isCampaignWindowActive(startDateRaw: string | null, endDateRaw: string | null, now = new Date()) {
+  const startDate = parseCampaignDate(startDateRaw, "start");
+  const endDate = parseCampaignDate(endDateRaw, "end");
+
+  return Boolean(startDate && endDate && now >= startDate && now <= endDate);
+}
+
+function isRakhiCollection(title: string, handle: string) {
+  return `${title} ${handle}`.toLowerCase().includes("rakhi");
+}
+
 function isIndependenceCampaignExpired(title: string, now = new Date()) {
   const lowered = title.toLowerCase();
   if (!lowered.includes("independence")) {
@@ -284,6 +296,7 @@ const SEASONAL_KEYWORDS = new Set([
   "republic",
   "navratri",
   "onam",
+  "rakhi",
   "pongal",
   "ugadi",
   "baisakhi",
@@ -344,10 +357,11 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
   const launchFlag = parseBoolean(node.launchMetafield?.value);
   const explicitNewFlag = parseBoolean(node.isNewMetafield?.value);
   const normalizedHandle = node.handle?.trim().toLowerCase() ?? "";
-  const normalizedTitle =
-    COLLECTION_TITLE_OVERRIDES[normalizedHandle] ??
-    toTitleCase(node.title?.trim() || "") ??
-    humanizeHandle(node.handle);
+  const normalizedTitle = (
+    toTitleCase(node.title?.trim() || "") ||
+    COLLECTION_TITLE_OVERRIDES[normalizedHandle] ||
+    humanizeHandle(node.handle)
+  ).replace(/'S\b/g, "'s");
   const isJanmashtamiCollection =
     normalizedHandle.includes("janmashtami") || normalizedTitle.toLowerCase().includes("janmashtami");
   const isRetired = RETIRED_COLLECTION_HANDLES.has(normalizedHandle) || isJanmashtamiCollection;
@@ -356,6 +370,9 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
   const startDateRaw = node.campaignStartDateMetafield?.value?.trim() || null;
   const endDateRaw = node.campaignEndDateMetafield?.value?.trim() || null;
   const campaignActiveState = isCampaignActiveNow(startDateRaw, endDateRaw);
+  const isSeasonallyVisible =
+    !isRakhiCollection(normalizedTitle, normalizedHandle) ||
+    isCampaignWindowActive(startDateRaw, endDateRaw);
   const hasCampaignWindow = campaignActiveState !== null;
 
   // Seasonal collections should not stay featured forever based only on title.
@@ -402,6 +419,7 @@ function mapNodeToLaunch(node: ShopifyCollectionNode): ShopifyCollectionLaunch {
     launchSubtitle: node.launchSubtitleMetafield?.value?.trim() || null,
     isFeatured: effectiveIsFeatured,
     isCampaignActive: effectiveIsCampaignActive,
+    isSeasonallyVisible,
     campaignStartDate: startDateRaw,
     campaignEndDate: endDateRaw,
     priority: parsePriority(node.priorityMetafield?.value),
@@ -416,6 +434,15 @@ function fetchCollections(): Promise<ShopifyCollectionLaunch[]> {
   const pending = fetchCollectionsUncached();
   collectionsCache = { key, expiresAt: Date.now() + 30_000, pending };
   return pending;
+}
+
+export async function getShopifyCollectionTitle(handle: string): Promise<string> {
+  const normalizedHandle = handle.trim().toLowerCase();
+  const collection = (await fetchCollections()).find(
+    (item) => item.handle.trim().toLowerCase() === normalizedHandle,
+  );
+
+  return collection?.title || getCollectionDisplayTitle(normalizedHandle) || humanizeHandle(handle);
 }
 
 async function fetchCollectionsUncached(): Promise<ShopifyCollectionLaunch[]> {
@@ -494,7 +521,9 @@ export const getShopifyCollectionsContent = cache(async (): Promise<ShopifyColle
     .filter((item) => !isPermanentCollection(item.title, item.handle))
     .sort((left, right) => left.title.localeCompare(right.title, "en", { sensitivity: "base" }));
 
-  const featuredCollections = dynamicCollections
+  const visibleCollections = dynamicCollections.filter((item) => item.isSeasonallyVisible);
+
+  const featuredCollections = visibleCollections
     .filter((item) => item.isFeatured)
     .sort((left, right) => {
       if (left.priority !== right.priority) {
@@ -506,7 +535,7 @@ export const getShopifyCollectionsContent = cache(async (): Promise<ShopifyColle
 
   const featuredCollection = featuredCollections[0] ?? null;
 
-  const primaryNavCollection = featuredCollection ?? dynamicCollections[0] ?? null;
+  const primaryNavCollection = featuredCollection ?? visibleCollections[0] ?? null;
 
   return {
     collections: dynamicCollections,

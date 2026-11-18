@@ -441,7 +441,7 @@ export default function NavbarClient({
             <button
               type="button"
               aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-              className="inline-flex rounded-full border border-[var(--nav-border)] p-2 text-[var(--nav-text)] md:hidden"
+              className="inline-flex rounded-full border border-[var(--nav-border)] p-2 text-[var(--nav-text)] min-[1080px]:hidden"
               onClick={() => setIsMobileMenuOpen((prev) => !prev)}
             >
               {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -460,7 +460,7 @@ export default function NavbarClient({
               />
             </Link>
 
-            <nav className="hidden flex-1 items-center justify-center lg:flex">
+            <nav className="hidden flex-1 items-center justify-center min-[1080px]:flex">
               <div className="flex items-center gap-5 xl:gap-7">
                 <Link href={justDroppedHref} className={`${desktopNavLinkClass} ${isJustDroppedActive ? desktopNavLinkActiveClass : ""}`}>
                   JUST DROPPED
@@ -783,7 +783,7 @@ export default function NavbarClient({
       </div>
 
       {isMobileMenuOpen ? (
-        <div className="mobile-drawer-backdrop fixed inset-0 top-[72px] z-[90] bg-black/45 backdrop-blur-[2px] md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
+        <div className="mobile-drawer-backdrop fixed inset-0 top-[72px] z-[90] bg-black/45 backdrop-blur-[2px] min-[1080px]:hidden" onClick={() => setIsMobileMenuOpen(false)}>
           <div
             className="mobile-drawer-panel h-full w-[88vw] max-w-[340px] overflow-x-hidden overflow-y-auto border-r border-[#e2e2e2] bg-white px-4 py-5"
             onClick={(event) => event.stopPropagation()}

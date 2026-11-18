@@ -1467,15 +1467,18 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
     return [];
   }
 
-  const resolvedHandle = (await resolveShopifyCollectionHandle(normalizedHandle))?.trim() ?? "";
+  const isHandle = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalizedHandle);
+  const resolvedHandle = isHandle
+    ? normalizedHandle
+    : (await resolveShopifyCollectionHandle(normalizedHandle))?.trim() ?? "";
   if (!resolvedHandle) {
     return [];
   }
 
   const endpoint = `https://${normalizeStoreDomain(storeDomain)}/api/${SHOPIFY_API_VERSION}/graphql.json`;
   const safeLimit = Math.max(1, Math.min(limit, 1000));
-  const pageSize = Math.min(60, safeLimit);
   const detailLevel = options.detailLevel ?? "summary";
+  const pageSize = Math.min(detailLevel === "full" ? 3 : 60, safeLimit);
   const query = detailLevel === "summary" ? collectionProductsSummaryQuery : collectionProductsQuery;
 
   try {
@@ -1516,10 +1519,12 @@ export async function getStorefrontProductsByCollection(handle: string, limit = 
 
     return productNodes.slice(0, safeLimit).map((node) => mapStorefrontProductNode(node));
   } catch (error) {
-    console.error("Shopify collection fetch failed", {
+    console.warn("Shopify collection fetch failed", {
       requestedHandle: normalizedHandle,
       resolvedHandle,
-      error,
+      error: error instanceof Error
+        ? { name: error.name, message: error.message }
+        : { message: String(error) },
     });
     return [];
   }

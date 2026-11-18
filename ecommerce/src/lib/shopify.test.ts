@@ -5,6 +5,7 @@ import {
   fetchShopifyGraphQL,
   getProductByHandle,
   getStorefrontProducts,
+  getStorefrontProductsByCollection,
   getStorefrontProductsForMetadata,
   normalizeCollectionLookupKey,
   resolveCollectionHandleFromList,
@@ -56,6 +57,78 @@ describe("collection lookup normalization", () => {
     expect(collectionProductsSummaryQuery).not.toContain("sortKey: CREATED_AT");
   });
 
+  it("queries collection products directly by an exact Shopify handle", async () => {
+    process.env.SHOPIFY_STORE_DOMAIN = "collection-products-test.myshopify.com";
+    process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
+    const fetchMock = vi.fn(async (...args: Parameters<typeof fetch>) => {
+      void args;
+      return Response.json({
+        data: {
+          collection: {
+            products: {
+              edges: [],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getStorefrontProductsByCollection("independence-day", 250, { detailLevel: "summary" }),
+    ).resolves.toEqual([]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.query).toContain("collection(handle: $handle)");
+    expect(body.variables.handle).toBe("independence-day");
+  });
+
+  it("limits full-detail collection batches to avoid oversized Shopify queries", async () => {
+    process.env.SHOPIFY_STORE_DOMAIN = "collection-products-full-test.myshopify.com";
+    process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
+    const fetchMock = vi.fn(async (...args: Parameters<typeof fetch>) => {
+      void args;
+      return Response.json({
+        data: {
+          collection: {
+            products: {
+              edges: [],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+        },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getStorefrontProductsByCollection("genz", 250, { detailLevel: "full" }),
+    ).resolves.toEqual([]);
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.variables.first).toBe(3);
+  });
+
+  it("logs useful details when a collection fetch fails", async () => {
+    process.env.SHOPIFY_STORE_DOMAIN = "collection-fetch-failure-test.myshopify.com";
+    process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
+    const fetchMock = vi.fn(async () => new Response(null, { status: 400 }));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getStorefrontProductsByCollection("independence-day", 250, { detailLevel: "summary" }),
+    ).resolves.toEqual([]);
+
+    expect(warnSpy).toHaveBeenCalledWith("Shopify collection fetch failed", {
+      requestedHandle: "independence-day",
+      resolvedHandle: "independence-day",
+      error: { name: "Error", message: "Shopify GraphQL request failed with 400" },
+    });
+  });
+
   it("coalesces and caches repeated public collection metadata requests", async () => {
     process.env.SHOPIFY_STORE_DOMAIN = "collections-test.myshopify.com";
     process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
@@ -67,6 +140,148 @@ describe("collection lookup normalization", () => {
     await Promise.all([getShopifyCollectionsContent(), getShopifyCollectionsContent()]);
     await getShopifyCollectionsContent();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the current Shopify title when a collection is renamed without changing its handle", async () => {
+    process.env.SHOPIFY_STORE_DOMAIN = "collection-title-sync-test.myshopify.com";
+    process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
+    const fetchMock = vi.fn().mockImplementation(async () => Response.json({
+      data: {
+        collections: {
+          edges: [
+            {
+              node: {
+                id: "gid://shopify/Collection/1",
+                handle: "independence-day",
+                title: "Made For India",
+                description: "",
+                updatedAt: "2026-11-16T00:00:00Z",
+                image: null,
+                products: { nodes: [] },
+              },
+            },
+            {
+              node: {
+                id: "gid://shopify/Collection/2",
+                handle: "rakhi-special",
+                title: "Sibling Stories 2026",
+                description: "",
+                updatedAt: "2026-11-16T00:00:00Z",
+                image: null,
+                products: { nodes: [] },
+              },
+            },
+            {
+              node: {
+                id: "gid://shopify/Collection/3",
+                handle: "baby-tees",
+                title: "Women'S Collection",
+                description: "",
+                updatedAt: "2026-11-16T00:00:00Z",
+                image: null,
+                products: { nodes: [] },
+              },
+            },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getShopifyCollectionTitle } = await import("./shopify-collections");
+
+    await expect(getShopifyCollectionTitle("independence-day")).resolves.toBe("Made For India");
+    await expect(getShopifyCollectionTitle("rakhi-special")).resolves.toBe("Sibling Stories 2026");
+    await expect(getShopifyCollectionTitle("baby-tees")).resolves.toBe("Women's Collection");
+  });
+
+  it("keeps the published Streetwear collection with the Shopify handle genz", async () => {
+    process.env.SHOPIFY_STORE_DOMAIN = "streetwear-collection-test.myshopify.com";
+    process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
+      data: {
+        collections: {
+          edges: [
+            {
+              node: {
+                id: "gid://shopify/Collection/335267299499",
+                handle: "genz",
+                title: "Streetwear",
+                description: "",
+                updatedAt: "2026-11-18T11:26:27Z",
+                image: {
+                  url: "https://cdn.shopify.com/s/files/streetwear.jpg",
+                  altText: "Streetwear",
+                },
+                products: {
+                  nodes: [
+                    {
+                      featuredImage: {
+                        url: "https://cdn.shopify.com/s/files/streetwear-product.jpg",
+                        altText: "Streetwear product",
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    })));
+    const { getShopifyCollectionsContent } = await import("./shopify-collections");
+
+    const content = await getShopifyCollectionsContent();
+    const collection = content.collections.find((item) => item.id === "gid://shopify/Collection/335267299499");
+
+    expect(collection).toMatchObject({
+      id: "gid://shopify/Collection/335267299499",
+      handle: "genz",
+      title: "Streetwear",
+      href: "/shop?section=collections&collection=genz",
+      imageUrl: "https://cdn.shopify.com/s/files/streetwear.jpg",
+    });
+  });
+
+  it("only exposes Rakhi collections during their configured Shopify campaign window", async () => {
+    process.env.SHOPIFY_STORE_DOMAIN = "rakhi-visibility-test.myshopify.com";
+    process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN = "token";
+    const startDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const endDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const collectionNode = (id: string, handle: string, start: string, end: string) => ({
+      id: `gid://shopify/Collection/${id}`,
+      handle,
+      title: "Rakhi Special",
+      description: "",
+      updatedAt: "2026-11-16T00:00:00Z",
+      image: null,
+      products: { nodes: [] },
+      featuredMetafield: { value: "true" },
+      campaignStartDateMetafield: { value: start },
+      campaignEndDateMetafield: { value: end },
+    });
+    const fetchMock = vi.fn().mockImplementation(async () => Response.json({
+      data: {
+        collections: {
+          edges: [
+            { node: collectionNode("active", "rakhispecial", startDate, endDate) },
+            { node: collectionNode("expired", "rakhi-special-archive", "2020-08-01", "2020-08-31") },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getShopifyCollectionsContent } = await import("./shopify-collections");
+
+    const content = await getShopifyCollectionsContent();
+    const activeCollection = content.collections.find((item) => item.handle === "rakhispecial");
+    const expiredCollection = content.collections.find((item) => item.handle === "rakhi-special-archive");
+
+    expect(activeCollection?.isSeasonallyVisible).toBe(true);
+    expect(expiredCollection?.isSeasonallyVisible).toBe(false);
+    expect(content.featuredCollections.map((item) => item.handle)).toEqual(["rakhispecial"]);
   });
 
   it("fetches every search catalog page and coalesces subsequent requests", async () => {

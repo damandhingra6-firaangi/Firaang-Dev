@@ -135,15 +135,17 @@ export default async function Navbar({ activeSection = null, mode = "public" }: 
 
   return (
     <NavbarClient
-      collections={collections.map((item) => ({
-        id: item.id,
-        handle: item.handle,
-        title: item.title,
-        href: appendSectionToHref(item.href, "collections"),
-        badge: item.badge,
-        badgeType: item.badgeType,
-        isFeatured: item.isFeatured,
-      }))}
+      collections={collections
+        .filter((item) => item.isSeasonallyVisible)
+        .map((item) => ({
+          id: item.id,
+          handle: item.handle,
+          title: item.title,
+          href: appendSectionToHref(item.href, "collections"),
+          badge: item.badge,
+          badgeType: item.badgeType,
+          isFeatured: item.isFeatured,
+        }))}
       primaryCollection={
         primaryNavCollection
           ? {
