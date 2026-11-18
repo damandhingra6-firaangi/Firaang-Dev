@@ -115,33 +115,41 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
         </div>
       </section> */}
 
-      <section className="overflow-hidden bg-[#f8f6f1] py-12 md:py-14 lg:py-16">
+      <section className="relative isolate overflow-hidden bg-[linear-gradient(180deg,#F8F5F0_0%,#FBF8F4_52%,#F4EDE7_100%)] py-12 text-[#2F2B2A] md:py-14 lg:py-16">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_top,rgba(179,74,72,0.07),transparent_68%)]"
+        />
         <div className="home-shell">
           <div className="mx-auto flex max-w-[760px] flex-col items-center text-center">
-            <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.24em] text-[#7a7268] md:text-[11px]">
+            <p className="flex items-center gap-3 font-sans text-[10px] font-semibold uppercase tracking-[0.24em] text-[#796E67] md:text-[11px]">
+              <span aria-hidden="true" className="h-px w-7 bg-gradient-to-r from-transparent to-[#B54847]" />
               FOLLOW US ON INSTAGRAM
+              <span aria-hidden="true" className="h-px w-7 bg-gradient-to-l from-transparent to-[#B54847]" />
             </p>
             <a
               href={COMPANY_SOCIAL_LINKS.instagram}
               target="_blank"
-              rel="noreferrer"
-              className="group mt-3 inline-flex items-center gap-2.5 rounded-full border border-[#e4dccc] bg-[#fffdf8] px-4 py-2.5 transition duration-300 hover:border-[#cfd7ef] hover:bg-[#fbfbfe]"
+              rel="noopener noreferrer"
+              className="group mt-4 inline-flex items-center gap-3 rounded-full border border-[#E8DDD3] bg-white/75 px-4 py-2.5 shadow-[0_12px_32px_rgba(58,43,34,0.08)] transition duration-300 hover:border-[#B54847]/35 hover:bg-white sm:px-5 sm:py-3"
             >
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d7d2ea] bg-[linear-gradient(135deg,rgba(108,74,135,0.12),rgba(0,189,255,0.12))] text-[#302a39] transition duration-300 group-hover:border-[#bfc7eb] group-hover:bg-[linear-gradient(135deg,rgba(108,74,135,0.16),rgba(0,189,255,0.16))] group-hover:shadow-[0_0_0_1px_rgba(0,189,255,0.08)]">
-                <InstagramMark className="h-[18px] w-[18px]" />
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#F9CE34_0%,#EE2A7B_52%,#6228D7_100%)] p-px transition duration-300 group-hover:scale-105 sm:h-10 sm:w-10">
+                <span className="inline-flex h-full w-full items-center justify-center rounded-full bg-white text-[#B54847]">
+                  <InstagramMark className="h-[18px] w-[18px]" />
+                </span>
               </span>
-              <h2 className="font-sans text-[clamp(1.9rem,5.2vw,3.1rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-[#1e1a17] md:text-[clamp(2.15rem,4.1vw,3.45rem)]">
+              <h2 className="font-sans text-[clamp(1.9rem,5.2vw,3.1rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-[#302925] transition-colors duration-300 group-hover:text-[#A13F45] md:text-[clamp(2.15rem,4.1vw,3.45rem)]">
                 @Fir.aang
               </h2>
             </a>
-            <p className="mt-4 max-w-[620px] text-[14px] leading-6 text-[#615a53] md:text-[15px]">
+            <p className="mt-4 max-w-[620px] text-[13px] leading-6 text-[#756A63] md:text-[15px]">
               Latest drops and design stories, curated for fresh inspiration.
             </p>
             <a
               href={COMPANY_SOCIAL_LINKS.instagram}
               target="_blank"
-              rel="noreferrer"
-              className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#1f1b17] bg-[#1f1b17] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#f8f4ef] shadow-[0_8px_18px_rgba(31,27,23,0.12)] transition duration-300 hover:-translate-y-0.5 hover:border-[#6c4a87] hover:bg-[#211c1a] hover:shadow-[0_12px_24px_rgba(31,27,23,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c4a87]/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f8f6f1]"
+              rel="noopener noreferrer"
+              className="mt-5 inline-flex items-center gap-2 rounded-full border border-[#B54847] bg-[#B54847] px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white shadow-[0_8px_24px_rgba(181,72,71,0.18)] transition duration-300 hover:-translate-y-0.5 hover:border-[#963C3D] hover:bg-[#963C3D] hover:shadow-[0_12px_28px_rgba(181,72,71,0.24)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B54847] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8F5F0]"
             >
               Visit Instagram
               <ArrowUpRight className="h-3.5 w-3.5" />
@@ -154,31 +162,37 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
                 key={item.id}
                 href={item.href}
                 aria-label={`Open design: ${item.title}`}
-                className="group relative aspect-[4/5] w-[64vw] min-w-[182px] max-w-[236px] shrink-0 snap-start overflow-hidden rounded-[18px] border border-[#e3ddd3] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.06)] transition duration-300 hover:-translate-y-0.5 hover:border-[#cfd7ef] hover:shadow-[0_14px_26px_rgba(0,0,0,0.1)] sm:w-[44vw] sm:min-w-[198px] sm:max-w-[244px] md:w-[31vw] md:min-w-[210px] md:max-w-[250px] lg:w-auto lg:max-w-none"
+                className="group relative aspect-[4/5] w-[64vw] min-w-[182px] max-w-[236px] shrink-0 snap-start overflow-hidden rounded-[18px] border border-white/80 bg-[#E9E0D7] shadow-[0_12px_28px_rgba(58,43,34,0.12)] transition duration-300 hover:-translate-y-1 hover:border-white hover:shadow-[0_18px_36px_rgba(58,43,34,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B54847] sm:w-[44vw] sm:min-w-[198px] sm:max-w-[244px] md:w-[31vw] md:min-w-[210px] md:max-w-[250px] lg:w-auto lg:min-w-0 lg:max-w-none"
               >
                 <SafeImage
                   src={item.image}
                   alt={item.alt}
                   loading="lazy"
-                  className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.04]"
+                  className="h-full w-full object-cover object-center transition duration-700 ease-out group-hover:scale-[1.06] motion-reduce:transition-none"
                 />
 
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(13,11,8,0)_56%,rgba(13,11,8,0.14)_78%,rgba(13,11,8,0.68)_100%)] opacity-95 transition duration-300 group-hover:opacity-100" />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,10,0)_45%,rgba(10,10,10,0.12)_64%,rgba(10,10,10,0.82)_100%)] opacity-90 transition duration-300 group-hover:opacity-100" />
 
                 {item.isNew ? (
-                  <span className="absolute left-3 top-3 inline-flex rounded-full border border-[#cfd7ef] bg-[rgba(255,255,255,0.72)] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-[#322b3c] backdrop-blur-md shadow-[0_0_0_1px_rgba(108,74,135,0.06)]">
+                  <span className="absolute left-3 top-3 inline-flex rounded-full border border-white/20 bg-black/45 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-[#F2D98B] shadow-sm backdrop-blur-md">
                     New
                   </span>
                 ) : null}
 
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
+                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/40 text-white shadow-lg backdrop-blur-md">
+                    <InstagramMark className="h-5 w-5" />
+                  </span>
+                </span>
+
                 <div className="absolute inset-x-0 bottom-0 p-3 md:p-3.5">
-                  <div className="translate-y-2 opacity-0 transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100">
+                  <div className="translate-y-0 opacity-100 transition-all duration-300 ease-out md:translate-y-2 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-visible:translate-y-0 md:group-focus-visible:opacity-100">
                     <p className="line-clamp-2 text-[11px] font-medium leading-[1.35] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] md:text-[12px]">
                       {item.title}
                     </p>
                     <div className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#f4eefe] transition duration-300 group-hover:text-white">
                       View Design
-                      <ArrowUpRight className="h-3.5 w-3.5 text-[#7dd6ff] transition duration-300 group-hover:text-[#c88cff]" />
+                      <ArrowUpRight className="h-3.5 w-3.5 text-[#F2D98B] transition duration-300 group-hover:text-white" />
                     </div>
                   </div>
                 </div>
@@ -190,17 +204,7 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
 
       <RedRibbon />
 
-      <footer className="relative overflow-hidden border-t border-white/10 bg-[var(--footer-bg)] pb-0 pt-14">
-        <div className="pointer-events-none absolute inset-x-0 top-6 bottom-[78px] hidden items-center justify-center lg:flex">
-          <div className="select-none text-center">
-            <SafeImage
-              src="/FooterTransparentLogo.svg"
-              alt="Different by Design"
-              className="mx-auto mt-1 aspect-[1220/269] h-auto max-h-full w-[clamp(760px,78vw,1280px)] max-w-full opacity-[0.25] [filter:invert(1)_brightness(1.15)]"
-            />
-          </div>
-        </div>
-
+      <footer className="relative overflow-hidden bg-[var(--footer-bg)] pb-0 pt-14">
         <div className="home-shell relative">
           <div className="grid gap-10 border-b border-white/10 pb-10 md:grid-cols-2 lg:grid-cols-[1.55fr_0.9fr_0.9fr_0.9fr_1.25fr]">
             <div className="max-w-[360px]">
