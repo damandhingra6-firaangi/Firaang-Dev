@@ -74,6 +74,13 @@ The previously observed response was an authorization error, not a metric payloa
 }
 ```
 
+When Insights returns code `10`, the server stops querying Insights for the account
+for 30 minutes and continues with any media-edge metrics. When the Graph API
+connection times out, Insights requests pause for one minute. This prevents a
+permission or network failure from generating a burst of repeated requests; the
+feed still uses the last successful in-process response when the media endpoint is
+temporarily unavailable.
+
 When Insights is denied, `total_views_count` from the Facebook Login media edge can
 still provide a view count if the media-read permissions allow it. If that field is
 also absent, the feed displays recent Reels with an unavailable-count marker. It

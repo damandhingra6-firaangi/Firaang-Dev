@@ -28,6 +28,22 @@ describe("bounded upstream fetch", () => {
     expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain("secret");
   });
 
+  it("can silence per-attempt logs when a caller handles upstream failures", async () => {
+    const fetch = vi.fn().mockRejectedValue(Object.assign(new Error(), { code: "ETIMEDOUT" }));
+    vi.stubGlobal("fetch", fetch);
+    const { fetchUpstream } = await import("./upstream-fetch");
+
+    await expect(
+      fetchUpstream("https://example.com", {}, {
+        maxAttempts: 1,
+        logFailures: false,
+        operation: "instagram-reel-insights",
+      }),
+    ).rejects.toMatchObject({ code: "ETIMEDOUT" });
+
+    expect(vi.mocked(console.warn)).not.toHaveBeenCalled();
+  });
+
   it("does not retry a 400 response or unsafe writes", async () => {
     const fetch = vi.fn().mockResolvedValue(new Response("bad request", { status: 400 }));
     vi.stubGlobal("fetch", fetch);

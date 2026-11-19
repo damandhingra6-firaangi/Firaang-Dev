@@ -3,6 +3,7 @@ type FetchOptions = {
   maxAttempts?: number;
   retrySafe?: boolean;
   operation?: string;
+  logFailures?: boolean;
 };
 
 type HostState = {
@@ -74,7 +75,9 @@ export async function fetchUpstream(
     hosts.set(host, state);
   }
   if (state.openUntil > Date.now() || state.active >= 8 || (state.failures >= 3 && state.active > 0)) {
-    console.warn("[upstream-fetch] blocked", { host, attempt: 0, code: "CIRCUIT_OPEN" });
+    if (options.logFailures !== false) {
+      console.warn("[upstream-fetch] blocked", { host, attempt: 0, code: "CIRCUIT_OPEN" });
+    }
     throw new UpstreamError(host, "CIRCUIT_OPEN");
   }
 
@@ -107,7 +110,9 @@ export async function fetchUpstream(
       } catch (error) {
         if (init.signal?.aborted) throw error;
         const code = error instanceof UpstreamError ? error.code : getUpstreamErrorCode(error);
-        console.warn("[upstream-fetch] failed", { host, attempt, code, operation: options.operation, phase, deadlineExceeded: deadline.aborted });
+        if (options.logFailures !== false) {
+          console.warn("[upstream-fetch] failed", { host, attempt, code, operation: options.operation, phase, deadlineExceeded: deadline.aborted });
+        }
         const retryable = RETRY_CODES.has(code) || /^HTTP_(429|502|503|504)$/.test(code);
         if (!retryable || attempt === attempts) {
           state.failures += 1;

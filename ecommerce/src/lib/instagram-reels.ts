@@ -1,4 +1,4 @@
-import { fetchUpstream } from "@/lib/upstream-fetch";
+import { fetchUpstream, getUpstreamErrorCode } from "@/lib/upstream-fetch";
 import {
   MAX_INSTAGRAM_REELS,
   type InstagramShowcaseBadge,
@@ -10,6 +10,8 @@ const DEFAULT_GRAPH_API_VERSION = "v27.0";
 const INSTAGRAM_MEDIA_LIMIT = 50;
 const INSTAGRAM_FEED_REVALIDATE_SECONDS = 900;
 const INSIGHTS_CONCURRENCY = 5;
+const INSIGHTS_PERMISSION_RECHECK_MS = 30 * 60 * 1000;
+const INSIGHTS_NETWORK_RECHECK_MS = 60 * 1000;
 const NEW_MEDIA_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const INSTAGRAM_INSIGHTS_METRICS = ["views", "total_views", "reach"] as const;
 const INSTAGRAM_VIEW_METRIC_PRIORITY: InstagramViewMetric[] = [
@@ -111,6 +113,7 @@ type NormalizedMedia = {
 };
 
 let lastSuccessfulFeed: { accountId: string; items: InstagramShowcaseItem[] } | null = null;
+const disabledInsightsUntil = new Map<string, number>();
 
 class InstagramInsightsPermissionError extends Error {}
 
@@ -253,9 +256,10 @@ async function getInstagramMediaInsights(
     next: { revalidate: INSTAGRAM_FEED_REVALIDATE_SECONDS },
   } as RequestInit, {
     timeoutMs: 8_000,
-    maxAttempts: 2,
+    maxAttempts: 1,
     retrySafe: true,
     operation: "instagram-reel-insights",
+    logFailures: false,
   });
   const payload = (await response.json()) as InstagramInsightsResponse;
   if (logResponse) {
@@ -287,6 +291,7 @@ async function getInstagramMediaInsights(
 }
 
 async function addInstagramMediaMetrics(
+  accountId: string,
   media: InstagramGraphMedia[],
   apiVersion: string,
   accessToken: string,
@@ -359,25 +364,51 @@ async function addInstagramMediaMetrics(
   const firstItem = mediaToMeasure[0];
   const firstId = firstItem?.id?.trim();
   const logResponse = process.env.INSTAGRAM_DEBUG_REEL_RESPONSE?.trim() === "1";
+  const suppressionKey = `${apiVersion}:${accountId}`;
+  const insightsDisabled = () => {
+    const disabledUntil = disabledInsightsUntil.get(suppressionKey) ?? 0;
+    if (disabledUntil <= Date.now()) {
+      disabledInsightsUntil.delete(suppressionKey);
+      return false;
+    }
+    return true;
+  };
+  const suppressInsights = (error: unknown, mediaId: string) => {
+    const permissionDenied = error instanceof InstagramInsightsPermissionError;
+    const errorCode = getUpstreamErrorCode(error);
+    disabledInsightsUntil.set(
+      suppressionKey,
+      Date.now() + (permissionDenied ? INSIGHTS_PERMISSION_RECHECK_MS : INSIGHTS_NETWORK_RECHECK_MS),
+    );
+    console.warn(
+      permissionDenied
+        ? "[instagram-reels] Insights permission is unavailable; using media-edge metrics"
+        : "[instagram-reels] Insights temporarily unavailable; using media-edge metrics",
+      {
+        accountId,
+        mediaId,
+        ...(permissionDenied ? { error: error instanceof Error ? error.message : String(error) } : { code: errorCode }),
+      },
+    );
+  };
+
+  if (insightsDisabled()) {
+    return { media: mediaWithSelectedMetric(), metricsByMediaId };
+  }
 
   if (firstItem && firstId) {
     try {
       const result = await getInstagramMediaInsights(firstId, apiVersion, accessToken, logResponse);
       addInsightsMetrics(firstId, result.metrics);
     } catch (error) {
-      console.warn("[instagram-reels] Reel insights request failed", {
-        mediaId: firstId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      if (error instanceof InstagramInsightsPermissionError) {
-        return { media: mediaWithSelectedMetric(), metricsByMediaId };
-      }
+      suppressInsights(error, firstId);
+      return { media: mediaWithSelectedMetric(), metricsByMediaId };
     }
   }
 
-  let permissionFailureLogged = false;
   for (let index = 1; index < mediaToMeasure.length; index += INSIGHTS_CONCURRENCY) {
     const batch = mediaToMeasure.slice(index, index + INSIGHTS_CONCURRENCY);
+    let batchFailed = false;
     const results = await Promise.all(
       batch.map(async (item) => {
         const id = item.id?.trim();
@@ -389,19 +420,9 @@ async function addInstagramMediaMetrics(
           const result = await getInstagramMediaInsights(id, apiVersion, accessToken);
           return { id, result };
         } catch (error) {
-          if (error instanceof InstagramInsightsPermissionError) {
-            if (!permissionFailureLogged) {
-              console.warn("[instagram-reels] Reel insights permission is missing", {
-                mediaId: id,
-                error: error.message,
-              });
-              permissionFailureLogged = true;
-            }
-          } else {
-            console.warn("[instagram-reels] Reel insights request failed", {
-              mediaId: id,
-              error: error instanceof Error ? error.message : String(error),
-            });
+          if (!batchFailed) {
+            batchFailed = true;
+            suppressInsights(error, id);
           }
           return null;
         }
@@ -413,7 +434,7 @@ async function addInstagramMediaMetrics(
         addInsightsMetrics(result.id, result.result.metrics);
       }
     }
-    if (permissionFailureLogged) {
+    if (batchFailed) {
       break;
     }
   }
@@ -510,6 +531,7 @@ export async function getInstagramReelFeed(): Promise<InstagramFeedResult> {
       maxAttempts: 2,
       retrySafe: true,
       operation: "instagram-reels",
+      logFailures: false,
     };
     const mediaById = new Map<string, InstagramGraphMedia>();
     const seenCursors = new Set<string>();
@@ -554,7 +576,7 @@ export async function getInstagramReelFeed(): Promise<InstagramFeedResult> {
     const allMedia = Array.from(mediaById.values());
     const reels = allMedia.filter(isReel);
     const insightsResult = reels.length > 0
-      ? await addInstagramMediaMetrics(reels, apiVersion, accessToken)
+      ? await addInstagramMediaMetrics(accountId, reels, apiVersion, accessToken)
       : null;
     const mediaWithMetrics = insightsResult?.media ?? allMedia;
     const reelsWithMetrics = mediaWithMetrics.filter((media) => toCount(media.view_count) !== undefined);
