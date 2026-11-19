@@ -1,10 +1,15 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { ArrowUpRight, Eye, Mail, MapPin, Phone, Play } from "lucide-react";
 import Link from "next/link";
-import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import RedRibbon from "@/components/RedRibbon";
-import type { InstagramShowcaseItem } from "@/lib/instagram-showcase";
+import {
+  MAX_INSTAGRAM_REELS,
+  type InstagramShowcaseItem,
+  type InstagramViewMetric,
+} from "@/lib/instagram-showcase";
 import {
   BRAND_LOGO_LIGHT,
   COMPANY_MANUFACTURER_DETAILS,
@@ -24,6 +29,14 @@ const socialLinks = [
 type NewsletterProps = {
   instagramShowcaseItems?: InstagramShowcaseItem[];
 };
+
+const INSTAGRAM_FEED_STORAGE_KEY = "firaang.instagram-feed.v1";
+
+function getTopInstagramShowcaseItems(items: InstagramShowcaseItem[]) {
+  return [...items]
+    .sort((left, right) => (right.viewCount ?? -1) - (left.viewCount ?? -1))
+    .slice(0, MAX_INSTAGRAM_REELS);
+}
 
 function InstagramMark({ className }: { className?: string }) {
   return (
@@ -56,6 +69,258 @@ function SocialGlyph({ label }: { label: string }) {
   );
 }
 
+function isInstagramShowcaseItem(value: unknown): value is InstagramShowcaseItem {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const item = value as Record<string, unknown>;
+  const hasValidBadges =
+    item.badges === undefined ||
+    (Array.isArray(item.badges) &&
+      item.badges.every((badge) => ["Trending", "Most Viewed", "New", "Popular"].includes(String(badge))));
+  const hasValidOptionalFields =
+    (item.videoUrl === undefined || typeof item.videoUrl === "string") &&
+    (item.viewCount === undefined || typeof item.viewCount === "number") &&
+    (item.viewMetric === undefined ||
+      ["views", "total_views", "plays", "video_views", "reach"].includes(String(item.viewMetric))) &&
+    hasValidBadges;
+  const hasSafeInstagramLinks =
+    item.isInstagramMedia !== true ||
+    (typeof item.href === "string" &&
+      typeof item.image === "string" &&
+      isSafeInstagramPermalink(item.href) &&
+      isSafeInstagramMediaUrl(item.image) &&
+      (typeof item.videoUrl !== "string" || isSafeInstagramMediaUrl(item.videoUrl)));
+
+  return (
+    typeof item.id === "string" &&
+    typeof item.href === "string" &&
+    typeof item.image === "string" &&
+    typeof item.alt === "string" &&
+    typeof item.title === "string" &&
+    typeof item.isNew === "boolean" &&
+    hasValidOptionalFields &&
+    hasSafeInstagramLinks
+  );
+}
+
+function isSafeInstagramPermalink(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && (url.hostname === "instagram.com" || url.hostname.endsWith(".instagram.com"));
+  } catch {
+    return false;
+  }
+}
+
+function isSafeInstagramMediaUrl(value: string) {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    return (
+      url.protocol === "https:" &&
+      (hostname.endsWith(".cdninstagram.com") ||
+        hostname.endsWith(".fbcdn.net") ||
+        hostname === "lookaside.fbsbx.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function parseInstagramShowcaseItems(value: unknown) {
+  if (!value || typeof value !== "object" || !("items" in value) || !Array.isArray(value.items)) {
+    return [];
+  }
+
+  return value.items.filter(isInstagramShowcaseItem);
+}
+
+function getCachedInstagramShowcaseItems() {
+  try {
+    const cached = localStorage.getItem(INSTAGRAM_FEED_STORAGE_KEY);
+    if (!cached) {
+      return [];
+    }
+
+    return getTopInstagramShowcaseItems(
+      parseInstagramShowcaseItems(JSON.parse(cached)).filter((item) => item.isInstagramMedia),
+    );
+  } catch (error) {
+    console.warn("Unable to read cached Instagram feed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [];
+  }
+}
+
+function cacheInstagramShowcaseItems(items: InstagramShowcaseItem[]) {
+  try {
+    localStorage.setItem(INSTAGRAM_FEED_STORAGE_KEY, JSON.stringify({ items: getTopInstagramShowcaseItems(items) }));
+  } catch (error) {
+    console.warn("Unable to cache Instagram feed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+function formatInstagramCount(count?: number) {
+  return typeof count === "number" ? new Intl.NumberFormat("en").format(count) : null;
+}
+
+function getInstagramMetricLabel(metric?: InstagramViewMetric) {
+  if (metric === "total_views") return "total views";
+  if (metric === "plays") return "plays";
+  if (metric === "video_views") return "video views";
+  if (metric === "reach") return "reach";
+  return "views";
+}
+
+function InstagramReelCard({
+  item,
+  prioritizeImage = false,
+}: {
+  item: InstagramShowcaseItem;
+  prioritizeImage?: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const previewTimeoutRef = useRef<number | null>(null);
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const href = item.isInstagramMedia ? item.href : COMPANY_SOCIAL_LINKS.instagram;
+  const badges = item.badges ?? (item.isNew ? ["New" as const] : []);
+  const viewCount = formatInstagramCount(item.viewCount);
+  const metricLabel = getInstagramMetricLabel(item.viewMetric);
+
+  const stopPreview = () => {
+    if (previewTimeoutRef.current !== null) {
+      window.clearTimeout(previewTimeoutRef.current);
+      previewTimeoutRef.current = null;
+    }
+
+    const video = videoRef.current;
+    if (video) {
+      video.pause();
+      video.currentTime = 0;
+    }
+    setIsPreviewPlaying(false);
+  };
+
+  const startPreview = () => {
+    const video = videoRef.current;
+    if (!video || !item.videoUrl) {
+      return;
+    }
+
+    if (previewTimeoutRef.current !== null) {
+      window.clearTimeout(previewTimeoutRef.current);
+    }
+
+    video.currentTime = 0;
+    void video.play()
+      .then(() => {
+        previewTimeoutRef.current = window.setTimeout(() => {
+          video.pause();
+          previewTimeoutRef.current = null;
+        }, 4_000);
+      })
+      .catch(() => {
+        setIsPreviewPlaying(false);
+      });
+  };
+
+  useEffect(
+    () => () => {
+      if (previewTimeoutRef.current !== null) {
+        window.clearTimeout(previewTimeoutRef.current);
+      }
+      videoRef.current?.pause();
+    },
+    [],
+  );
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`${item.isInstagramMedia ? "Open Instagram media" : "Visit Instagram profile"}: ${item.title}`}
+      onMouseEnter={startPreview}
+      onMouseLeave={stopPreview}
+      onFocus={startPreview}
+      onBlur={stopPreview}
+      className="group relative block aspect-[4/5] w-[66vw] min-w-[182px] max-w-[244px] shrink-0 snap-start overflow-hidden rounded-[18px] border border-white/80 bg-[#E9E0D7] shadow-[0_12px_28px_rgba(58,43,34,0.12)] transition duration-500 hover:-translate-y-1 hover:border-white hover:shadow-[0_18px_36px_rgba(58,43,34,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B54847] sm:w-[31vw] sm:min-w-[200px] lg:w-[229px]"
+    >
+      <SafeImage
+        src={item.image}
+        alt={item.alt}
+        loading={prioritizeImage ? "eager" : "lazy"}
+        fetchPriority={prioritizeImage ? "high" : "auto"}
+        sizes="(max-width: 639px) 66vw, (max-width: 1023px) 31vw, 19vw"
+        className={`absolute inset-0 h-full w-full object-cover object-center transition duration-700 ease-out group-hover:scale-[1.06] motion-reduce:transition-none ${
+          isPreviewPlaying ? "opacity-0" : "opacity-100"
+        }`}
+      />
+      {item.videoUrl ? (
+        <video
+          ref={videoRef}
+          src={item.videoUrl}
+          poster={item.image}
+          muted
+          playsInline
+          preload="none"
+          aria-hidden="true"
+          onPlay={() => setIsPreviewPlaying(true)}
+          onPause={() => setIsPreviewPlaying(false)}
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
+        />
+      ) : null}
+
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,10,0.08)_0%,rgba(10,10,10,0.04)_35%,rgba(10,10,10,0.78)_100%)]" />
+
+      <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {badges.map((badge) => (
+            <span
+              key={badge}
+              className="rounded-full border border-white/20 bg-black/45 px-2.5 py-1 text-[8px] font-bold uppercase tracking-[0.12em] text-white shadow-sm backdrop-blur-md"
+            >
+              {badge}
+            </span>
+          ))}
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[linear-gradient(120deg,#F9CE34_0%,#EE2A7B_52%,#6228D7_100%)] p-px shadow-md">
+          <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[8px] font-bold uppercase tracking-[0.1em] text-white">
+            <InstagramMark className="h-3 w-3" />
+            {item.isInstagramMedia ? "Instagram" : "Firaang"}
+          </span>
+        </span>
+      </div>
+
+      {item.videoUrl ? (
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/45 bg-black/40 text-white shadow-lg backdrop-blur-md transition duration-300 group-hover:scale-110 group-hover:border-white/70 group-hover:bg-black/55">
+            <Play className="ml-0.5 h-4 w-4 fill-current" />
+          </span>
+        </span>
+      ) : null}
+
+      <div className="absolute inset-x-0 bottom-0 p-3.5">
+        <p className="line-clamp-2 text-[11px] font-medium leading-[1.4] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)] md:text-[12px]">
+          {item.title}
+        </p>
+        <div
+          aria-label={viewCount === null ? `${metricLabel} count unavailable` : `${viewCount} ${metricLabel}`}
+          className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-[10px] font-semibold text-white/95 shadow-sm backdrop-blur-xl"
+        >
+          <Eye aria-hidden="true" className="h-3 w-3 text-white/75" />
+          {viewCount ?? "—"}
+        </div>
+      </div>
+    </a>
+  );
+}
+
 function FooterSocialBadge({ label, href }: { label: string; href: string }) {
   return (
     <a
@@ -71,6 +336,66 @@ function FooterSocialBadge({ label, href }: { label: string; href: string }) {
 }
 
 export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterProps) {
+  const [instagramItems, setInstagramItems] = useState(() => getTopInstagramShowcaseItems(instagramShowcaseItems));
+  const metricsAvailable =
+    instagramItems.length > 0 && instagramItems.every((item) => typeof item.viewCount === "number");
+  const availableMetrics = new Set(instagramItems.map((item) => item.viewMetric ?? "views"));
+  const rankedMetricLabel = availableMetrics.size === 1
+    ? getInstagramMetricLabel(instagramItems[0]?.viewMetric)
+    : "available view metrics";
+  const reelsAvailable = instagramItems.some((item) => item.isReel);
+  const sectionEyebrow = metricsAvailable
+    ? rankedMetricLabel === "views"
+      ? "TOP 5 MOST VIEWED REELS"
+      : `TOP 5 REELS BY ${rankedMetricLabel.toUpperCase()}`
+    : reelsAvailable
+      ? "LATEST REELS"
+      : "LATEST INSTAGRAM POSTS";
+  const sectionDescription = metricsAvailable
+    ? `The Firaang reels with the highest ${rankedMetricLabel}, ranked for fresh inspiration.`
+    : "Recent Firaang content, curated for fresh inspiration.";
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void fetch("/api/instagram/reels", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Instagram feed request failed with ${response.status}`);
+        }
+        return parseInstagramShowcaseItems(await response.json());
+      })
+      .then((items) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (items.length > 0) {
+          const topItems = getTopInstagramShowcaseItems(items);
+          setInstagramItems(topItems);
+          cacheInstagramShowcaseItems(topItems);
+        } else {
+          const cachedItems = getCachedInstagramShowcaseItems();
+          if (cachedItems.length > 0) {
+            setInstagramItems(cachedItems);
+          }
+        }
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          const cachedItems = getCachedInstagramShowcaseItems();
+          if (cachedItems.length > 0) {
+            setInstagramItems(cachedItems);
+          }
+          console.warn("Instagram feed unavailable; keeping the existing showcase", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      });
+
+    return () => controller.abort();
+  }, []);
+
   return (
     <>
       {/* <section data-newsletter-section className="bg-[var(--newsletter-bg)] py-14 md:py-16">
@@ -124,7 +449,7 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
           <div className="mx-auto flex max-w-[760px] flex-col items-center text-center">
             <p className="flex items-center gap-3 font-sans text-[10px] font-semibold uppercase tracking-[0.24em] text-[#796E67] md:text-[11px]">
               <span aria-hidden="true" className="h-px w-7 bg-gradient-to-r from-transparent to-[#B54847]" />
-              FOLLOW US ON INSTAGRAM
+              {sectionEyebrow}
               <span aria-hidden="true" className="h-px w-7 bg-gradient-to-l from-transparent to-[#B54847]" />
             </p>
             <a
@@ -143,7 +468,7 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
               </h2>
             </a>
             <p className="mt-4 max-w-[620px] text-[13px] leading-6 text-[#756A63] md:text-[15px]">
-              Latest drops and design stories, curated for fresh inspiration.
+              {sectionDescription}
             </p>
             <a
               href={COMPANY_SOCIAL_LINKS.instagram}
@@ -156,47 +481,9 @@ export default function Newsletter({ instagramShowcaseItems = [] }: NewsletterPr
             </a>
           </div>
 
-          <div className="mx-auto mt-8 flex max-w-[1220px] snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:gap-3.5 md:mt-9 md:gap-4 lg:mt-10 lg:grid lg:grid-cols-5 lg:overflow-visible lg:px-0 lg:pb-0">
-            {instagramShowcaseItems.map((item) => (
-              <Link
-                key={item.id}
-                href={item.href}
-                aria-label={`Open design: ${item.title}`}
-                className="group relative aspect-[4/5] w-[64vw] min-w-[182px] max-w-[236px] shrink-0 snap-start overflow-hidden rounded-[18px] border border-white/80 bg-[#E9E0D7] shadow-[0_12px_28px_rgba(58,43,34,0.12)] transition duration-300 hover:-translate-y-1 hover:border-white hover:shadow-[0_18px_36px_rgba(58,43,34,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B54847] sm:w-[44vw] sm:min-w-[198px] sm:max-w-[244px] md:w-[31vw] md:min-w-[210px] md:max-w-[250px] lg:w-auto lg:min-w-0 lg:max-w-none"
-              >
-                <SafeImage
-                  src={item.image}
-                  alt={item.alt}
-                  loading="lazy"
-                  className="h-full w-full object-cover object-center transition duration-700 ease-out group-hover:scale-[1.06] motion-reduce:transition-none"
-                />
-
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,10,0)_45%,rgba(10,10,10,0.12)_64%,rgba(10,10,10,0.82)_100%)] opacity-90 transition duration-300 group-hover:opacity-100" />
-
-                {item.isNew ? (
-                  <span className="absolute left-3 top-3 inline-flex rounded-full border border-white/20 bg-black/45 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-[#F2D98B] shadow-sm backdrop-blur-md">
-                    New
-                  </span>
-                ) : null}
-
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/40 text-white shadow-lg backdrop-blur-md">
-                    <InstagramMark className="h-5 w-5" />
-                  </span>
-                </span>
-
-                <div className="absolute inset-x-0 bottom-0 p-3 md:p-3.5">
-                  <div className="translate-y-0 opacity-100 transition-all duration-300 ease-out md:translate-y-2 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-visible:translate-y-0 md:group-focus-visible:opacity-100">
-                    <p className="line-clamp-2 text-[11px] font-medium leading-[1.35] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] md:text-[12px]">
-                      {item.title}
-                    </p>
-                    <div className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#f4eefe] transition duration-300 group-hover:text-white">
-                      View Design
-                      <ArrowUpRight className="h-3.5 w-3.5 text-[#F2D98B] transition duration-300 group-hover:text-white" />
-                    </div>
-                  </div>
-                </div>
-              </Link>
+          <div className="mx-auto mt-8 flex max-w-[1220px] snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:mt-9 md:gap-4 lg:mt-10">
+            {getTopInstagramShowcaseItems(instagramItems).map((item, index) => (
+              <InstagramReelCard key={item.id} item={item} prioritizeImage={index === 0} />
             ))}
           </div>
         </div>
