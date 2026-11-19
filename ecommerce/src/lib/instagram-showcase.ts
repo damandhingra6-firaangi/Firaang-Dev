@@ -7,7 +7,19 @@ export type InstagramShowcaseItem = {
   alt: string;
   title: string;
   isNew: boolean;
+  videoUrl?: string;
+  viewCount?: number;
+  viewMetric?: InstagramViewMetric;
+  badges?: InstagramShowcaseBadge[];
+  isInstagramMedia?: boolean;
+  isReel?: boolean;
 };
+
+export type InstagramViewMetric = "views" | "total_views" | "plays" | "video_views" | "reach";
+
+export type InstagramShowcaseBadge = "Trending" | "Most Viewed" | "New" | "Popular";
+
+export const MAX_INSTAGRAM_REELS = 5;
 
 export type StoryBannerItem = {
   id: string;
