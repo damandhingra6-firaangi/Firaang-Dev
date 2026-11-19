@@ -15,7 +15,7 @@ type VibeId = HomeCollectionVibeId;
 
 type ShopifyCollectionVibeId = Extract<
   VibeId,
-  "humor-quotes" | "limited-edition" | "womens-collection" | "rakhi-special"
+  "humor-quotes" | "limited-edition" | "womens-collection" | "rakhi-special" | "animal-love"
 >;
 
 type FilterId = "all" | VibeId;
@@ -68,6 +68,10 @@ const SHOPIFY_COLLECTION_VIBES: Array<{
   {
     id: "rakhi-special",
     subtitle: "A thoughtful gift for your bond.",
+  },
+  {
+    id: "animal-love",
+    subtitle: "Celebrate the companions who make life better.",
   },
 ];
 

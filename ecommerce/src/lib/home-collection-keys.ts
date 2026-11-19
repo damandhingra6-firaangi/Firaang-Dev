@@ -11,6 +11,7 @@ export const HOME_COLLECTION_MATCH_KEYS = {
   "limited-edition": ["limitededition", "rockstar"],
   "womens-collection": ["womenscollection", "babytees"],
   "rakhi-special": ["rakhispecial"],
+  "animal-love": ["animallove"],
 } as const;
 
 export type HomeCollectionVibeId = keyof typeof HOME_COLLECTION_MATCH_KEYS;

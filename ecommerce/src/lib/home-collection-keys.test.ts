@@ -14,6 +14,8 @@ describe("homepage Shopify collection matching", () => {
     expect(matchesHomeCollectionVibe({ title: "Humor & Quotes", handle: "funny" }, "humor-quotes")).toBe(true);
     expect(matchesHomeCollectionVibe({ title: "Limited Edition", handle: "rockstar" }, "limited-edition")).toBe(true);
     expect(matchesHomeCollectionVibe({ title: "Women's Collection", handle: "baby-tees" }, "womens-collection")).toBe(true);
+    expect(matchesHomeCollectionVibe({ title: "Animal Love", handle: "animal-love" }, "animal-love")).toBe(true);
+    expect(matchesHomeCollectionVibe({ title: "Animal Love", handle: "shopify-custom-handle" }, "animal-love")).toBe(true);
   });
 
   it("maps the remaining homepage categories to their published Shopify handles", () => {
@@ -38,6 +40,7 @@ describe("homepage Shopify collection matching", () => {
       { title: "Mindset", handle: "motivational" },
       { title: "Streetwear", handle: "genz" },
       { title: "Women's Collection", handle: "baby-tees" },
+      { title: "Animal Love", handle: "animal-love" },
     ];
 
     expect(navigationCollections.every(isHomeDiscoveryCollection)).toBe(true);
@@ -65,6 +68,7 @@ describe("homepage Shopify collection matching", () => {
     expect(isHomeDiscoveryCollection({ title: "Anime & Pop", handle: "anime-pop" })).toBe(true);
     expect(isHomeDiscoveryCollection({ title: "Made For India", handle: "independence-day" })).toBe(true);
     expect(isHomeDiscoveryCollection({ title: "Rakhi Special", handle: "rakhispecial" })).toBe(true);
+    expect(isHomeDiscoveryCollection({ title: "Animal Love", handle: "animal-love" })).toBe(true);
     expect(isHomeDiscoveryCollection({ title: "Unrelated Collection", handle: "other" })).toBe(false);
   });
 });

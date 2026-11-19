@@ -4,6 +4,12 @@ import { buildInstagramShowcaseItemsFromMedia, getInstagramReelFeed } from "./in
 
 vi.mock("@/lib/upstream-fetch", () => ({
   fetchUpstream: vi.fn(),
+  getUpstreamErrorCode: vi.fn((error: unknown) => {
+    if (error && typeof error === "object" && "code" in error && typeof error.code === "string") {
+      return error.code;
+    }
+    return "UNKNOWN";
+  }),
 }));
 
 describe("Instagram Graph media showcase", () => {
@@ -327,5 +333,97 @@ describe("Instagram Graph media showcase", () => {
     expect(result.items.map((item) => [item.id, item.viewCount, item.viewMetric])).toEqual([
       ["direct-total-views", 6432, "total_views"],
     ]);
+  });
+
+  it("stops requesting Reel Insights after the account denies permission", async () => {
+    vi.stubEnv("INSTAGRAM_USER_ID", "insights-permission-denied-account");
+    vi.stubEnv("INSTAGRAM_GRAPH_ACCESS_TOKEN", "test-token");
+    let insightsCalls = 0;
+    vi.mocked(fetchUpstream).mockImplementation(async (input) => {
+      const url = new URL(input.toString());
+
+      if (url.pathname.endsWith("/media")) {
+        return new Response(
+          JSON.stringify({
+            data: ["one", "two", "three"].map((id) => ({
+              id,
+              media_type: "VIDEO",
+              media_product_type: "REELS",
+              media_url: `https://scontent.cdninstagram.com/${id}.mp4`,
+              thumbnail_url: `https://scontent.cdninstagram.com/${id}.jpg`,
+              permalink: `https://www.instagram.com/reel/${id}/`,
+              timestamp: "2026-11-18T10:00:00Z",
+            })),
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url.pathname.endsWith("/insights")) {
+        insightsCalls += 1;
+        return new Response(
+          JSON.stringify({
+            error: {
+              message: "(#10) Application does not have permission for this action",
+              type: "OAuthException",
+              code: 10,
+            },
+          }),
+          { status: 400 },
+        );
+      }
+
+      return new Response(null, { status: 404 });
+    });
+
+    const firstResult = await getInstagramReelFeed();
+    const secondResult = await getInstagramReelFeed();
+
+    expect(firstResult.items).toHaveLength(3);
+    expect(secondResult.items).toHaveLength(3);
+    expect(insightsCalls).toBe(1);
+    expect(fetchUpstream).toHaveBeenCalledTimes(3);
+  });
+
+  it("falls back to available Reel media when Insights times out and pauses further Insights calls", async () => {
+    vi.stubEnv("INSTAGRAM_USER_ID", "insights-timeout-account");
+    vi.stubEnv("INSTAGRAM_GRAPH_ACCESS_TOKEN", "test-token");
+    let insightsCalls = 0;
+    vi.mocked(fetchUpstream).mockImplementation(async (input) => {
+      const url = new URL(input.toString());
+
+      if (url.pathname.endsWith("/media")) {
+        return new Response(
+          JSON.stringify({
+            data: [{
+              id: "timeout-reel",
+              media_type: "VIDEO",
+              media_product_type: "REELS",
+              media_url: "https://scontent.cdninstagram.com/timeout-reel.mp4",
+              thumbnail_url: "https://scontent.cdninstagram.com/timeout-reel.jpg",
+              permalink: "https://www.instagram.com/reel/timeout-reel/",
+              timestamp: "2026-11-18T10:00:00Z",
+              total_views_count: 81,
+            }],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url.pathname.endsWith("/insights")) {
+        insightsCalls += 1;
+        throw Object.assign(new Error("fetch failed"), { code: "ETIMEDOUT" });
+      }
+
+      return new Response(null, { status: 404 });
+    });
+
+    const firstResult = await getInstagramReelFeed();
+    const secondResult = await getInstagramReelFeed();
+
+    expect(firstResult.items).toMatchObject([{ id: "timeout-reel", viewCount: 81 }]);
+    expect(secondResult.items).toMatchObject([{ id: "timeout-reel", viewCount: 81 }]);
+    expect(insightsCalls).toBe(1);
+    expect(fetchUpstream).toHaveBeenCalledTimes(3);
   });
 });
