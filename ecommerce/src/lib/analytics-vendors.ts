@@ -1,5 +1,7 @@
 "use client";
 
+import { normalizeGoogleAdsConversionId } from "./google-ads-config";
+
 export type AnalyticsCatalogItem = {
   item_id: string;
   item_name: string;
@@ -27,6 +29,7 @@ type VendorPurchaseEventInput = VendorEventOptions & {
   currencyCode: string;
   value: number;
   items: AnalyticsCatalogItem[];
+  sendGoogleAdsConversion?: boolean;
   coupon?: string;
   shipping?: number;
   tax?: number;
@@ -105,6 +108,18 @@ function emitGtag(eventName: string, params: Record<string, unknown>) {
   }
 
   window.gtag("event", eventName, params);
+}
+
+function getOrCreateGtag() {
+  if (typeof window.gtag === "function") {
+    return window.gtag;
+  }
+
+  window.dataLayer = window.dataLayer ?? [];
+  window.gtag = (...args: unknown[]) => {
+    window.dataLayer?.push(args);
+  };
+  return window.gtag;
 }
 
 function emitFbq(eventName: string, params: Record<string, unknown>, options?: Record<string, unknown>) {
@@ -334,14 +349,10 @@ export function trackVendorPurchase(input: VendorPurchaseEventInput) {
     items: input.items,
   });
 
-  const googleAdsConversionId = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID?.trim();
-  const googleAdsConversionLabel = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL?.trim();
-
-  if (googleAdsConversionId && googleAdsConversionLabel) {
-    emitGtag("conversion", {
-      send_to: `${googleAdsConversionId}/${googleAdsConversionLabel}`,
-      transaction_id: input.transactionId,
-      currency: input.currencyCode,
+  if (input.sendGoogleAdsConversion !== false) {
+    trackGoogleAdsConversion({
+      transactionId: input.transactionId,
+      currencyCode: input.currencyCode,
       value: input.value,
     });
   }
@@ -358,4 +369,42 @@ export function trackVendorPurchase(input: VendorPurchaseEventInput) {
     },
     { eventID: input.transactionId },
   );
+}
+
+export function trackGoogleAdsConversion(input: {
+  transactionId: string;
+  currencyCode: string;
+  value: number;
+}) {
+  const googleAdsConversionId = normalizeGoogleAdsConversionId(
+    process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID,
+  );
+  const googleAdsConversionLabel = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL?.trim();
+
+  if (!googleAdsConversionId || !googleAdsConversionLabel) {
+    console.warn("[google-ads] Conversion tag is not configured");
+    return false;
+  }
+
+  if (!hasWindow()) {
+    return false;
+  }
+
+  const gtag = getOrCreateGtag();
+  if (
+    !shouldSendVendorEvent({
+      dedupeKey: `google-ads-conversion:${input.transactionId}`,
+      dedupeTtlMs: 7 * 24 * 60 * 60 * 1000,
+    })
+  ) {
+    return false;
+  }
+
+  gtag("event", "conversion", {
+    send_to: `${googleAdsConversionId}/${googleAdsConversionLabel}`,
+    transaction_id: input.transactionId,
+    currency: input.currencyCode,
+    value: input.value,
+  });
+  return true;
 }

@@ -15,6 +15,7 @@ import {
   trackVendorRemoveFromCart,
   trackVendorViewCart,
 } from "@/lib/analytics-vendors";
+import { GOOGLE_ADS_CONVERSION_HANDOFF_KEY } from "@/lib/google-ads-conversion-handoff";
 import { INDIAN_STATES, calculateCheckoutPricing, type ShippingMethod } from "@/lib/checkout-config";
 import { CUSTOM_DESIGN_SURCHARGE_INR } from "@/lib/catalog";
 import { convertAmount, formatCurrency } from "@/lib/currency";
@@ -884,6 +885,27 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
               pinCode: shippingPinCode.trim(),
             });
 
+            const successOrderId = verification.order?.id ?? orderData.orderId;
+            let conversionHandoffCreated = false;
+            if (successOrderId) {
+              try {
+                window.sessionStorage.setItem(
+                  GOOGLE_ADS_CONVERSION_HANDOFF_KEY,
+                  JSON.stringify({
+                    redirectTarget: `/order-success/${encodeURIComponent(successOrderId)}`,
+                    transactionId: successOrderId,
+                    currencyCode: verification.order?.currencyCode ?? orderData.currency,
+                    value: verification.order?.totalAmount ?? displayTotalPayableAmount,
+                  }),
+                );
+                conversionHandoffCreated = true;
+              } catch (error) {
+                console.warn("[payment-flow] could not prepare Google Ads conversion handoff", {
+                  error: error instanceof Error ? error.message : String(error),
+                });
+              }
+            }
+
             const purchaseTransactionId = verification.order?.id ?? orderData.orderId;
             const purchaseCurrencyCode = verification.order?.currencyCode ?? orderData.currency;
 
@@ -903,6 +925,7 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
                       brand: "Firaang",
                     }),
                   ) ?? analyticsItems,
+                sendGoogleAdsConversion: !conversionHandoffCreated,
               });
             }
 
@@ -910,7 +933,6 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
             setPaymentSuccessOverlayVisible(false);
             resetCheckoutLoadingState();
 
-            const successOrderId = verification.order?.id ?? orderData.orderId;
             if (successOrderId) {
               const secureCookieValue = encodeURIComponent(successOrderId);
               document.cookie = `Firaang_order_success=${secureCookieValue}; path=/; max-age=3600; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`;
@@ -924,7 +946,9 @@ export default function CartDrawer({ isOpen, onClose, mode = "drawer" }: CartDra
             );
 
             if (successOrderId) {
-              const redirectTarget = `/order-success/${encodeURIComponent(successOrderId)}`;
+              const redirectTarget = conversionHandoffCreated
+                ? "/google-ads-conversion"
+                : `/order-success/${encodeURIComponent(successOrderId)}`;
               console.info("[payment-flow] redirect start", { elapsedMs: performance.now() - paymentFlowStart, target: redirectTarget });
               router.replace(redirectTarget);
             }

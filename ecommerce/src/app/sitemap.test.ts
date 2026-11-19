@@ -55,6 +55,7 @@ describe("site sitemap", () => {
 
     expect(urls).toContain("https://www.firaang.com/products");
     expect(urls).not.toContain("https://www.firaang.com/product");
+    expect(urls).not.toContain("https://www.firaang.com/google-ads-conversion");
     expect(urls).not.toContain("https://www.firaang.com/shop/jewellery");
     expect(urls).not.toContain("https://www.firaang.com/shop/jewellery/rings");
     expect(urls).toContain("https://www.firaang.com/shop/menswear");

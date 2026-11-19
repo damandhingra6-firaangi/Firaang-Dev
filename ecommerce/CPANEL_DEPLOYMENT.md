@@ -116,6 +116,8 @@ Optional for verification and paid media tracking:
 - `GOOGLE_SITE_VERIFICATION`
 - `FACEBOOK_DOMAIN_VERIFICATION`
 - `NEXT_PUBLIC_GA4_MEASUREMENT_ID`
+- `NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID`
+- `NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL`
 - `NEXT_PUBLIC_META_PIXEL_ID`
 
 Use `.env.example` as the source template for values.
@@ -153,6 +155,18 @@ For each new release:
 5. Restart the app in cPanel.
 
 ## Common issues
+
+### cPanel says "upload failed" or "HTTP error 500"
+
+This error is emitted by cPanel's upload handler before the Next.js application is started. It is not proof that the application build failed.
+
+- The deployment archive is intentionally around 15 MB. If cPanel File Manager uses a lower server upload limit, upload with FTP/SFTP instead.
+- Verify that `cpanel-deploy.zip` completed locally and is not a partial download or 0-byte file.
+- If cPanel blocks ZIP uploads, split or omit the zip and upload the extracted `dist/cpanel/` contents with FTP/SFTP.
+- Check cPanel error logs and the hosting account's Apache/PHP `upload_max_filesize`, `post_max_size`, and `LimitRequestBody` settings.
+- A temporary cPanel HTTP 500 may indicate exhausted disk/inodes or a hosting-service issue; try again after checking disk usage and PHP process limits.
+
+Do not fix this in application code. The standalone build is uploaded only as static files plus server code; cPanel must accept the archive or deployed files before Next.js can start.
 
 ### Blank page or missing assets
 
