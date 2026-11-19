@@ -1,10 +1,14 @@
 import Script from "next/script";
+import { normalizeGoogleAdsConversionId } from "@/lib/google-ads-config";
 
 export default function AnalyticsVendorScripts() {
   const ga4MeasurementId = process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID?.trim();
   const gtmId = process.env.NEXT_PUBLIC_GTM_ID?.trim();
-  const googleAdsConversionId = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID?.trim();
+  const googleAdsConversionId = normalizeGoogleAdsConversionId(
+    process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_ID,
+  );
   const metaPixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim();
+  const googleTagId = ga4MeasurementId || googleAdsConversionId;
 
   if (!ga4MeasurementId && !gtmId && !googleAdsConversionId && !metaPixelId) {
     return null;
@@ -20,32 +24,23 @@ export default function AnalyticsVendorScripts() {
         </Script>
       ) : null}
 
-      {ga4MeasurementId ? (
+      {googleTagId ? (
         <>
           <Script
-            src={`https://www.googletagmanager.com/gtag/js?id=${ga4MeasurementId}`}
+            src={`https://www.googletagmanager.com/gtag/js?id=${googleTagId}`}
             strategy="afterInteractive"
           />
-          <Script id="ga4-base" strategy="afterInteractive">
+          <Script id="google-tag-base" strategy="afterInteractive">
             {`
               window.dataLayer = window.dataLayer || [];
               function gtag(){window.dataLayer.push(arguments);}
               window.gtag = window.gtag || gtag;
               gtag('js', new Date());
-              gtag('config', '${ga4MeasurementId}', { send_page_view: false });
+              ${ga4MeasurementId ? `gtag('config', '${ga4MeasurementId}', { send_page_view: false });` : ""}
+              ${googleAdsConversionId ? `gtag('config', '${googleAdsConversionId}');` : ""}
             `}
           </Script>
         </>
-      ) : null}
-
-      {googleAdsConversionId ? (
-        <Script id="google-ads-base" strategy="afterInteractive">
-          {`
-            if (window.gtag) {
-              window.gtag('config', '${googleAdsConversionId}');
-            }
-          `}
-        </Script>
       ) : null}
 
       {metaPixelId ? (

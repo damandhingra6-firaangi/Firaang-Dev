@@ -174,6 +174,7 @@ export default function OrderSuccessContent({ orderId }: { orderId: string }) {
         tax: order.taxAmount ?? 0,
         items: analyticsItems,
         dedupeKey: `purchase:${order.id}`,
+        sendGoogleAdsConversion: order.paymentMethod !== "online",
       });
 
       window.sessionStorage.setItem(storageKey, "1");
