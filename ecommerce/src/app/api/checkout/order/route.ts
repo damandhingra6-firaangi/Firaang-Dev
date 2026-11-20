@@ -168,6 +168,13 @@ export async function POST(request: Request) {
         displayUnitPrice: displayPricing.priceAmount,
       };
     });
+    const inclusiveDisplaySubtotalAmount = displayItems.reduce(
+      (sum, item) => sum + item.displayUnitPrice * item.quantity,
+      0,
+    );
+    const orderSubtotalAmount = useInclusiveDisplayPayable
+      ? inclusiveDisplaySubtotalAmount
+      : subtotalAmount;
 
     const pricingSubtotalAmount = subtotalAmount;
     // Resolve coupon from DB
@@ -247,7 +254,7 @@ export async function POST(request: Request) {
     }
 
     const finalTotalAmount = useInclusiveDisplayPayable
-      ? Math.max(0, pricingSubtotalAmount - pricing.discountAmount)
+      ? Math.max(0, orderSubtotalAmount - pricing.discountAmount)
       : pricing.totalAmount;
 
     if (finalTotalAmount <= 0) {
@@ -255,33 +262,37 @@ export async function POST(request: Request) {
     }
 
     const razorpay = getRazorpayClient();
-    const lineItemsTotal = items.reduce((sum, item) => {
-      return sum + Math.round(item.product.priceAmount * 100) * item.quantity;
+    const lineItemsTotal = displayItems.reduce((sum, item) => {
+      const unitPrice = useInclusiveDisplayPayable ? item.displayUnitPrice : item.product.priceAmount;
+      return sum + Math.round(unitPrice * 100) * item.quantity;
     }, 0);
-    const lineItems = items.map((item) => ({
-      type: "e-commerce",
-      sku: item.product.id,
-      variant_id: item.product.parentId || item.product.id,
-      price: String(Math.round(item.product.priceAmount * 100)),
-      offer_price: String(Math.round(item.product.priceAmount * 100)),
-      tax_amount: 0,
-      quantity: item.quantity,
-      name: item.product.name,
-      description: item.product.name,
-      weight: "0",
-      dimensions: {
-        length: "0",
-        width: "0",
-        height: "0",
-      },
-      image_url: item.product.img || "",
-      product_url: item.product.handle ? `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com"}/products/${item.product.handle}` : "https://example.com",
-      notes: {
-        productId: item.product.id,
-        selectedSize: item.selectedSize ?? item.product.selectedSize ?? "",
-        selectedVariantId: item.selectedVariantId ?? item.product.selectedVariantId ?? item.product.id,
-      },
-    }));
+    const lineItems = displayItems.map((item) => {
+      const unitPrice = useInclusiveDisplayPayable ? item.displayUnitPrice : item.product.priceAmount;
+      return {
+        type: "e-commerce",
+        sku: item.product.id,
+        variant_id: item.product.parentId || item.product.id,
+        price: String(Math.round(unitPrice * 100)),
+        offer_price: String(Math.round(unitPrice * 100)),
+        tax_amount: 0,
+        quantity: item.quantity,
+        name: item.product.name,
+        description: item.product.name,
+        weight: "0",
+        dimensions: {
+          length: "0",
+          width: "0",
+          height: "0",
+        },
+        image_url: item.product.img || "",
+        product_url: item.product.handle ? `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com"}/products/${item.product.handle}` : "https://example.com",
+        notes: {
+          productId: item.product.id,
+          selectedSize: item.selectedSize ?? item.product.selectedSize ?? "",
+          selectedVariantId: item.selectedVariantId ?? item.product.selectedVariantId ?? item.product.id,
+        },
+      };
+    });
 
     const shippingAddressPayload = {
       line1: shippingAddress ?? "",
@@ -359,7 +370,7 @@ export async function POST(request: Request) {
       persistedOrder = await createPendingOrderForSessionToken(sessionToken, {
         orderId: order.id,
         totalAmount,
-        subtotalAmount: pricingSubtotalAmount,
+        subtotalAmount: orderSubtotalAmount,
         shippingFee: useInclusiveDisplayPayable ? 0 : pricing.shippingFee,
         taxAmount: 0,
         discountAmount: pricing.discountAmount,
@@ -395,7 +406,7 @@ export async function POST(request: Request) {
       persistedOrder = await createGuestOrder({
         orderId: order.id,
         totalAmount,
-        subtotalAmount: pricingSubtotalAmount,
+        subtotalAmount: orderSubtotalAmount,
         shippingFee: useInclusiveDisplayPayable ? 0 : pricing.shippingFee,
         taxAmount: 0,
         discountAmount: pricing.discountAmount,

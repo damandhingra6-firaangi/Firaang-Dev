@@ -6,6 +6,7 @@ import { Search, X } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import { GridProduct } from "@/lib/catalog";
 import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
+import { getDisplayPricing } from "@/lib/pricing-display";
 import { getProductPath } from "@/lib/product-url";
 import { useUiStore } from "@/store/useUiStore";
 
@@ -117,7 +118,11 @@ export default function HeaderSearchPanel({ isOpen, onClose }: HeaderSearchPanel
                 <p className="text-sm font-medium text-[#282c3f]">{product.name}</p>
                 <p className="text-xs text-[#3e4152]">
                   {formatCurrency(
-                    convertAmount(product.priceAmount, toSupportedCurrency(product.currencyCode), displayCurrency),
+                    convertAmount(
+                      getDisplayPricing({ priceAmount: product.priceAmount, compareAt: product.oldPrice }).priceAmount,
+                      toSupportedCurrency(product.currencyCode),
+                      displayCurrency,
+                    ),
                     displayCurrency,
                   )}
                 </p>

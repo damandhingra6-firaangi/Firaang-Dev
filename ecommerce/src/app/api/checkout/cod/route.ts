@@ -4,6 +4,7 @@ import { createGuestOrder, createPendingOrderForSessionToken } from "@/lib/accou
 import { getAccountSessionTokenFromCookies } from "@/lib/account-session";
 import { parseAttributionCookie, parseGeoFromRequestHeaders, trackAnalyticsEvent } from "@/lib/analytics";
 import { calculateCheckoutPricing, estimateOrderWeightKg } from "@/lib/checkout-config";
+import { getDisplayPricing, isInclusiveDisplayPricingEnabled } from "@/lib/pricing-display";
 import { resolveCheckoutItems } from "@/lib/products";
 import { syncShopifyInventoryForOrder } from "@/lib/shopify-admin";
 
@@ -58,7 +59,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No valid items found for checkout" }, { status: 400 });
     }
 
-    const subtotalAmount = Math.round(totalPaise / 100);
+    const baseSubtotalAmount = Math.round(totalPaise / 100);
+    const useInclusiveDisplayPayable = isInclusiveDisplayPricingEnabled();
+    const displayItems = enrichedItems.map((item) => ({
+      ...item,
+      displayUnitPrice: getDisplayPricing({
+        priceAmount: item.product.priceAmount,
+        compareAt: item.product.oldPrice,
+      }).priceAmount,
+    }));
+    const subtotalAmount = useInclusiveDisplayPayable
+      ? displayItems.reduce((sum, item) => sum + item.displayUnitPrice * item.quantity, 0)
+      : baseSubtotalAmount;
 
     const orderWeightKg = estimateOrderWeightKg(
       enrichedItems.map((item) => ({ quantity: item.quantity, tags: item.product.tags })),
@@ -89,13 +101,13 @@ export async function POST(request: Request) {
           orderWeightKg,
           currencyCode,
           paymentMethod: "cod",
-          items: enrichedItems.map((item) => ({
+          items: displayItems.map((item) => ({
             productId: item.product.id,
             name: item.product.name,
             image: item.product.img,
-            unitPrice: item.product.priceAmount,
+            unitPrice: useInclusiveDisplayPayable ? item.displayUnitPrice : item.product.priceAmount,
             quantity: item.quantity,
-            lineTotal: item.product.priceAmount * item.quantity,
+            lineTotal: (useInclusiveDisplayPayable ? item.displayUnitPrice : item.product.priceAmount) * item.quantity,
             selectedSize: item.selectedSize ?? item.product.selectedSize,
             selectedVariantId: item.selectedVariantId ?? item.product.selectedVariantId ?? item.product.id,
           })),
@@ -113,13 +125,13 @@ export async function POST(request: Request) {
           orderWeightKg,
           currencyCode,
           paymentMethod: "cod",
-          items: enrichedItems.map((item) => ({
+          items: displayItems.map((item) => ({
             productId: item.product.id,
             name: item.product.name,
             image: item.product.img,
-            unitPrice: item.product.priceAmount,
+            unitPrice: useInclusiveDisplayPayable ? item.displayUnitPrice : item.product.priceAmount,
             quantity: item.quantity,
-            lineTotal: item.product.priceAmount * item.quantity,
+            lineTotal: (useInclusiveDisplayPayable ? item.displayUnitPrice : item.product.priceAmount) * item.quantity,
             selectedSize: item.selectedSize ?? item.product.selectedSize,
             selectedVariantId: item.selectedVariantId ?? item.product.selectedVariantId ?? item.product.id,
           })),

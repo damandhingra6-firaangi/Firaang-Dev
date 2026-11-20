@@ -2,6 +2,8 @@
 
 import { Heart, ShoppingBag, Trash2, X } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
+import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
+import { getDisplayPricing } from "@/lib/pricing-display";
 import { getWishlistItems, useShopStore } from "@/store/useShopStore";
 import { useUiStore } from "@/store/useUiStore";
 
@@ -14,6 +16,7 @@ export default function WishlistDrawer({ isOpen, onClose }: WishlistDrawerProps)
   const wishlist = useShopStore((state) => state.wishlist);
   const toggleWishlist = useShopStore((state) => state.toggleWishlist);
   const moveWishlistItemToCart = useShopStore((state) => state.moveWishlistItemToCart);
+  const displayCurrency = useUiStore((state) => state.currency);
   const openCart = useUiStore((state) => state.openCart);
   const pushToast = useUiStore((state) => state.pushToast);
 
@@ -53,7 +56,16 @@ export default function WishlistDrawer({ isOpen, onClose }: WishlistDrawerProps)
                       <SafeImage src={product.img} alt={product.name} className="h-20 w-20 rounded-lg object-cover" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{product.name}</p>
-                        <p className="text-[var(--gold)]">{product.price}</p>
+                        <p className="text-[var(--gold)]">
+                          {formatCurrency(
+                            convertAmount(
+                              getDisplayPricing({ priceAmount: product.priceAmount, compareAt: product.oldPrice }).priceAmount,
+                              toSupportedCurrency(product.currencyCode),
+                              displayCurrency,
+                            ),
+                            displayCurrency,
+                          )}
+                        </p>
                       </div>
                     </div>
 

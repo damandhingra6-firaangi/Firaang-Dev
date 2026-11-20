@@ -6,10 +6,12 @@ import { motion, MotionConfig, useMotionValue, useSpring } from "framer-motion";
 import { ArrowDown, ArrowRight, ArrowUpRight, Sparkles } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import type { GridProduct } from "@/lib/catalog";
+import { formatCurrency } from "@/lib/currency";
 import {
   matchesHomeCollectionVibe,
   type HomeCollectionVibeId,
 } from "@/lib/home-collection-keys";
+import { getDisplayPricing } from "@/lib/pricing-display";
 
 type VibeId = HomeCollectionVibeId;
 
@@ -621,7 +623,9 @@ export default function HomeCollectionDiscovery({
                             {product.name}
                           </h3>
                           <div className="mt-3 flex items-center justify-between gap-2">
-                            <span className="text-[14px] font-semibold text-[#2F2B2A]">{product.price}</span>
+                            <span className="text-[14px] font-semibold text-[#2F2B2A]">
+                              {formatCurrency(getDisplayPricing({ priceAmount: product.priceAmount, compareAt: product.oldPrice }).priceAmount, "INR")}
+                            </span>
                             <span className="text-[9px] uppercase tracking-[0.12em] text-[#927F75]">FIRAANG</span>
                           </div>
                         </div>

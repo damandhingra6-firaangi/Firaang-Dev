@@ -20,6 +20,8 @@ const validateCampaignCouponForCheckoutMock = vi.fn();
 const getCampaignCouponValidationErrorDetailsMock = vi.fn();
 const releaseCampaignCouponReservationByOrderIdMock = vi.fn();
 const reserveCampaignCouponForOrderMock = vi.fn();
+const getDisplayPricingMock = vi.fn(({ priceAmount }: { priceAmount: number }) => ({ priceAmount }));
+const isInclusiveDisplayPricingEnabledMock = vi.fn(() => false);
 
 vi.mock("@/lib/account-session", () => ({
   getAccountSessionTokenFromCookies: getAccountSessionTokenFromCookiesMock,
@@ -57,8 +59,8 @@ vi.mock("@/lib/campaigns", () => ({
 }));
 
 vi.mock("@/lib/pricing-display", () => ({
-  getDisplayPricing: ({ priceAmount }: { priceAmount: number }) => ({ priceAmount }),
-  isInclusiveDisplayPricingEnabled: () => false,
+  getDisplayPricing: getDisplayPricingMock,
+  isInclusiveDisplayPricingEnabled: isInclusiveDisplayPricingEnabledMock,
 }));
 
 vi.mock("@/lib/razorpay", () => ({
@@ -83,6 +85,8 @@ describe("checkout order route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createOrderMock.mockReset();
+    getDisplayPricingMock.mockImplementation(({ priceAmount }) => ({ priceAmount }));
+    isInclusiveDisplayPricingEnabledMock.mockReturnValue(false);
     getAccountSessionTokenFromCookiesMock.mockResolvedValue(null);
     parseAttributionCookieMock.mockReturnValue({ source: "direct", campaign: "none", medium: "none", term: "none", content: "none", gclid: "none", fbclid: "none", msclkid: "none", ttclid: "none" });
     parseGeoFromRequestHeadersMock.mockReturnValue({ country: "IN", region: "MH", city: "Mumbai" });
@@ -154,6 +158,41 @@ describe("checkout order route", () => {
         orderId: "order_123",
         currencyCode: "INR",
         shippingEmail: "guest@example.com",
+      }),
+    );
+  });
+
+  it("charges and persists the inclusive display price when pricing is configured as inclusive", async () => {
+    getDisplayPricingMock.mockImplementation(({ priceAmount }) => ({ priceAmount: priceAmount + 100 }));
+    isInclusiveDisplayPricingEnabledMock.mockReturnValue(true);
+    createOrderMock.mockResolvedValueOnce({ id: "order_inclusive", amount: 509900, currency: "INR" });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("http://localhost/api/checkout/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [{ productId: "prod_1", quantity: 1 }],
+          shippingName: "Guest User",
+          shippingEmail: "guest@example.com",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(createOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 509900,
+        line_items_total: 509900,
+        line_items: [expect.objectContaining({ price: "509900", offer_price: "509900" })],
+      }),
+    );
+    expect(createGuestOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subtotalAmount: 5099,
+        totalAmount: 5099,
+        items: [expect.objectContaining({ unitPrice: 5099, lineTotal: 5099 })],
       }),
     );
   });

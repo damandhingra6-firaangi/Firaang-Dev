@@ -5,7 +5,10 @@ import { Minus, Plus, Ruler, ShoppingBag, X } from "lucide-react";
 import ProductSizeChartModal from "@/components/ProductSizeChartModal";
 import SafeImage from "@/components/SafeImage";
 import { GridProduct } from "@/lib/catalog";
+import { convertAmount, formatCurrency, toSupportedCurrency } from "@/lib/currency";
+import { getDisplayPricing } from "@/lib/pricing-display";
 import { getSelectedOptionValue, isProductSelectionComplete, isSizeOption } from "@/lib/variant-options";
+import { useUiStore } from "@/store/useUiStore";
 
 type QuickAddDrawerProps = {
   product: GridProduct | null;
@@ -28,6 +31,7 @@ export default function QuickAddDrawer({ product, isOpen, onClose, onAddToCart }
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => getInitialOptions(product));
   const [quantity, setQuantity] = useState(1);
   const [isSizeChartOpen, setIsSizeChartOpen] = useState(false);
+  const displayCurrency = useUiStore((state) => state.currency);
 
   const optionGroups = useMemo(() => {
     if (!product) {
@@ -144,7 +148,16 @@ export default function QuickAddDrawer({ product, isOpen, onClose, onAddToCart }
               <SafeImage src={product.img} alt={product.name} className="h-20 w-20 rounded-xl object-cover" />
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-2 text-sm font-medium text-[var(--popup-footer-text)]">{product.name}</p>
-                <p className="mt-1 text-base font-semibold text-[var(--gold)]">{product.price}</p>
+                <p className="mt-1 text-base font-semibold text-[var(--gold)]">
+                  {formatCurrency(
+                    convertAmount(
+                      getDisplayPricing({ priceAmount: product.priceAmount, compareAt: product.oldPrice }).priceAmount,
+                      toSupportedCurrency(product.currencyCode),
+                      displayCurrency,
+                    ),
+                    displayCurrency,
+                  )}
+                </p>
               </div>
             </div>
 

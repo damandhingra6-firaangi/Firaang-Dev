@@ -7,6 +7,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Copy, Sparkles } from "lucide-react";
 import SafeImage from "@/components/SafeImage";
 import { GridProduct } from "@/lib/catalog";
+import { formatCurrency } from "@/lib/currency";
+import { getDisplayPricing } from "@/lib/pricing-display";
 import { PromoSlide, SHOP_PROMO_CONFIG, ShopPromoSectionKey } from "@/lib/shop-promo-banners";
 
 type ShopPromoBannerProps = {
@@ -297,23 +299,31 @@ export default function ShopPromoBanner({ section, products }: ShopPromoBannerPr
           </div>
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {saleHighlights.map((product) => (
-              <Link
-                key={product.id}
-                href={`/products/${encodeURIComponent(getRouteKey(product))}`}
-                className="group overflow-hidden rounded-xl border border-[#ececf2] bg-white transition hover:border-[#ed467a]/35 hover:shadow-[0_10px_22px_rgba(40,44,63,0.1)]"
-              >
-                <SafeImage src={product.img} alt={product.name} className="h-36 w-full object-cover sm:h-40" />
-                <div className="space-y-1.5 p-2.5">
-                  <p className="line-clamp-1 text-sm font-semibold text-[#222634]">{product.name}</p>
-                  <div className="flex items-center gap-1.5 text-xs">
-                    <span className="font-semibold text-[#222634]">{product.price}</span>
-                    {product.oldPrice ? <span className="text-[#9498a5] line-through">{product.oldPrice}</span> : null}
+            {saleHighlights.map((product) => {
+              const displayPricing = getDisplayPricing({
+                priceAmount: product.priceAmount,
+                compareAt: product.oldPrice,
+              });
+              return (
+                <Link
+                  key={product.id}
+                  href={`/products/${encodeURIComponent(getRouteKey(product))}`}
+                  className="group overflow-hidden rounded-xl border border-[#ececf2] bg-white transition hover:border-[#ed467a]/35 hover:shadow-[0_10px_22px_rgba(40,44,63,0.1)]"
+                >
+                  <SafeImage src={product.img} alt={product.name} className="h-36 w-full object-cover sm:h-40" />
+                  <div className="space-y-1.5 p-2.5">
+                    <p className="line-clamp-1 text-sm font-semibold text-[#222634]">{product.name}</p>
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="font-semibold text-[#222634]">{formatCurrency(displayPricing.priceAmount, "INR")}</span>
+                      {displayPricing.compareAtAmount ? (
+                        <span className="text-[#9498a5] line-through">{formatCurrency(displayPricing.compareAtAmount, "INR")}</span>
+                      ) : null}
+                    </div>
+                    <span className="inline-flex text-[10px] font-semibold uppercase tracking-[0.12em] text-[#ed467a]">Shop Now</span>
                   </div>
-                  <span className="inline-flex text-[10px] font-semibold uppercase tracking-[0.12em] text-[#ed467a]">Shop Now</span>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
       ) : null}

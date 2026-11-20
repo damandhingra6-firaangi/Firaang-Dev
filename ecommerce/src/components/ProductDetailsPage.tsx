@@ -1278,7 +1278,7 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
                   </p>
                 )}
               </div>
-              <p className="mt-2 text-sm text-[#6f625b]">Inclusive of all taxes. Price includes ₹100 shipping, and coupons apply only on the T-shirt price at checkout.</p>
+              <p className="mt-2 text-sm text-[#6f625b]">Inclusive of all taxes.</p>
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[#5d534d]">
                 <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5">
                   <BadgeIndianRupee className="h-4 w-4 text-[var(--secondary)]" />
@@ -1380,7 +1380,6 @@ export default function ProductDetailsPage({ product, catalogProducts }: Product
                 <DetailLine icon={<MapPin className="h-4 w-4" />} label="Availability" value={deliveryState === "error" ? deliveryMessage ?? "Unavailable" : "Delivery available across major serviceable pincodes."} />
                 <DetailLine icon={<Check className="h-4 w-4" />} label="Cash on Delivery" value="Available on selected orders." />
                 <DetailLine icon={<RefreshCcw className="h-4 w-4" />} label="Return & Exchange" value="Easy return and exchange within the policy window." />
-                <DetailLine icon={<Truck className="h-4 w-4" />} label="Shipping charges" value="₹100 shipping is included in the displayed T-shirt price. Coupons apply only on the product price." />
               </div>
             </div>
 
