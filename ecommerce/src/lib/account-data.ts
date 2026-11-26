@@ -129,6 +129,7 @@ export type AccountOrderWithCustomer = {
 
 type AccountUserDocument = {
   email?: string;
+  emailVerified?: boolean;
   fullName: string;
   avatarUrl?: string;
   phone?: string;
@@ -172,7 +173,7 @@ type AccountMobileOtpDocument = {
 
 type InventoryMovementDocument = {
   orderId: string;
-  userId: ObjectId;
+  userId?: ObjectId;
   type: "reserved" | "committed" | "released" | "refunded";
   items: AccountOrderItem[];
   note?: string;
@@ -187,8 +188,9 @@ type AccountSessionDocument = {
 };
 
 type AccountOrderDocument = {
-  userId: ObjectId;
+  userId?: ObjectId;
   orderId: string;
+  customerEmailNormalized?: string;
   paymentId?: string;
   totalAmount: number;
   subtotalAmount?: number;
@@ -581,6 +583,7 @@ async function createOrAttachPasswordAccount(input: {
 
     if (email && normalizeEmail(existing.email ?? "") !== email) {
       setFields.email = email;
+      setFields.emailVerified = false;
     }
 
     if (phone && (existing.phone ?? "") !== phone) {
@@ -634,6 +637,7 @@ async function createOrAttachPasswordAccount(input: {
   try {
     const insertResult = await users.insertOne({
       email: email || undefined,
+      emailVerified: false,
       fullName,
       avatarUrl: "",
       phone: phone || "",
@@ -749,6 +753,11 @@ async function getCollections() {
       sessions.createIndex({ tokenHash: 1 }, { name: "session_token_hash_unique", unique: true }),
       sessions.createIndex({ expiresAt: 1 }, { name: "session_expires_ttl", expireAfterSeconds: 0 }),
       orders.createIndex({ orderId: 1 }, { name: "order_id_unique", unique: true }),
+      orders.createIndex(
+        { customerEmailNormalized: 1, userId: 1, createdAt: -1 },
+        { name: "order_guest_email_user_created" },
+      ),
+      orders.createIndex({ shippingEmail: 1 }, { name: "order_shipping_email_lookup" }),
       orders.createIndex({ shopifyOrderId: 1 }, { name: "order_shopify_id_lookup", sparse: true }),
       orders.createIndex({ userId: 1, createdAt: -1 }, { name: "order_user_created_desc" }),
       orders.createIndex({ userId: 1, couponCode: 1, status: 1 }, { name: "order_user_coupon_status_lookup" }),
@@ -838,6 +847,7 @@ export async function upsertGoogleAccount(input: {
     {
       $set: {
         email,
+        emailVerified: true,
         fullName: input.fullName,
         avatarUrl: input.avatarUrl ?? "",
         googleSub: input.googleSub,
@@ -1144,12 +1154,113 @@ export async function getAccountSnapshotBySessionToken(token: string): Promise<A
     return null;
   }
 
+  try {
+    const syncResult = await syncGuestOrdersWithUser(session.userId.toHexString());
+    if (syncResult.linkedCount > 0) {
+      console.info("Linked verified guest orders to account", {
+        userId: session.userId.toHexString(),
+        linkedCount: syncResult.linkedCount,
+      });
+    }
+  } catch (error) {
+    console.error("Guest order synchronization failed while loading account", {
+      userId: session.userId.toHexString(),
+      message: error instanceof Error ? error.message : "Unknown synchronization error",
+    });
+  }
+
   const mappedOrders = await listOrdersForUserId(orders, session.userId);
 
   return {
     profile: mapProfile(user),
     orders: mappedOrders,
   };
+}
+
+export async function syncGuestOrdersWithUser(userId: string) {
+  if (!ObjectId.isValid(userId)) {
+    return { linkedCount: 0, skippedUnverified: true };
+  }
+
+  const { users, orders } = await getCollections();
+  const accountId = new ObjectId(userId);
+  const user = await users.findOne({ _id: accountId });
+  const email = normalizeEmail(user?.email ?? "");
+  const isVerifiedEmail = user?.emailVerified === true;
+
+  if (!user || !isVerifiedEmail || !email || isSyntheticMobilePlaceholderEmail(email)) {
+    return { linkedCount: 0, skippedUnverified: true };
+  }
+
+  const normalizedEmailPattern = `^${escapeRegex(email)}$`;
+  const guestOrders = await orders
+    .find({
+      $and: [
+        {
+          $or: [
+            { customerEmailNormalized: email },
+            { shippingEmail: { $regex: normalizedEmailPattern, $options: "i" } },
+          ],
+        },
+        {
+          $or: [
+            { userId: { $exists: false } },
+            { events: { $elemMatch: { note: "Guest checkout order created" } } },
+          ],
+        },
+      ],
+    })
+    .toArray();
+
+  let linkedCount = 0;
+
+  for (const order of guestOrders) {
+    if (order.userId?.equals(accountId)) {
+      continue;
+    }
+
+    if (order.userId) {
+      const existingOwner = await users.findOne({ _id: order.userId }, { projection: { _id: 1 } });
+      if (existingOwner) {
+        continue;
+      }
+
+      const isLegacyGuestOrder = order.events?.some(
+        (event) => event.note === "Guest checkout order created",
+      );
+      if (!isLegacyGuestOrder) {
+        continue;
+      }
+    }
+
+    const ownershipFilter = order.userId
+      ? {
+          userId: order.userId,
+          events: { $elemMatch: { note: "Guest checkout order created" } },
+        }
+      : { userId: { $exists: false } };
+    const result = await orders.updateOne(
+      {
+        _id: order._id,
+        ...ownershipFilter,
+        $or: [
+          { customerEmailNormalized: email },
+          { shippingEmail: { $regex: normalizedEmailPattern, $options: "i" } },
+        ],
+      },
+      {
+        $set: {
+          userId: accountId,
+          customerEmailNormalized: email,
+          updatedAt: new Date(),
+        },
+      },
+    );
+
+    linkedCount += result.modifiedCount;
+  }
+
+  return { linkedCount, skippedUnverified: false };
 }
 
 export async function getAccountSessionIdentityByToken(token: string): Promise<{ userId: string; email?: string } | null> {
@@ -1199,7 +1310,12 @@ export async function getOrderForSessionOrAccessToken(input: {
   if (input.sessionToken) {
     const session = await sessions.findOne({ tokenHash: hashSessionToken(input.sessionToken) });
 
-    if (session && session.expiresAt.getTime() > Date.now() && session.userId.equals(orderDocument.userId)) {
+    if (
+      session &&
+      session.expiresAt.getTime() > Date.now() &&
+      orderDocument.userId &&
+      session.userId.equals(orderDocument.userId)
+    ) {
       return mapOrder(orderDocument);
     }
   }
@@ -1246,6 +1362,11 @@ export async function updateAccountProfileBySessionToken(
   const normalizedEmail = updates.email ? normalizeEmail(updates.email) : "";
   const rawPhone = updates.phone?.trim() ?? "";
   const normalizedPhone = rawPhone ? normalizePhoneNumber(rawPhone) : "";
+  const currentUser = await users.findOne({ _id: session.userId });
+
+  if (!currentUser) {
+    return null;
+  }
 
   if (rawPhone && (!normalizedPhone || !isSupportedMobileNumber(normalizedPhone))) {
     throw new Error("PHONE_INVALID");
@@ -1269,6 +1390,7 @@ export async function updateAccountProfileBySessionToken(
           city: updates.city,
           state: updates.state,
           pinCode: updates.pinCode,
+          ...(normalizedEmail !== normalizeEmail(currentUser.email ?? "") ? { emailVerified: false } : {}),
           updatedAt: new Date(),
         },
       },
@@ -1385,7 +1507,6 @@ export async function createGuestOrder(input: {
   shippingCountry?: string;
 }) {
   const { orders } = await getCollections();
-  const userId = new ObjectId();
   const now = new Date();
   const isOnlinePayment = (input.paymentMethod ?? "online") === "online";
   const initialEvents = [
@@ -1397,7 +1518,6 @@ export async function createGuestOrder(input: {
     { orderId: input.orderId },
     {
       $set: {
-        userId,
         totalAmount: input.totalAmount,
         subtotalAmount: input.subtotalAmount,
         shippingFee: input.shippingFee,
@@ -1419,6 +1539,9 @@ export async function createGuestOrder(input: {
         fulfillmentStatus: "unfulfilled",
         shippingName: input.shippingName,
         shippingEmail: input.shippingEmail,
+        ...(input.shippingEmail?.trim()
+          ? { customerEmailNormalized: normalizeEmail(input.shippingEmail) }
+          : {}),
         shippingPhone: input.shippingPhone,
         shippingAddress: input.shippingAddress,
         shippingCity: input.shippingCity,
@@ -1440,7 +1563,6 @@ export async function createGuestOrder(input: {
   if (document) {
     await recordInventoryMovementByOrderId({
       orderId: input.orderId,
-      userId,
       type: "reserved",
       items: input.items,
       note: "Inventory reserved at checkout",
@@ -1497,6 +1619,9 @@ export async function createPendingOrderForSessionToken(
     {
       $set: {
         userId: session.userId,
+        ...(input.shippingEmail?.trim()
+          ? { customerEmailNormalized: normalizeEmail(input.shippingEmail) }
+          : {}),
         totalAmount: input.totalAmount,
         subtotalAmount: input.subtotalAmount,
         shippingFee: input.shippingFee,
@@ -1600,7 +1725,7 @@ export async function updateInventorySyncStatusByOrderId(
 
 export async function recordInventoryMovementByOrderId(input: {
   orderId: string;
-  userId: ObjectId;
+  userId?: ObjectId;
   type: "reserved" | "committed" | "released" | "refunded";
   items: AccountOrderItem[];
   note?: string;
@@ -1613,12 +1738,13 @@ export async function recordInventoryMovementByOrderId(input: {
     {
       $set: {
         orderId: input.orderId,
-        userId: input.userId,
+        ...(input.userId ? { userId: input.userId } : {}),
         type: input.type,
         items: input.items,
         note: input.note,
         createdAt: now,
       },
+      ...(input.userId ? {} : { $unset: { userId: "" } }),
     },
     { upsert: true },
   );
@@ -1842,6 +1968,9 @@ export async function syncCustomerAndShippingDetailsByOrderId(orderId: string, i
       nextValues[field] = normalized;
     }
   }
+  if (input.shippingEmail?.trim()) {
+    nextValues.customerEmailNormalized = normalizeEmail(input.shippingEmail);
+  }
 
   if (Object.keys(nextValues).length <= 1) {
     return mapOrder(existing);
@@ -2046,7 +2175,9 @@ export async function findOrderWithCustomerByOrderId(orderId: string): Promise<A
     return null;
   }
 
-  const customer = await users.findOne({ _id: orderDocument.userId });
+  const customer = orderDocument.userId
+    ? await users.findOne({ _id: orderDocument.userId })
+    : null;
 
   return {
     order: mapOrder(orderDocument),
@@ -2075,7 +2206,9 @@ export async function findOrderWithCustomerByPaymentId(paymentId: string): Promi
     return null;
   }
 
-  const customer = await users.findOne({ _id: orderDocument.userId });
+  const customer = orderDocument.userId
+    ? await users.findOne({ _id: orderDocument.userId })
+    : null;
 
   return {
     order: mapOrder(orderDocument),
@@ -2094,7 +2227,7 @@ export async function listOrdersForAdmin(limit = 100) {
   const { users, orders } = await getCollections();
   const documents = await orders.find({}, { sort: { createdAt: -1 }, limit: Math.min(Math.max(1, limit), 500) }).toArray();
 
-  const userIds = Array.from(new Set(documents.map((document) => document.userId.toHexString()))).map(
+  const userIds = Array.from(new Set(documents.flatMap((document) => document.userId?.toHexString() ?? []))).map(
     (id) => new ObjectId(id),
   );
   const usersById = new Map(
@@ -2103,7 +2236,7 @@ export async function listOrdersForAdmin(limit = 100) {
 
   return documents.map((document) => {
     const mapped = mapOrder(document);
-    const customer = usersById.get(document.userId.toHexString());
+    const customer = document.userId ? usersById.get(document.userId.toHexString()) : null;
 
     return {
       ...mapped,
