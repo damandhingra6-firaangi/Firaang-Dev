@@ -34,6 +34,21 @@ function isOptimizableSource(source: string) {
   }
 }
 
+function isInstagramCdnSource(source: string) {
+  try {
+    const url = new URL(source);
+    const hostname = url.hostname.toLowerCase();
+    return (
+      url.protocol === "https:" &&
+      (hostname.endsWith(".cdninstagram.com") ||
+        hostname.endsWith(".fbcdn.net") ||
+        hostname === "lookaside.fbsbx.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default function SafeImage({
   src,
   alt,
@@ -86,6 +101,7 @@ export default function SafeImage({
       {...commonProps}
       src={resolvedSrc}
       loader={isShopifyCdnImage(resolvedSrc) ? shopifyImageLoader : undefined}
+      unoptimized={isInstagramCdnSource(resolvedSrc)}
       sizes={sizes ?? "(max-width: 768px) 100vw, 50vw"}
     />
   );

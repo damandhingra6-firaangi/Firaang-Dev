@@ -494,7 +494,7 @@ export async function POST(request: Request) {
       status: "paid",
       order: responseOrder,
       meta: {
-        accountLinked: responseOrder !== null,
+        accountLinked: Boolean(sessionToken && savedOrder),
       },
     });
 

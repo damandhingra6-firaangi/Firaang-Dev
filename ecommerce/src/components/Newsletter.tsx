@@ -31,6 +31,7 @@ type NewsletterProps = {
 };
 
 const INSTAGRAM_FEED_STORAGE_KEY = "firaang.instagram-feed.v1";
+const INSTAGRAM_FEED_CACHE_MAX_AGE_MS = 60 * 60 * 1000;
 
 function getTopInstagramShowcaseItems(items: InstagramShowcaseItem[]) {
   return [...items]
@@ -144,8 +145,20 @@ function getCachedInstagramShowcaseItems() {
       return [];
     }
 
+    const cacheEntry: unknown = JSON.parse(cached);
+    if (
+      !cacheEntry ||
+      typeof cacheEntry !== "object" ||
+      !("cachedAt" in cacheEntry) ||
+      typeof cacheEntry.cachedAt !== "number" ||
+      Date.now() - cacheEntry.cachedAt > INSTAGRAM_FEED_CACHE_MAX_AGE_MS ||
+      cacheEntry.cachedAt > Date.now()
+    ) {
+      return [];
+    }
+
     return getTopInstagramShowcaseItems(
-      parseInstagramShowcaseItems(JSON.parse(cached)).filter((item) => item.isInstagramMedia),
+      parseInstagramShowcaseItems(cacheEntry).filter((item) => item.isInstagramMedia),
     );
   } catch (error) {
     console.warn("Unable to read cached Instagram feed", {
@@ -157,7 +170,10 @@ function getCachedInstagramShowcaseItems() {
 
 function cacheInstagramShowcaseItems(items: InstagramShowcaseItem[]) {
   try {
-    localStorage.setItem(INSTAGRAM_FEED_STORAGE_KEY, JSON.stringify({ items: getTopInstagramShowcaseItems(items) }));
+    localStorage.setItem(
+      INSTAGRAM_FEED_STORAGE_KEY,
+      JSON.stringify({ cachedAt: Date.now(), items: getTopInstagramShowcaseItems(items) }),
+    );
   } catch (error) {
     console.warn("Unable to cache Instagram feed", {
       error: error instanceof Error ? error.message : String(error),
